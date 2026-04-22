@@ -1,38 +1,47 @@
 # AGENTS.md
 
-## Scope and Current State
-- This repository is currently a minimal scaffold: `.gitignore`, `.idea/`, and `sub.iml` only.
-- There are no application source files, package manifests, or test suites yet.
-- Treat this as a bootstrap workspace; start each task by discovering what has been added since this file was written.
+## Project Goal
+Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for helping with hour booking in SAP My Timesheet. Built with TypeScript + Vite + `@crxjs/vite-plugin`.
 
-## Ground Truth Files to Check First
-- `sub.iml`: IntelliJ module is `type="GENERAL_MODULE"` with `content url="file://$MODULE_DIR$"`.
-- `.gitignore`: includes sections for `macOS`, `JetBrains`, and `Node` artifacts.
-- `.git/config`: local git config only; no remotes are configured in this snapshot.
+## Architecture (Current)
+- `src/popup/`: extension UI (`popup.html`, `popup.ts`, `popup.css`) triggers page analysis.
+- `src/content/content-script.ts`: runs on SAP My Timesheet and contains DOM scrape/autofill logic.
+- `src/background/service-worker.ts`: minimal MV3 lifecycle entry point.
+- `src/shared/types.ts`: shared message and domain types (`HoursEntry`, `MessageRequest`, `MessageResponse`).
+- `src/shared/storage.ts`: typed helpers around `chrome.storage.local`.
 
-## Architecture Guidance (As-Found)
-- No service boundaries or runtime architecture are defined yet.
-- Default assumption: single-module project rooted at repository top-level.
-- If new components appear, document boundaries in this file with concrete path examples.
+## Project Boundaries
+- The extension runs locally in the browser as a standard MV3 extension.
+- Cross-component communication goes through typed messages from `src/shared/types.ts`.
+- Keep runtime behavior focused on SAP My Timesheet analysis and autofill support.
 
-## Developer Workflow (Discovery-First)
-- Before editing, re-scan root files and detect newly added manifests (`package.json`, `pyproject.toml`, `pom.xml`, etc.).
-- Choose commands from discovered tooling, not from generic defaults.
-- If no build/test tooling exists, avoid inventing complex scaffolding unless explicitly requested.
+## URL Targeting
+- Canonical SAP URL:
+  - `https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet`
+- Content script match pattern in `manifest.json` (host/path only; hash fragments are not supported by MV3 match patterns):
+  - `https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site*`
+- If SAP routing changes, update `manifest.json` `content_scripts.matches` first.
 
-## Conventions Inferred From Repo
-- Keep OS/editor noise out of commits (matches `.gitignore` entries like `.DS_Store`, `.idea/`, `*.iml`).
-- Node-related ignores (`node_modules/`, `dist/`, `.next`, `.nuxt`, `*.tsbuildinfo`) suggest JS/TS work is expected when code is added.
-- JetBrains metadata is present; prefer project-root-relative paths that work in IntelliJ.
+## Developer Workflow
+| Task | Command |
+|------|---------|
+| Dev (HMR) | `npm run dev` |
+| Build | `npm run build` |
+| Test | `npm test` |
+| Test (watch) | `npm run test:watch` |
+| Coverage | `npm run test:coverage` |
+| Package zip | `npm run package` |
 
-## Integration and Dependency Notes
-- No external services, APIs, or package dependencies are declared yet.
-- Treat all integration points as undefined until manifests/configs are added.
-- When introducing an integration, add its setup/usage location to this file.
+## Conventions to Follow
+- Add new message kinds to `MessageType` before using them in popup/content scripts.
+- Keep DOM selectors in `content-script.ts` SAP-specific and evidence-based (no generic placeholders once known).
+- Keep popup text and manifest metadata branded as `sub`.
+- Keep tests next to source as `*.test.ts` (Vitest + jsdom via `vite.config.ts`).
 
-## Agent Operating Rules for This Repo
-- Be explicit about what is confirmed vs. assumed from current files.
-- When proposing structure, keep it minimal and aligned with discovered tooling.
-- Update `AGENTS.md` whenever architecture, workflows, or conventions become concrete.
-- Prefer evidence-backed instructions (path + observable pattern), not aspirational guidance.
+## Maintenance Notes
+- Update this file when architecture, workflow, or SAP-specific targeting changes.
+- Prefer repository-specific instructions over generic advice.
 
+## Active TODO Surface
+- Map real SAP My Timesheet selectors in `src/content/content-script.ts` for scraping and autofill.
+- Add/adjust tests when selector logic becomes concrete.

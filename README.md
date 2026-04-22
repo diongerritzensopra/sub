@@ -1,18 +1,34 @@
-**Doel:**
-Een browser extension maken voor Chromium based browsers m.b.v. generative AI voor het makkelijker boeken van je uren.
+# sub
 
-**Voorbereiding:**
-- Uitzoeken welke (Gen)AI-tools er door Sopra beschikbaar worden gesteld/toegestaan
-- Werkplek dusdanig inrichten dat ik gebruik kan maken van hiervoor genoemde tools
-- Bekend worden met de GenAI tools
-- Evt. Bitbucket(?) aanvragen/opzetten
+`sub` stands for **snel uren boeken**: a Chromium browser extension for supporting hour booking in **SAP My Timesheet**.
 
-**Uitvoering:**
-- Bepaal de requirements door met AI sparren over ideeën voor het makkelijker maken van het uren boeken.
-- Baken de scope af en verdeel de werkzaamheden in losse taken.
-- Werk de taken af:
-    - Code wordt in de basis gegenereerd door GenAI op basis van de taakbeschrijving. Hierna gaat er een handmatige review overheen om te controleren op (o.a.) juistheid, consistente codestijl, leesbaarheid en onderhoudbaarheid. Eventuele correcties kunnen opnieuw worden gegenereerd of handmatig worden toegepast.
-    - Unit tests en documentatie worden ook gegenereerd op basis van de (gereviewde) code. Deze worden ook handmatig gereviewed zoals bij de code.
+## Goal
+- Analyze and fill in hours more quickly from the SAP My Timesheet page.
 
-**Nice to have:**
-- CI/CD voor testen, builden en packagen
+## Current scope
+- Popup to analyze the active SAP page.
+- Content script with the initial scraping/autofill structure.
+- MV3 service worker as the lifecycle entry point.
+
+## Target URL
+- Full URL:
+  - `https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet`
+- In `manifest.json`, only the host/path can be matched (no `#fragment`), so this pattern is used:
+  - `https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site*`
+
+## Development workflow
+```bash
+npm install
+npm run dev
+npm run build
+npm test
+```
+
+## Manual testing in Chrome
+1. Open `chrome://extensions`
+2. Enable **Developer mode**
+3. Choose **Load unpacked**
+4. Select the `dist/` folder
+
+## TODO
+- Map the real SAP My Timesheet selectors in `src/content/content-script.ts` for actual scraping/autofill.
