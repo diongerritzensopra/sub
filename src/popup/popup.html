@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>sub</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>sub</h1>
+      </header>
+
+      <main>
+        <section id="status-section">
+          <p id="status-message">Klik op "Analyseer pagina" om te beginnen.</p>
+        </section>
+
+        <section id="entries-section" hidden>
+          <h2>Gevonden uren</h2>
+          <ul id="entries-list"></ul>
+        </section>
+      </main>
+
+      <footer>
+        <button id="btn-scrape" type="button">Analyseer pagina</button>
+      </footer>
+    </div>
+
+    <script type="module" src="popup.ts"></script>
+  </body>
+</html>
+
