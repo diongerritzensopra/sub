@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "sub",
+  "version": "0.1.0",
+  "description": "snel uren boeken voor SAP My Timesheet.",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "background": {
+    "service_worker": "src/background/service-worker.ts",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "sub"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site*"],
+      "js": ["src/content/content-script.ts"],
+      "run_at": "document_idle"
+    }
+  ]
+}
