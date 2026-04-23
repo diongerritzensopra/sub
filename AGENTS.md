@@ -35,7 +35,7 @@ Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for he
 ## Agent Execution Rules
 - Every executed step that generates or edits code/files MUST be committed to git immediately after the step.
 - Commit messages for generated changes MUST start with `[AI]`.
-- The commit message body MUST include (1) the step that was executed and (2) the prompt that triggered the step (paraphrasing is allowed when intent is preserved).
+- The commit message body MUST include both a `Prompt summary` and a `Step executed` summary; order them as prompt first, then step, with one blank line between them (paraphrasing is allowed when intent is preserved).
 - After each generation/edit step, provide a brief summary of produced changes, including any class, function, or config file created/edited.
 
 ## Conventions to Follow
