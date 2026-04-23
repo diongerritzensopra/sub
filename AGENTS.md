@@ -32,6 +32,12 @@ Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for he
 | Coverage | `npm run test:coverage` |
 | Package zip | `npm run package` |
 
+## Agent Execution Rules
+- Every executed step that generates or edits code/files MUST be committed to git immediately after the step.
+- Commit messages for generated changes MUST start with `[AI]`.
+- The commit message body MUST describe the step that was executed.
+- After each generation/edit step, provide a brief summary of produced changes, including any class, function, or config file created/edited.
+
 ## Conventions to Follow
 - Add new message kinds to `MessageType` before using them in popup/content scripts.
 - Keep DOM selectors in `content-script.ts` SAP-specific and evidence-based (no generic placeholders once known).
