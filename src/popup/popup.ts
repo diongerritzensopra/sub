@@ -2,12 +2,16 @@
  * Popup script — handles UI interactions for scraping hours from SAP My Timesheet.
  */
 
-import type { HoursEntry, MessageRequest, MessageResponse } from '../shared/types';
+import type { MessageRequest, MessageResponse, TimesheetSnapshot } from '../shared/types';
 
 const btnScrape = document.getElementById('btn-scrape') as HTMLButtonElement;
 const statusMessage = document.getElementById('status-message') as HTMLParagraphElement;
-const entriesSection = document.getElementById('entries-section') as HTMLElement;
-const entriesList = document.getElementById('entries-list') as HTMLUListElement;
+const summarySection = document.getElementById('summary-section') as HTMLElement;
+const periodValue = document.getElementById('period-value') as HTMLSpanElement;
+const projectCodesValue = document.getElementById('project-codes-value') as HTMLSpanElement;
+const workedHoursValue = document.getElementById('worked-hours-value') as HTMLSpanElement;
+const absentHoursValue = document.getElementById('absent-hours-value') as HTMLSpanElement;
+const toBePerformedHoursValue = document.getElementById('to-be-performed-hours-value') as HTMLSpanElement;
 
 btnScrape.addEventListener('click', async () => {
   setStatus('Pagina analyseren...');
@@ -18,14 +22,14 @@ btnScrape.addEventListener('click', async () => {
     if (!tab.id) throw new Error('Geen actief tabblad gevonden.');
 
     const response = await chrome.tabs.sendMessage<MessageRequest, MessageResponse>(tab.id, {
-      type: 'SCRAPE_ENTRIES',
+      type: 'SCRAPE_TIMESHEET_SUMMARY',
     });
 
     if (!response.success) throw new Error(response.error ?? 'Onbekende fout.');
 
-    const scrapedEntries = response.data as HoursEntry[];
-    renderEntries(scrapedEntries);
-    setStatus(scrapedEntries.length === 0 ? 'Geen uren gevonden op deze pagina.' : `${scrapedEntries.length} uur-regel(s) gevonden.`);
+    const snapshot = response.data as TimesheetSnapshot;
+    renderSnapshot(snapshot);
+    setStatus('Timesheet gegevens opgehaald.');
   } catch (err) {
     setStatus(`Fout: ${(err as Error).message}`);
   } finally {
@@ -33,14 +37,21 @@ btnScrape.addEventListener('click', async () => {
   }
 });
 
-function renderEntries(entries: HoursEntry[]): void {
-  entriesList.innerHTML = '';
-  entries.forEach((entry) => {
-    const li = document.createElement('li');
-    li.textContent = `${entry.date} - ${entry.project} / ${entry.activity}: ${entry.hours}u`;
-    entriesList.appendChild(li);
-  });
-  entriesSection.hidden = entries.length === 0;
+function renderSnapshot(snapshot: TimesheetSnapshot): void {
+  periodValue.textContent = snapshot.month && snapshot.year ? `${snapshot.month}/${snapshot.year}` : '-';
+  projectCodesValue.textContent = snapshot.projectCodes.length > 0 ? snapshot.projectCodes.join(', ') : '-';
+  workedHoursValue.textContent = formatHours(snapshot.totals.worked);
+  absentHoursValue.textContent = formatHours(snapshot.totals.absent);
+  toBePerformedHoursValue.textContent = formatHours(snapshot.totals.toBePerformed);
+  summarySection.hidden = false;
+}
+
+function formatHours(value: number | null): string {
+  if (value === null) {
+    return '-';
+  }
+
+  return `${value.toString().replace('.', ',')} u`;
 }
 
 function setStatus(message: string): void {

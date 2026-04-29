@@ -47,27 +47,18 @@ h2 {
   margin-bottom: 6px;
 }
 
-#entries-list {
+#summary-list {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
-#entries-list li {
+#summary-list li {
   background: #f5f5f5;
   border-radius: 4px;
   padding: 6px 10px;
   font-size: 13px;
-}
-
-#suggestion-content {
-  background: #e8f0fe;
-  border-left: 3px solid #1a73e8;
-  border-radius: 4px;
-  padding: 8px 12px;
-  font-size: 13px;
-  white-space: pre-wrap;
 }
 
 footer {
@@ -101,13 +92,3 @@ button:disabled {
 #btn-scrape:hover:not(:disabled) {
   background: #1558b0;
 }
-
-#btn-suggest {
-  background: #34a853;
-  color: #fff;
-}
-
-#btn-suggest:hover:not(:disabled) {
-  background: #277c3e;
-}
-
