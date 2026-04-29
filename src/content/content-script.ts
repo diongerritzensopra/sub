@@ -16,7 +16,6 @@ const SAP_SELECTORS = {
   totalPanelRows: '.sapUiFormElementLbl',
 };
 
-const PROJECT_CODE_PATTERN = /\b[A-Z][A-Z0-9._-]{2,20}\b/g;
 const PERIOD_FROM_ROUTE_PATTERN = /(?:\/|#)(\d{1,2})\/(\d{4})(?:\/project\/|\b)/i;
 
 const MONTH_NAME_TO_NUMBER: Record<string, number> = {
@@ -41,7 +40,7 @@ export function scrapeTimesheetSnapshot(rootDocument: Document = document): Time
   return {
     month: period.month,
     year: period.year,
-    projectCodes: extractProjectCodes(timesheetDocument, rootDocument),
+    projectCodes: extractProjectCodes(timesheetDocument),
     totals: {
       worked: extractTotalsHours(timesheetDocument, [/number\s+of\s+hours\s+worked/i, /hours\s+worked/i]),
       absent: extractTotalsHours(timesheetDocument, [/number\s+of\s+hours\s+absent/i, /hours\s+absent/i]),
@@ -150,16 +149,12 @@ function extractPeriodFromText(text: string): { month: number; year: number } | 
   return null;
 }
 
-function extractProjectCodes(timesheetDocument: Document, rootDocument: Document): string[] {
+function extractProjectCodes(timesheetDocument: Document): string[] {
   const codes = new Set<string>();
 
-  const routeFrame = rootDocument.querySelector<HTMLIFrameElement>('#__container1, iframe[data-sap-ushell-active="true"]');
-  const routeSrc = routeFrame?.getAttribute('src') ?? '';
-  const routeCodeMatch = routeSrc.match(/\/project\/([A-Z0-9._-]{2,20})/i);
-  if (routeCodeMatch) {
-    codes.add(routeCodeMatch[1].toUpperCase());
-  }
-
+  // Project codes are exclusively found in the navigation tree links.
+  // Each link's title attribute starts with the project code followed by a dash,
+  // e.g. "C0007012.1.1 - Politie DPC - Signalen".
   const projectLinks = timesheetDocument.querySelectorAll<HTMLAnchorElement>(SAP_SELECTORS.projectCodesTree);
   projectLinks.forEach((link) => {
     const title = link.getAttribute('title') ?? '';
@@ -167,26 +162,6 @@ function extractProjectCodes(timesheetDocument: Document, rootDocument: Document
     if (leadingCode?.[1]) {
       codes.add(leadingCode[1].toUpperCase());
     }
-  });
-
-  const projectCandidateElements = timesheetDocument.querySelectorAll<HTMLElement>(
-    'option, [role="option"], [data-project], [data-project-code], input[value], button[value]'
-  );
-
-  projectCandidateElements.forEach((element) => {
-    const candidateText = [
-      element.getAttribute('value') ?? '',
-      element.getAttribute('data-project') ?? '',
-      element.getAttribute('data-project-code') ?? '',
-      element.textContent ?? '',
-    ].join(' ');
-
-    const matches = candidateText.toUpperCase().match(PROJECT_CODE_PATTERN) ?? [];
-    matches.forEach((match) => {
-      if (match !== 'SAP' && match !== 'UI5') {
-        codes.add(match);
-      }
-    });
   });
 
   return Array.from(codes).sort();

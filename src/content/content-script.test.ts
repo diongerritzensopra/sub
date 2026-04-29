@@ -11,7 +11,7 @@ globalThis.chrome = {
 const { scrapeTimesheetSnapshot } = await import('./content-script');
 
 describe('scrapeTimesheetSnapshot', () => {
-  it('extracts month/year when SAP iframe route has no project segment', () => {
+  it('extracts month/year from iframe route with no project segment', () => {
     document.body.innerHTML = `
       <iframe
         id="__container1"
@@ -26,7 +26,7 @@ describe('scrapeTimesheetSnapshot', () => {
     expect(snapshot.projectCodes).toEqual([]);
   });
 
-  it('extracts month/year and selected project code from SAP iframe route', () => {
+  it('extracts month/year from iframe route with project segment', () => {
     document.body.innerHTML = `
       <iframe
         id="__container1"
@@ -38,23 +38,19 @@ describe('scrapeTimesheetSnapshot', () => {
 
     expect(snapshot.month).toBe(4);
     expect(snapshot.year).toBe(2026);
-    expect(snapshot.projectCodes).toContain('ZSST');
+    // Route is no longer a source of project codes; navigation tree is authoritative
+    expect(snapshot.projectCodes).toEqual([]);
   });
 
-  it('extracts project codes and hours totals from visible page labels', () => {
+  it('extracts hours totals from visible page labels', () => {
     document.body.innerHTML = `
       <div>Hours worked</div><div>134.5</div>
       <div>Hours absent</div><div>8</div>
       <div>Hours to be performed</div><div>160</div>
-      <select>
-        <option value="PRJ001">PRJ001</option>
-        <option value="ABC42">ABC42</option>
-      </select>
     `;
 
     const snapshot = scrapeTimesheetSnapshot(document);
 
-    expect(snapshot.projectCodes).toEqual(['ABC42', 'PRJ001']);
     expect(snapshot.totals.worked).toBe(134.5);
     expect(snapshot.totals.absent).toBe(8);
     expect(snapshot.totals.toBePerformed).toBe(160);
@@ -101,6 +97,7 @@ describe('scrapeTimesheetSnapshot', () => {
     expect(snapshot.totals.toBePerformed).toBeNull();
   });
 });
+
 
 
 
