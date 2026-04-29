@@ -8,8 +8,16 @@
 
 import type { HoursEntry, TimesheetSnapshot } from '../shared/types';
 
-const PROJECT_CODE_PATTERN = /\b[A-Z][A-Z0-9]{2,15}\b/g;
-const PERIOD_FROM_ROUTE_PATTERN = /(\/|#)(\d{1,2})\/(\d{4})\/project\//i;
+const SAP_SELECTORS = {
+  monthButton: '#application-timesheet-my-component---idMaster--idSimpleCalendarHeader--Head-B1',
+  yearButton: '#application-timesheet-my-component---idMaster--idSimpleCalendarHeader--Head-B2',
+  projectCodesTree: '#application-timesheet-my-component---idMaster--idNavigationProjectCodes-subtree a[title]',
+  totalPanelTitle: 'h5.sapUiFormTitle',
+  totalPanelRows: '.sapUiFormElementLbl',
+};
+
+const PROJECT_CODE_PATTERN = /\b[A-Z][A-Z0-9._-]{2,20}\b/g;
+const PERIOD_FROM_ROUTE_PATTERN = /(?:\/|#)(\d{1,2})\/(\d{4})\/project\//i;
 
 const MONTH_NAME_TO_NUMBER: Record<string, number> = {
   january: 1,
@@ -35,9 +43,9 @@ export function scrapeTimesheetSnapshot(rootDocument: Document = document): Time
     year: period.year,
     projectCodes: extractProjectCodes(timesheetDocument, rootDocument),
     totals: {
-      worked: extractLabeledHours(timesheetDocument, [/hours\s*worked/i, /worked\s*hours/i]),
-      absent: extractLabeledHours(timesheetDocument, [/hours\s*absent/i, /absent\s*hours/i]),
-      toBePerformed: extractLabeledHours(timesheetDocument, [/hours\s*to\s*be\s*performed/i, /to\s*be\s*performed/i]),
+      worked: extractTotalsHours(timesheetDocument, [/number\s+of\s+hours\s+worked/i, /hours\s+worked/i]),
+      absent: extractTotalsHours(timesheetDocument, [/number\s+of\s+hours\s+absent/i, /hours\s+absent/i]),
+      toBePerformed: extractTotalsHours(timesheetDocument, [/hours\s+to\s+be\s+performed/i, /to\s+be\s+performed/i]),
     },
   };
 }
@@ -49,7 +57,6 @@ function resolveTimesheetDocument(rootDocument: Document): Document {
   }
 
   try {
-    // Access may fail if SAP changes iframe origin.
     void frame.contentDocument.body;
     return frame.contentDocument;
   } catch {
@@ -58,6 +65,11 @@ function resolveTimesheetDocument(rootDocument: Document): Document {
 }
 
 function extractPeriod(timesheetDocument: Document, rootDocument: Document): { month: number | null; year: number | null } {
+  const selectorPeriod = extractPeriodFromSelectors(timesheetDocument);
+  if (selectorPeriod) {
+    return selectorPeriod;
+  }
+
   const routePeriod = extractPeriodFromIframeRoute(rootDocument);
   if (routePeriod) {
     return routePeriod;
@@ -71,6 +83,35 @@ function extractPeriod(timesheetDocument: Document, rootDocument: Document): { m
   return { month: null, year: null };
 }
 
+function extractPeriodFromSelectors(timesheetDocument: Document): { month: number; year: number } | null {
+  const monthText = normalizeWhitespace(timesheetDocument.querySelector<HTMLElement>(SAP_SELECTORS.monthButton)?.textContent ?? '');
+  const yearText = normalizeWhitespace(timesheetDocument.querySelector<HTMLElement>(SAP_SELECTORS.yearButton)?.textContent ?? '');
+
+  const month = monthFromText(monthText);
+  const yearMatch = yearText.match(/\b(20\d{2})\b/);
+  const year = yearMatch ? Number.parseInt(yearMatch[1], 10) : Number.NaN;
+
+  if (month !== null && !Number.isNaN(year)) {
+    return { month, year };
+  }
+
+  return null;
+}
+
+function monthFromText(text: string): number | null {
+  const lower = text.toLowerCase();
+  if (MONTH_NAME_TO_NUMBER[lower]) {
+    return MONTH_NAME_TO_NUMBER[lower];
+  }
+
+  const numericMatch = lower.match(/\b(1[0-2]|0?[1-9])\b/);
+  if (!numericMatch) {
+    return null;
+  }
+
+  return Number.parseInt(numericMatch[1], 10);
+}
+
 function extractPeriodFromIframeRoute(rootDocument: Document): { month: number; year: number } | null {
   const frame = rootDocument.querySelector<HTMLIFrameElement>('#__container1, iframe[data-sap-ushell-active="true"]');
   const src = frame?.getAttribute('src') ?? '';
@@ -80,8 +121,8 @@ function extractPeriodFromIframeRoute(rootDocument: Document): { month: number; 
     return null;
   }
 
-  const month = Number.parseInt(match[2], 10);
-  const year = Number.parseInt(match[3], 10);
+  const month = Number.parseInt(match[1], 10);
+  const year = Number.parseInt(match[2], 10);
 
   if (!Number.isNaN(month) && month >= 1 && month <= 12 && !Number.isNaN(year)) {
     return { month, year };
@@ -112,12 +153,21 @@ function extractPeriodFromText(text: string): { month: number; year: number } | 
 function extractProjectCodes(timesheetDocument: Document, rootDocument: Document): string[] {
   const codes = new Set<string>();
 
-  const periodRouteFrame = rootDocument.querySelector<HTMLIFrameElement>('#__container1, iframe[data-sap-ushell-active="true"]');
-  const routeSrc = periodRouteFrame?.getAttribute('src') ?? '';
-  const routeCodeMatch = routeSrc.match(/\/project\/([A-Z0-9_-]{2,20})/i);
+  const routeFrame = rootDocument.querySelector<HTMLIFrameElement>('#__container1, iframe[data-sap-ushell-active="true"]');
+  const routeSrc = routeFrame?.getAttribute('src') ?? '';
+  const routeCodeMatch = routeSrc.match(/\/project\/([A-Z0-9._-]{2,20})/i);
   if (routeCodeMatch) {
     codes.add(routeCodeMatch[1].toUpperCase());
   }
+
+  const projectLinks = timesheetDocument.querySelectorAll<HTMLAnchorElement>(SAP_SELECTORS.projectCodesTree);
+  projectLinks.forEach((link) => {
+    const title = link.getAttribute('title') ?? '';
+    const leadingCode = title.match(/^\s*([A-Z][A-Z0-9._-]{2,20})\s*-/i);
+    if (leadingCode?.[1]) {
+      codes.add(leadingCode[1].toUpperCase());
+    }
+  });
 
   const projectCandidateElements = timesheetDocument.querySelectorAll<HTMLElement>(
     'option, [role="option"], [data-project], [data-project-code], input[value], button[value]'
@@ -142,6 +192,48 @@ function extractProjectCodes(timesheetDocument: Document, rootDocument: Document
   return Array.from(codes).sort();
 }
 
+function extractTotalsHours(timesheetDocument: Document, labelPatterns: RegExp[]): number | null {
+  const valueFromPanel = extractHoursFromTotalsPanel(timesheetDocument, labelPatterns);
+  if (valueFromPanel !== null) {
+    return valueFromPanel;
+  }
+
+  return extractLabeledHours(timesheetDocument, labelPatterns);
+}
+
+function extractHoursFromTotalsPanel(timesheetDocument: Document, labelPatterns: RegExp[]): number | null {
+  const panelTitles = Array.from(timesheetDocument.querySelectorAll<HTMLElement>(SAP_SELECTORS.totalPanelTitle));
+  const totalPanelTitle = panelTitles.find((title) => /total\s+of\s+the\s+month/i.test(title.textContent ?? ''));
+  if (!totalPanelTitle) {
+    return null;
+  }
+
+  const panelContainer = totalPanelTitle.closest<HTMLElement>('.sapUiRGLContainer');
+  if (!panelContainer) {
+    return null;
+  }
+
+  const labelRows = panelContainer.querySelectorAll<HTMLElement>(SAP_SELECTORS.totalPanelRows);
+  for (const labelRow of labelRows) {
+    const labelText = normalizeWhitespace(labelRow.textContent ?? '');
+    const hasLabel = labelPatterns.some((pattern) => pattern.test(labelText));
+
+    if (!hasLabel) {
+      continue;
+    }
+
+    const valueRow = labelRow.nextElementSibling as HTMLElement | null;
+    const valueText = normalizeWhitespace(valueRow?.textContent ?? '');
+    const parsed = parseHoursNumber(valueText);
+
+    if (parsed !== null) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
 function extractLabeledHours(timesheetDocument: Document, labelPatterns: RegExp[]): number | null {
   const labelNodes = timesheetDocument.querySelectorAll<HTMLElement>('th, td, span, div, label, p');
 
@@ -156,21 +248,20 @@ function extractLabeledHours(timesheetDocument: Document, labelPatterns: RegExp[
       continue;
     }
 
-    const nearbyText = normalizeWhitespace([
-      node.textContent,
-      node.nextElementSibling?.textContent,
-      node.parentElement?.textContent,
-    ].join(' '));
+    const directValue = parseHoursNumber(normalizeWhitespace(node.nextElementSibling?.textContent ?? ''));
+    if (directValue !== null) {
+      return directValue;
+    }
 
-    const parsed = parseHoursNumber(nearbyText);
-    if (parsed !== null) {
-      return parsed;
+    const inlineValue = parseHoursNumber(labelText);
+    if (inlineValue !== null) {
+      return inlineValue;
     }
   }
 
   const pageText = normalizeWhitespace(timesheetDocument.body?.textContent ?? '');
   for (const pattern of labelPatterns) {
-    const fallbackPattern = new RegExp(`${pattern.source}[^0-9-]*(-?\\d+(?:[.,]\\d+)?)`, 'i');
+    const fallbackPattern = new RegExp(`${pattern.source}[^0-9:.,-]*(-?\\d+(?::\\d{2}|[.,]\\d+)?)`, 'i');
     const match = pageText.match(fallbackPattern);
     if (match?.[1]) {
       const parsed = parseHoursNumber(match[1]);
@@ -184,7 +275,17 @@ function extractLabeledHours(timesheetDocument: Document, labelPatterns: RegExp[
 }
 
 function parseHoursNumber(text: string): number | null {
-  const allMatches = text.match(/-?\d+(?:[.,]\d+)?/g);
+  const compact = normalizeWhitespace(text);
+  const colonMatch = compact.match(/(-?\d+):(\d{2})/);
+  if (colonMatch) {
+    const hours = Number.parseInt(colonMatch[1], 10);
+    const minutes = Number.parseInt(colonMatch[2], 10);
+    if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
+      return hours + minutes / 60;
+    }
+  }
+
+  const allMatches = compact.match(/-?\d+(?:[.,]\d+)?/g);
   if (!allMatches || allMatches.length === 0) {
     return null;
   }
@@ -219,3 +320,5 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     sendResponse({ success: true });
   }
 });
+
+
