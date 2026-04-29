@@ -11,6 +11,21 @@ globalThis.chrome = {
 const { scrapeTimesheetSnapshot } = await import('./content-script');
 
 describe('scrapeTimesheetSnapshot', () => {
+  it('extracts month/year when SAP iframe route has no project segment', () => {
+    document.body.innerHTML = `
+      <iframe
+        id="__container1"
+        src="https://example.test/cp.portal/ui5appruntime.html#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/4/2026"
+      ></iframe>
+    `;
+
+    const snapshot = scrapeTimesheetSnapshot(document);
+
+    expect(snapshot.month).toBe(4);
+    expect(snapshot.year).toBe(2026);
+    expect(snapshot.projectCodes).toEqual([]);
+  });
+
   it('extracts month/year and selected project code from SAP iframe route', () => {
     document.body.innerHTML = `
       <iframe
@@ -86,5 +101,6 @@ describe('scrapeTimesheetSnapshot', () => {
     expect(snapshot.totals.toBePerformed).toBeNull();
   });
 });
+
 
 

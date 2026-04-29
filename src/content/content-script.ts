@@ -17,7 +17,7 @@ const SAP_SELECTORS = {
 };
 
 const PROJECT_CODE_PATTERN = /\b[A-Z][A-Z0-9._-]{2,20}\b/g;
-const PERIOD_FROM_ROUTE_PATTERN = /(?:\/|#)(\d{1,2})\/(\d{4})\/project\//i;
+const PERIOD_FROM_ROUTE_PATTERN = /(?:\/|#)(\d{1,2})\/(\d{4})(?:\/project\/|\b)/i;
 
 const MONTH_NAME_TO_NUMBER: Record<string, number> = {
   january: 1,
