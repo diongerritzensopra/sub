@@ -316,3 +316,46 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 });
 
+// Observe SAP's busy indicator to track whether the app is still loading data.
+// The indicator uses id="sapUiBusyIndicator" and is shown/hidden via inline style.
+// We notify the service worker on every visibility change so it can update the icon.
+const SAP_BUSY_INDICATOR_SELECTOR = '#sapUiBusyIndicator';
+
+function isSapBusy(rootDocument: Document = document): boolean {
+  const indicator = rootDocument.querySelector<HTMLElement>(SAP_BUSY_INDICATOR_SELECTOR);
+  if (!indicator) {
+    return false;
+  }
+  return indicator.style.display !== 'none' && indicator.style.visibility !== 'hidden';
+}
+
+function notifyBusyState(busy: boolean): void {
+  chrome.runtime.sendMessage({ type: 'SAP_BUSY_STATE_CHANGED', payload: { busy } });
+}
+
+const busyObserver = new MutationObserver(() => {
+  if (typeof document === 'undefined') {
+    return;
+  }
+  notifyBusyState(isSapBusy(document));
+});
+
+// Start observing once DOM is ready
+function startBusyObserver(): void {
+  const target = document.getElementById('sapUiBusyIndicator') ?? document.body;
+  busyObserver.observe(target === document.body ? document.body : target.parentElement ?? document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['style', 'class'],
+  });
+  // Send initial state immediately
+  notifyBusyState(isSapBusy());
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startBusyObserver);
+} else {
+  startBusyObserver();
+}
+

@@ -27,7 +27,8 @@ export interface TimesheetSnapshot {
 export type MessageType =
   | 'SCRAPE_ENTRIES'
   | 'SCRAPE_TIMESHEET_SUMMARY'
-  | 'AUTOFILL_ENTRY';
+  | 'AUTOFILL_ENTRY'
+  | 'SAP_BUSY_STATE_CHANGED';
 
 export interface MessageRequest {
   type: MessageType;

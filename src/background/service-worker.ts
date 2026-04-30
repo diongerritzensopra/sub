@@ -2,9 +2,9 @@
  * Background service worker — MV3 lifecycle, messaging hub, and icon state management.
  *
  * Icon states:
- * - periscope      (red, default)  — active tab URL does not match SAP My Timesheet
- * - submarine-red  (red)           — active tab matches SAP My Timesheet, page still loading
- * - submarine-green (green)        — active tab matches SAP My Timesheet, page fully loaded
+ * - periscope       (red, default) — active tab URL does not match SAP My Timesheet
+ * - submarine-red   (red)          — URL matches, SAP busy indicator is visible (data loading)
+ * - submarine-green (green)        — URL matches, SAP busy indicator is gone (data ready)
  */
 
 const SAP_TIMESHEET_URL_PATTERN = 'p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site';
@@ -31,11 +31,18 @@ chrome.runtime.onInstalled.addListener(() => {
   console.log('[service-worker] sub installed.');
 });
 
+// Reset icon when switching tabs or navigating away from SAP
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === undefined && changeInfo.url === undefined) {
     return;
   }
-  applyIconForTab(tabId, tab.url ?? '', tab.status ?? 'complete');
+  const url = tab.url ?? '';
+  if (!url.includes(SAP_TIMESHEET_URL_PATTERN)) {
+    applyIconForTab(tabId, ICON_SETS.noMatch);
+  } else {
+    // Show loading (red submarine) until SAP_BUSY_STATE_CHANGED says otherwise
+    applyIconForTab(tabId, ICON_SETS.loading);
+  }
 });
 
 chrome.tabs.onActivated.addListener(({ tabId }) => {
@@ -43,21 +50,27 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
     if (chrome.runtime.lastError || !tab) {
       return;
     }
-    applyIconForTab(tabId, tab.url ?? '', tab.status ?? 'complete');
+    const url = tab.url ?? '';
+    if (!url.includes(SAP_TIMESHEET_URL_PATTERN)) {
+      applyIconForTab(tabId, ICON_SETS.noMatch);
+    }
+    // If it is the SAP URL, keep whatever icon the content script last set
   });
 });
 
-function applyIconForTab(tabId: number, url: string, status: string): void {
-  const iconSet = resolveIconSet(url, status);
-  chrome.action.setIcon({ tabId, path: iconSet });
-}
+// Content script reports SAP busy-indicator changes
+chrome.runtime.onMessage.addListener((message, sender) => {
+  if (message.type !== 'SAP_BUSY_STATE_CHANGED') {
+    return;
+  }
+  const tabId = sender.tab?.id;
+  if (tabId === undefined) {
+    return;
+  }
+  const busy = (message.payload as { busy: boolean }).busy;
+  applyIconForTab(tabId, busy ? ICON_SETS.loading : ICON_SETS.loaded);
+});
 
-function resolveIconSet(url: string, status: string): typeof ICON_SETS[keyof typeof ICON_SETS] {
-  if (!url.includes(SAP_TIMESHEET_URL_PATTERN)) {
-    return ICON_SETS.noMatch;
-  }
-  if (status === 'loading') {
-    return ICON_SETS.loading;
-  }
-  return ICON_SETS.loaded;
+function applyIconForTab(tabId: number, iconSet: typeof ICON_SETS[keyof typeof ICON_SETS]): void {
+  chrome.action.setIcon({ tabId, path: iconSet });
 }

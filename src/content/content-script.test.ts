@@ -5,6 +5,7 @@ globalThis.chrome = {
     onMessage: {
       addListener: vi.fn(),
     },
+    sendMessage: vi.fn(),
   },
 } as unknown as typeof chrome;
 
