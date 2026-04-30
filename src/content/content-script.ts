@@ -333,24 +333,67 @@ function notifyBusyState(busy: boolean): void {
   chrome.runtime.sendMessage({ type: 'SAP_BUSY_STATE_CHANGED', payload: { busy } });
 }
 
-const busyObserver = new MutationObserver(() => {
-  if (typeof document === 'undefined') {
+function getCurrentBusyState(): boolean {
+  const timesheetDocument = resolveTimesheetDocument(document);
+  return isSapBusy(timesheetDocument) || isSapBusy(document);
+}
+
+function observeBusyStateInDocument(targetDocument: Document, observer: MutationObserver): void {
+  if (!targetDocument.body) {
     return;
   }
-  notifyBusyState(isSapBusy(document));
-});
 
-// Start observing once DOM is ready
-function startBusyObserver(): void {
-  const target = document.getElementById('sapUiBusyIndicator') ?? document.body;
-  busyObserver.observe(target === document.body ? document.body : target.parentElement ?? document.body, {
+  observer.observe(targetDocument.body, {
     childList: true,
     subtree: true,
     attributes: true,
     attributeFilter: ['style', 'class'],
   });
+}
+
+const rootBusyObserver = new MutationObserver(() => {
+  if (typeof document === 'undefined') {
+    return;
+  }
+  notifyBusyState(getCurrentBusyState());
+});
+
+let iframeBusyObserver: MutationObserver | null = null;
+let observedIframeDocument: Document | null = null;
+
+function attachIframeBusyObserver(): void {
+  const timesheetDocument = resolveTimesheetDocument(document);
+  if (timesheetDocument === document || timesheetDocument === observedIframeDocument) {
+    return;
+  }
+
+  if (iframeBusyObserver) {
+    iframeBusyObserver.disconnect();
+  }
+
+  iframeBusyObserver = new MutationObserver(() => {
+    notifyBusyState(getCurrentBusyState());
+  });
+
+  observeBusyStateInDocument(timesheetDocument, iframeBusyObserver);
+  observedIframeDocument = timesheetDocument;
+}
+
+// Start observing once DOM is ready
+function startBusyObserver(): void {
+  observeBusyStateInDocument(document, rootBusyObserver);
+  attachIframeBusyObserver();
+
+  const frame = resolveTimesheetFrame(document);
+  if (frame) {
+    frame.addEventListener('load', () => {
+      attachIframeBusyObserver();
+      notifyBusyState(getCurrentBusyState());
+    });
+  }
+
   // Send initial state immediately
-  notifyBusyState(isSapBusy());
+  notifyBusyState(getCurrentBusyState());
 }
 
 if (document.readyState === 'loading') {
