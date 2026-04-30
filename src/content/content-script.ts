@@ -50,7 +50,7 @@ export function scrapeTimesheetSnapshot(rootDocument: Document = document): Time
 }
 
 function resolveTimesheetDocument(rootDocument: Document): Document {
-  const frame = rootDocument.querySelector<HTMLIFrameElement>('#__container1, iframe[data-sap-ushell-active="true"]');
+  const frame = resolveTimesheetFrame(rootDocument);
   if (!frame?.contentDocument) {
     return rootDocument;
   }
@@ -61,6 +61,24 @@ function resolveTimesheetDocument(rootDocument: Document): Document {
   } catch {
     return rootDocument;
   }
+}
+
+function resolveTimesheetFrame(rootDocument: Document): HTMLIFrameElement | null {
+  const preferredSelectors = [
+    'iframe[data-sap-ushell-active="true"]',
+    'iframe[src*="ui5appruntime.html"]',
+    'iframe[src*="#timesheet-my"]',
+    '#__container1',
+  ];
+
+  for (const selector of preferredSelectors) {
+    const frame = rootDocument.querySelector<HTMLIFrameElement>(selector);
+    if (frame) {
+      return frame;
+    }
+  }
+
+  return rootDocument.querySelector<HTMLIFrameElement>('iframe');
 }
 
 function resolvePeriodWithFallbacks(timesheetDocument: Document, rootDocument: Document): { month: number | null; year: number | null } {
@@ -112,9 +130,16 @@ function monthFromText(text: string): number | null {
 }
 
 function extractPeriodFromRouteFallback(rootDocument: Document): { month: number; year: number } | null {
-  const frame = rootDocument.querySelector<HTMLIFrameElement>('#__container1, iframe[data-sap-ushell-active="true"]');
-  const src = frame?.getAttribute('src') ?? '';
-  const match = src.match(ROUTE_PERIOD_PATTERN);
+  const frame = resolveTimesheetFrame(rootDocument);
+  const routeCandidates = [
+    frame?.getAttribute('src') ?? '',
+    rootDocument.location.href,
+    rootDocument.location.hash,
+  ];
+
+  const match = routeCandidates
+    .map((candidate) => candidate.match(ROUTE_PERIOD_PATTERN))
+    .find((candidateMatch) => candidateMatch !== null);
 
   if (!match) {
     return null;

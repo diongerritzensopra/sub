@@ -42,6 +42,21 @@ describe('scrapeTimesheetSnapshot', () => {
     expect(snapshot.projectCodes).toEqual([]);
   });
 
+  it('extracts month/year from route when timesheet iframe id changes', () => {
+    document.body.innerHTML = `
+      <iframe
+        id="sap-shell-frame"
+        data-sap-ushell-active="true"
+        src="https://example.test/cp.portal/ui5appruntime.html#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/9/2026"
+      ></iframe>
+    `;
+
+    const snapshot = scrapeTimesheetSnapshot(document);
+
+    expect(snapshot.month).toBe(9);
+    expect(snapshot.year).toBe(2026);
+  });
+
   it('extracts hours totals from visible page labels', () => {
     document.body.innerHTML = `
       <div>Hours worked</div><div>134:30</div>
