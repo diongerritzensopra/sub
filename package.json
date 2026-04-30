@@ -9,6 +9,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "generate-icons": "node scripts/generate-icons.mjs",
     "package": "vite build && cd dist && zip -r ../sub-extension.zip . && cd .."
   },
   "keywords": [],
@@ -20,6 +21,7 @@
     "@vitest/coverage-v8": "^4.1.5",
     "@vitest/ui": "^4.1.5",
     "jsdom": "^29.0.2",
+    "sharp": "^0.34.5",
     "typescript": "^6.0.3",
     "vite": "^8.0.9",
     "vitest": "^4.1.5"
