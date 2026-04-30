@@ -42,19 +42,41 @@ describe('scrapeTimesheetSnapshot', () => {
     expect(snapshot.projectCodes).toEqual([]);
   });
 
-  it('extracts month/year from route when timesheet iframe id changes', () => {
-    document.body.innerHTML = `
-      <iframe
-        id="sap-shell-frame"
-        data-sap-ushell-active="true"
-        src="https://example.test/cp.portal/ui5appruntime.html#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/9/2026"
-      ></iframe>
-    `;
+  it.each([
+    {
+      name: 'uses `iframe[src*="ui5appruntime.html"]` when active-shell marker is missing',
+      html: `
+        <iframe id="sap-shell-frame" src="https://example.test/legacy#/1/2020"></iframe>
+        <iframe src="https://example.test/cp.portal/ui5appruntime.html#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/9/2026"></iframe>
+      `,
+      month: 9,
+      year: 2026,
+    },
+    {
+      name: 'uses `iframe[src*="#timesheet-my"]` when ui5 runtime selector is missing',
+      html: `
+        <iframe src="https://example.test/legacy#/2/2021"></iframe>
+        <iframe src="https://example.test/app#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/10/2027"></iframe>
+      `,
+      month: 10,
+      year: 2027,
+    },
+    {
+      name: 'falls back to first iframe when no preferred selector matches',
+      html: `
+        <iframe src="https://example.test/fallback-first#/11/2028/project/ZSST"></iframe>
+        <iframe src="https://example.test/fallback-second#/12/2030/project/OTHER"></iframe>
+      `,
+      month: 11,
+      year: 2028,
+    },
+  ])('extracts month/year via iframe fallback selectors: $name', ({ html, month, year }) => {
+    document.body.innerHTML = html;
 
     const snapshot = scrapeTimesheetSnapshot(document);
 
-    expect(snapshot.month).toBe(9);
-    expect(snapshot.year).toBe(2026);
+    expect(snapshot.month).toBe(month);
+    expect(snapshot.year).toBe(year);
   });
 
   it('extracts hours totals from visible page labels', () => {
