@@ -168,7 +168,7 @@ function extractProjectCodes(timesheetDocument: Document): string[] {
 }
 
 function resolveHoursWithFallbacks(timesheetDocument: Document, labelPatterns: RegExp[]): number | null {
-  const totalsPanelHours = extractHoursFromTotalsPanelPrimary(timesheetDocument, labelPatterns);
+  const totalsPanelHours = extractHoursFromTotalsPanel(timesheetDocument, labelPatterns);
   if (totalsPanelHours !== null) {
     return totalsPanelHours;
   }
@@ -176,7 +176,7 @@ function resolveHoursWithFallbacks(timesheetDocument: Document, labelPatterns: R
   return extractHoursFromLabeledNodesFallback(timesheetDocument, labelPatterns);
 }
 
-function extractHoursFromTotalsPanelPrimary(timesheetDocument: Document, labelPatterns: RegExp[]): number | null {
+function extractHoursFromTotalsPanel(timesheetDocument: Document, labelPatterns: RegExp[]): number | null {
   const panelTitles = Array.from(timesheetDocument.querySelectorAll<HTMLElement>(SAP_SELECTORS.totalPanelTitle));
   const totalPanelTitle = panelTitles.find((title) => /total\s+of\s+the\s+month/i.test(title.textContent ?? ''));
   if (!totalPanelTitle) {
