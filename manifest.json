@@ -26,6 +26,19 @@
     "48": "src/assets/icons/periscope-48.png",
     "128": "src/assets/icons/periscope-128.png"
   },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/assets/icons/submarine-red-16.png",
+        "src/assets/icons/submarine-red-48.png",
+        "src/assets/icons/submarine-red-128.png",
+        "src/assets/icons/submarine-green-16.png",
+        "src/assets/icons/submarine-green-48.png",
+        "src/assets/icons/submarine-green-128.png"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "content_scripts": [
     {
       "matches": ["https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site*"],
