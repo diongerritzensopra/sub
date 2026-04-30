@@ -68,7 +68,6 @@ function resolveTimesheetFrame(rootDocument: Document): HTMLIFrameElement | null
     'iframe[data-sap-ushell-active="true"]',
     'iframe[src*="ui5appruntime.html"]',
     'iframe[src*="#timesheet-my"]',
-    '#__container1',
   ];
 
   for (const selector of preferredSelectors) {

@@ -14,7 +14,7 @@ describe('scrapeTimesheetSnapshot', () => {
   it('extracts month/year from iframe route with no project segment', () => {
     document.body.innerHTML = `
       <iframe
-        id="__container1"
+        data-sap-ushell-active="true"
         src="https://example.test/cp.portal/ui5appruntime.html#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/4/2026"
       ></iframe>
     `;
@@ -29,7 +29,7 @@ describe('scrapeTimesheetSnapshot', () => {
   it('extracts month/year from iframe route with project segment', () => {
     document.body.innerHTML = `
       <iframe
-        id="__container1"
+        data-sap-ushell-active="true"
         src="https://example.test/cp.portal/ui5appruntime.html#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/4/2026/project/ZSST"
       ></iframe>
     `;
