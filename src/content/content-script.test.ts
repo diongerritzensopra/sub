@@ -44,9 +44,9 @@ describe('scrapeTimesheetSnapshot', () => {
 
   it('extracts hours totals from visible page labels', () => {
     document.body.innerHTML = `
-      <div>Hours worked</div><div>134.5</div>
-      <div>Hours absent</div><div>8</div>
-      <div>Hours to be performed</div><div>160</div>
+      <div>Hours worked</div><div>134:30</div>
+      <div>Hours absent</div><div>8:00</div>
+      <div>Hours to be performed</div><div>160:00</div>
     `;
 
     const snapshot = scrapeTimesheetSnapshot(document);

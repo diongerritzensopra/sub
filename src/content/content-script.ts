@@ -236,7 +236,7 @@ function extractLabeledHours(timesheetDocument: Document, labelPatterns: RegExp[
 
   const pageText = normalizeWhitespace(timesheetDocument.body?.textContent ?? '');
   for (const pattern of labelPatterns) {
-    const fallbackPattern = new RegExp(`${pattern.source}[^0-9:.,-]*(-?\\d+(?::\\d{2}|[.,]\\d+)?)`, 'i');
+    const fallbackPattern = new RegExp(`${pattern.source}[^0-9:-]*(-?\\d+:\\d{2})`, 'i');
     const match = pageText.match(fallbackPattern);
     if (match?.[1]) {
       const parsed = parseHoursNumber(match[1]);
@@ -252,23 +252,19 @@ function extractLabeledHours(timesheetDocument: Document, labelPatterns: RegExp[
 function parseHoursNumber(text: string): number | null {
   const compact = normalizeWhitespace(text);
   const colonMatch = compact.match(/(-?\d+):(\d{2})/);
-  if (colonMatch) {
-    const hours = Number.parseInt(colonMatch[1], 10);
-    const minutes = Number.parseInt(colonMatch[2], 10);
-    if (!Number.isNaN(hours) && !Number.isNaN(minutes)) {
-      return hours + minutes / 60;
-    }
-  }
 
-  const allMatches = compact.match(/-?\d+(?:[.,]\d+)?/g);
-  if (!allMatches || allMatches.length === 0) {
+  if (!colonMatch) {
     return null;
   }
 
-  const candidate = allMatches[allMatches.length - 1].replace(',', '.');
-  const parsed = Number.parseFloat(candidate);
+  const hours = Number.parseInt(colonMatch[1], 10);
+  const minutes = Number.parseInt(colonMatch[2], 10);
 
-  return Number.isNaN(parsed) ? null : parsed;
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return null;
+  }
+
+  return hours + minutes / 60;
 }
 
 function normalizeWhitespace(text: string): string {
