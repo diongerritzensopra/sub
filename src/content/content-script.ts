@@ -16,7 +16,7 @@ const SAP_SELECTORS = {
   totalPanelRows: '.sapUiFormElementLbl',
 };
 
-const PERIOD_FROM_ROUTE_PATTERN = /(?:\/|#)(\d{1,2})\/(\d{4})(?:\/project\/|\b)/i;
+const ROUTE_PERIOD_PATTERN = /(?:\/|#)(\d{1,2})\/(\d{4})(?:\/project\/|\b)/i;
 
 const MONTH_NAME_TO_NUMBER: Record<string, number> = {
   january: 1,
@@ -35,16 +35,16 @@ const MONTH_NAME_TO_NUMBER: Record<string, number> = {
 
 export function scrapeTimesheetSnapshot(rootDocument: Document = document): TimesheetSnapshot {
   const timesheetDocument = resolveTimesheetDocument(rootDocument);
-  const period = extractPeriod(timesheetDocument, rootDocument);
+  const period = resolvePeriodWithFallbacks(timesheetDocument, rootDocument);
 
   return {
     month: period.month,
     year: period.year,
     projectCodes: extractProjectCodes(timesheetDocument),
     totals: {
-      worked: extractTotalsHours(timesheetDocument, [/number\s+of\s+hours\s+worked/i, /hours\s+worked/i]),
-      absent: extractTotalsHours(timesheetDocument, [/number\s+of\s+hours\s+absent/i, /hours\s+absent/i]),
-      toBePerformed: extractTotalsHours(timesheetDocument, [/hours\s+to\s+be\s+performed/i, /to\s+be\s+performed/i]),
+      worked: resolveHoursWithFallbacks(timesheetDocument, [/number\s+of\s+hours\s+worked/i, /hours\s+worked/i]),
+      absent: resolveHoursWithFallbacks(timesheetDocument, [/number\s+of\s+hours\s+absent/i, /hours\s+absent/i]),
+      toBePerformed: resolveHoursWithFallbacks(timesheetDocument, [/hours\s+to\s+be\s+performed/i, /to\s+be\s+performed/i]),
     },
   };
 }
@@ -63,26 +63,26 @@ function resolveTimesheetDocument(rootDocument: Document): Document {
   }
 }
 
-function extractPeriod(timesheetDocument: Document, rootDocument: Document): { month: number | null; year: number | null } {
-  const selectorPeriod = extractPeriodFromSelectors(timesheetDocument);
-  if (selectorPeriod) {
-    return selectorPeriod;
+function resolvePeriodWithFallbacks(timesheetDocument: Document, rootDocument: Document): { month: number | null; year: number | null } {
+  const calendarHeaderPeriod = extractPeriodFromCalendarHeader(timesheetDocument);
+  if (calendarHeaderPeriod) {
+    return calendarHeaderPeriod;
   }
 
-  const routePeriod = extractPeriodFromIframeRoute(rootDocument);
-  if (routePeriod) {
-    return routePeriod;
+  const routeFallbackPeriod = extractPeriodFromRouteFallback(rootDocument);
+  if (routeFallbackPeriod) {
+    return routeFallbackPeriod;
   }
 
-  const titlePeriod = extractPeriodFromText(timesheetDocument.body?.textContent ?? '');
-  if (titlePeriod) {
-    return titlePeriod;
+  const textFallbackPeriod = extractPeriodFromPageTextFallback(timesheetDocument.body?.textContent ?? '');
+  if (textFallbackPeriod) {
+    return textFallbackPeriod;
   }
 
   return { month: null, year: null };
 }
 
-function extractPeriodFromSelectors(timesheetDocument: Document): { month: number; year: number } | null {
+function extractPeriodFromCalendarHeader(timesheetDocument: Document): { month: number; year: number } | null {
   const monthText = normalizeWhitespace(timesheetDocument.querySelector<HTMLElement>(SAP_SELECTORS.monthButton)?.textContent ?? '');
   const yearText = normalizeWhitespace(timesheetDocument.querySelector<HTMLElement>(SAP_SELECTORS.yearButton)?.textContent ?? '');
 
@@ -111,10 +111,10 @@ function monthFromText(text: string): number | null {
   return Number.parseInt(numericMatch[1], 10);
 }
 
-function extractPeriodFromIframeRoute(rootDocument: Document): { month: number; year: number } | null {
+function extractPeriodFromRouteFallback(rootDocument: Document): { month: number; year: number } | null {
   const frame = rootDocument.querySelector<HTMLIFrameElement>('#__container1, iframe[data-sap-ushell-active="true"]');
   const src = frame?.getAttribute('src') ?? '';
-  const match = src.match(PERIOD_FROM_ROUTE_PATTERN);
+  const match = src.match(ROUTE_PERIOD_PATTERN);
 
   if (!match) {
     return null;
@@ -130,7 +130,7 @@ function extractPeriodFromIframeRoute(rootDocument: Document): { month: number; 
   return null;
 }
 
-function extractPeriodFromText(text: string): { month: number; year: number } | null {
+function extractPeriodFromPageTextFallback(text: string): { month: number; year: number } | null {
   const compactText = text.replace(/\s+/g, ' ').trim().toLowerCase();
 
   for (const [monthName, monthNumber] of Object.entries(MONTH_NAME_TO_NUMBER)) {
@@ -167,16 +167,16 @@ function extractProjectCodes(timesheetDocument: Document): string[] {
   return Array.from(codes).sort();
 }
 
-function extractTotalsHours(timesheetDocument: Document, labelPatterns: RegExp[]): number | null {
-  const valueFromPanel = extractHoursFromTotalsPanel(timesheetDocument, labelPatterns);
-  if (valueFromPanel !== null) {
-    return valueFromPanel;
+function resolveHoursWithFallbacks(timesheetDocument: Document, labelPatterns: RegExp[]): number | null {
+  const totalsPanelHours = extractHoursFromTotalsPanelPrimary(timesheetDocument, labelPatterns);
+  if (totalsPanelHours !== null) {
+    return totalsPanelHours;
   }
 
-  return extractLabeledHours(timesheetDocument, labelPatterns);
+  return extractHoursFromLabeledNodesFallback(timesheetDocument, labelPatterns);
 }
 
-function extractHoursFromTotalsPanel(timesheetDocument: Document, labelPatterns: RegExp[]): number | null {
+function extractHoursFromTotalsPanelPrimary(timesheetDocument: Document, labelPatterns: RegExp[]): number | null {
   const panelTitles = Array.from(timesheetDocument.querySelectorAll<HTMLElement>(SAP_SELECTORS.totalPanelTitle));
   const totalPanelTitle = panelTitles.find((title) => /total\s+of\s+the\s+month/i.test(title.textContent ?? ''));
   if (!totalPanelTitle) {
@@ -209,7 +209,7 @@ function extractHoursFromTotalsPanel(timesheetDocument: Document, labelPatterns:
   return null;
 }
 
-function extractLabeledHours(timesheetDocument: Document, labelPatterns: RegExp[]): number | null {
+function extractHoursFromLabeledNodesFallback(timesheetDocument: Document, labelPatterns: RegExp[]): number | null {
   const labelNodes = timesheetDocument.querySelectorAll<HTMLElement>('th, td, span, div, label, p');
 
   for (const node of labelNodes) {
@@ -223,21 +223,21 @@ function extractLabeledHours(timesheetDocument: Document, labelPatterns: RegExp[
       continue;
     }
 
-    const directValue = parseHoursNumber(normalizeWhitespace(node.nextElementSibling?.textContent ?? ''));
-    if (directValue !== null) {
-      return directValue;
+    const siblingValueFallback = parseHoursNumber(normalizeWhitespace(node.nextElementSibling?.textContent ?? ''));
+    if (siblingValueFallback !== null) {
+      return siblingValueFallback;
     }
 
-    const inlineValue = parseHoursNumber(labelText);
-    if (inlineValue !== null) {
-      return inlineValue;
+    const inlineValueFallback = parseHoursNumber(labelText);
+    if (inlineValueFallback !== null) {
+      return inlineValueFallback;
     }
   }
 
-  const pageText = normalizeWhitespace(timesheetDocument.body?.textContent ?? '');
+  const pageTextFallback = normalizeWhitespace(timesheetDocument.body?.textContent ?? '');
   for (const pattern of labelPatterns) {
     const fallbackPattern = new RegExp(`${pattern.source}[^0-9:-]*(-?\\d+:\\d{2})`, 'i');
-    const match = pageText.match(fallbackPattern);
+    const match = pageTextFallback.match(fallbackPattern);
     if (match?.[1]) {
       const parsed = parseHoursNumber(match[1]);
       if (parsed !== null) {
@@ -291,5 +291,4 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     sendResponse({ success: true });
   }
 });
-
 
