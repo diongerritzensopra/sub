@@ -8,7 +8,7 @@ const root = join(__dirname, '..');
 const iconsDir = join(root, 'src', 'assets', 'icons');
 
 const sizes = [16, 48, 128];
-const icons = ['periscope', 'submarine-red', 'submarine-green'];
+const icons = ['status-no-match', 'status-loading', 'status-ready'];
 
 for (const icon of icons) {
   const svgPath = join(iconsDir, `${icon}.svg`);

@@ -2,28 +2,28 @@
  * Background service worker — MV3 lifecycle, messaging hub, and icon state management.
  *
  * Icon states:
- * - periscope       (red, default) — active tab URL does not match SAP My Timesheet
- * - submarine-red   (red)          — URL matches, SAP busy indicator is visible (data loading)
- * - submarine-green (green)        — URL matches, SAP busy indicator is gone (data ready)
+ * - status-no-match (periscope)    — active tab URL does not match SAP My Timesheet
+ * - status-loading  (red submarine) — URL matches, SAP busy indicator is visible (data loading)
+ * - status-ready    (blue submarine) — URL matches, SAP busy indicator is gone (data ready)
  */
 
 import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
 
 const ICON_SETS = {
   noMatch: {
-    '16': 'src/assets/icons/periscope-16.png',
-    '48': 'src/assets/icons/periscope-48.png',
-    '128': 'src/assets/icons/periscope-128.png',
+    '16': 'src/assets/icons/status-no-match-16.png',
+    '48': 'src/assets/icons/status-no-match-48.png',
+    '128': 'src/assets/icons/status-no-match-128.png',
   },
   loading: {
-    '16': 'src/assets/icons/submarine-red-16.png',
-    '48': 'src/assets/icons/submarine-red-48.png',
-    '128': 'src/assets/icons/submarine-red-128.png',
+    '16': 'src/assets/icons/status-loading-16.png',
+    '48': 'src/assets/icons/status-loading-48.png',
+    '128': 'src/assets/icons/status-loading-128.png',
   },
   loaded: {
-    '16': 'src/assets/icons/submarine-green-16.png',
-    '48': 'src/assets/icons/submarine-green-48.png',
-    '128': 'src/assets/icons/submarine-green-128.png',
+    '16': 'src/assets/icons/status-ready-16.png',
+    '48': 'src/assets/icons/status-ready-48.png',
+    '128': 'src/assets/icons/status-ready-128.png',
   },
 } as const;
 
