@@ -7,7 +7,7 @@
  * - submarine-green (green)        — URL matches, SAP busy indicator is gone (data ready)
  */
 
-const SAP_TIMESHEET_URL_PATTERN = 'p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site';
+import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
 
 const ICON_SETS = {
   noMatch: {

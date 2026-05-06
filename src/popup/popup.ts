@@ -3,8 +3,7 @@
  */
 
 import type { MessageRequest, MessageResponse, TimesheetSnapshot } from '../shared/types';
-
-const SAP_TIMESHEET_URL_PATTERN = 'p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site';
+import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
 
 const btnScrape = document.getElementById('btn-scrape') as HTMLButtonElement;
 const statusMessage = document.getElementById('status-message') as HTMLParagraphElement;

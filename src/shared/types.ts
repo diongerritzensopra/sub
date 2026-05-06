@@ -2,6 +2,9 @@
  * Shared TypeScript types used across popup and content script.
  */
 
+/** SAP My Timesheet canonical URL pattern used for matching and validation. */
+export const SAP_TIMESHEET_URL_PATTERN = 'p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site';
+
 /** A single booked or to-be-booked hours entry. */
 export interface HoursEntry {
   date: string;       // ISO date string: "YYYY-MM-DD"
