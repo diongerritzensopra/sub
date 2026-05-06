@@ -268,8 +268,8 @@ describe('popup', () => {
 
   describe('getActiveTab', () => {
     it('returns the active tab in current window', async () => {
-      const mockTab: chrome.tabs.Tab = { id: 42, url: 'https://example.com' };
-      vi.mocked(chrome.tabs.query).mockResolvedValue([mockTab]);
+      const mockTab = { id: 42, url: 'https://example.com' } as chrome.tabs.Tab;
+      (mockChromeQuery as unknown as { mockResolvedValue: (value: unknown) => void }).mockResolvedValue([mockTab]);
 
       const { getActiveTab } = await import('./popup');
       const tab = await getActiveTab();
@@ -279,7 +279,7 @@ describe('popup', () => {
     });
 
     it('returns undefined when no active tab found', async () => {
-      vi.mocked(chrome.tabs.query).mockResolvedValue([]);
+      (mockChromeQuery as unknown as { mockResolvedValue: (value: unknown) => void }).mockResolvedValue([]);
 
       const { getActiveTab } = await import('./popup');
       const tab = await getActiveTab();
