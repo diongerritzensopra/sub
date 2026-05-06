@@ -322,14 +322,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 const SAP_BUSY_INDICATOR_SELECTOR = '#sapUiBusyIndicator';
 const BUSY_STATE_POLL_INTERVAL_MS = 250;
 
-function isSapBusy(rootDocument: Document = document): boolean {
-  const indicator = rootDocument.querySelector<HTMLElement>(SAP_BUSY_INDICATOR_SELECTOR);
-  if (!indicator) {
-    return false;
-  }
-  return indicator.style.display !== 'none' && indicator.style.visibility !== 'hidden';
-}
-
 function notifyBusyState(busy: boolean): void {
   chrome.runtime.sendMessage({ type: 'SAP_BUSY_STATE_CHANGED', payload: { busy } });
 }
