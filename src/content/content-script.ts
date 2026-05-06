@@ -320,6 +320,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 // The indicator uses id="sapUiBusyIndicator" and is shown/hidden via inline style.
 // We notify the service worker on every visibility change so it can update the icon.
 const SAP_BUSY_INDICATOR_SELECTOR = '#sapUiBusyIndicator';
+const BUSY_STATE_POLL_INTERVAL_MS = 250;
 
 function isSapBusy(rootDocument: Document = document): boolean {
   const indicator = rootDocument.querySelector<HTMLElement>(SAP_BUSY_INDICATOR_SELECTOR);
@@ -333,72 +334,65 @@ function notifyBusyState(busy: boolean): void {
   chrome.runtime.sendMessage({ type: 'SAP_BUSY_STATE_CHANGED', payload: { busy } });
 }
 
-function getCurrentBusyState(): boolean {
-  const timesheetDocument = resolveTimesheetDocument(document);
-  return isSapBusy(timesheetDocument) || isSapBusy(document);
-}
-
-function observeBusyStateInDocument(targetDocument: Document, observer: MutationObserver): void {
-  if (!targetDocument.body) {
-    return;
-  }
-
-  observer.observe(targetDocument.body, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ['style', 'class'],
-  });
-}
-
-const rootBusyObserver = new MutationObserver(() => {
-  if (typeof document === 'undefined') {
-    return;
-  }
-  notifyBusyState(getCurrentBusyState());
-});
-
-let iframeBusyObserver: MutationObserver | null = null;
-let observedIframeDocument: Document | null = null;
-
-function attachIframeBusyObserver(): void {
-  const timesheetDocument = resolveTimesheetDocument(document);
-  if (timesheetDocument === document || timesheetDocument === observedIframeDocument) {
-    return;
-  }
-
-  if (iframeBusyObserver) {
-    iframeBusyObserver.disconnect();
-  }
-
-  iframeBusyObserver = new MutationObserver(() => {
-    notifyBusyState(getCurrentBusyState());
-  });
-
-  observeBusyStateInDocument(timesheetDocument, iframeBusyObserver);
-  observedIframeDocument = timesheetDocument;
-}
-
-// Start observing once DOM is ready
-function startBusyObserver(): void {
-  observeBusyStateInDocument(document, rootBusyObserver);
-  attachIframeBusyObserver();
-
+function isTimesheetReady(): boolean {
   const frame = resolveTimesheetFrame(document);
-  if (frame) {
-    frame.addEventListener('load', () => {
-      attachIframeBusyObserver();
-      notifyBusyState(getCurrentBusyState());
-    });
+  if (!frame?.contentDocument) {
+    return false;
   }
 
-  // Send initial state immediately
-  notifyBusyState(getCurrentBusyState());
+  let iframeDocument: Document;
+  try {
+    iframeDocument = frame.contentDocument;
+    void iframeDocument.body;
+  } catch {
+    return false;
+  }
+
+  if (iframeDocument.readyState !== 'complete') {
+    return false;
+  }
+
+  const busyIndicator = iframeDocument.querySelector<HTMLElement>(SAP_BUSY_INDICATOR_SELECTOR);
+  if (!busyIndicator) {
+    return false;
+  }
+
+  const computedStyle = iframeDocument.defaultView?.getComputedStyle(busyIndicator);
+  const isHiddenByStyle =
+    computedStyle?.display === 'none'
+    || computedStyle?.visibility === 'hidden'
+    || computedStyle?.opacity === '0';
+  const isHiddenInline = busyIndicator.style.display === 'none' || busyIndicator.style.visibility === 'hidden';
+
+  return isHiddenByStyle || isHiddenInline;
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', startBusyObserver);
-} else {
-  startBusyObserver();
+function startBusyStateMonitor(): void {
+  let lastBusyState: boolean | null = null;
+
+  const emitBusyStateIfChanged = (): void => {
+    const busy = !isTimesheetReady();
+    if (lastBusyState === busy) {
+      return;
+    }
+    lastBusyState = busy;
+    notifyBusyState(busy);
+  };
+
+  emitBusyStateIfChanged();
+
+  const intervalId = window.setInterval(emitBusyStateIfChanged, BUSY_STATE_POLL_INTERVAL_MS);
+  window.addEventListener('beforeunload', () => {
+    window.clearInterval(intervalId);
+  });
+}
+
+// Skip monitor in jsdom tests to avoid unnecessary timers in test runtime.
+if (!(typeof navigator !== 'undefined' && navigator.userAgent.includes('jsdom'))) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startBusyStateMonitor);
+  } else {
+    startBusyStateMonitor();
+  }
 }
 
