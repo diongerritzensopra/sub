@@ -4,6 +4,8 @@
 
 import type { MessageRequest, MessageResponse, TimesheetSnapshot } from '../shared/types';
 
+const SAP_TIMESHEET_URL_PATTERN = 'p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site';
+
 const btnScrape = document.getElementById('btn-scrape') as HTMLButtonElement;
 const statusMessage = document.getElementById('status-message') as HTMLParagraphElement;
 const summarySection = document.getElementById('summary-section') as HTMLElement;
@@ -13,19 +15,43 @@ const workedHoursValue = document.getElementById('worked-hours-value') as HTMLSp
 const absentHoursValue = document.getElementById('absent-hours-value') as HTMLSpanElement;
 const toBePerformedHoursValue = document.getElementById('to-be-performed-hours-value') as HTMLSpanElement;
 
-btnScrape.addEventListener('click', async () => {
+btnScrape.addEventListener('click', () => {
+  void analyseActiveTab();
+});
+
+void autoAnalyseIfTimesheetTab();
+
+async function autoAnalyseIfTimesheetTab(): Promise<void> {
+  const activeTab = await getActiveTab();
+  if (!isTimesheetTab(activeTab)) {
+    setStatus('Open SAP My Timesheet to analyse the current page automatically.');
+    return;
+  }
+
+  await analyseActiveTab(activeTab);
+}
+
+async function analyseActiveTab(existingTab?: chrome.tabs.Tab): Promise<void> {
   setStatus('Pagina analyseren...');
   btnScrape.disabled = true;
 
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab.id) throw new Error('Geen actief tabblad gevonden.');
+    const activeTab = existingTab ?? await getActiveTab();
+    if (!activeTab?.id) {
+      throw new Error('Geen actief tabblad gevonden.');
+    }
 
-    const response = await chrome.tabs.sendMessage<MessageRequest, MessageResponse>(tab.id, {
+    if (!isTimesheetTab(activeTab)) {
+      throw new Error('Het actieve tabblad is geen SAP My Timesheet pagina.');
+    }
+
+    const response = await chrome.tabs.sendMessage<MessageRequest, MessageResponse>(activeTab.id, {
       type: 'SCRAPE_TIMESHEET_SUMMARY',
     });
 
-    if (!response.success) throw new Error(response.error ?? 'Onbekende fout.');
+    if (!response.success) {
+      throw new Error(response.error ?? 'Onbekende fout.');
+    }
 
     const snapshot = response.data as TimesheetSnapshot;
     renderSnapshot(snapshot);
@@ -35,7 +61,16 @@ btnScrape.addEventListener('click', async () => {
   } finally {
     btnScrape.disabled = false;
   }
-});
+}
+
+async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab;
+}
+
+function isTimesheetTab(tab: chrome.tabs.Tab | undefined): boolean {
+  return (tab?.url ?? '').includes(SAP_TIMESHEET_URL_PATTERN);
+}
 
 function renderSnapshot(snapshot: TimesheetSnapshot): void {
   periodValue.textContent = snapshot.month && snapshot.year ? `${snapshot.month}/${snapshot.year}` : '-';
