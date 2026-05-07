@@ -4,6 +4,7 @@
 
 import type { MessageRequest, MessageResponse, TimesheetSnapshot } from '../shared/types';
 import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
+import { initBusyStateListener, isSAPPageBusy } from '../shared/busy-state';
 
 // Getters for DOM elements (allows for flexible testing)
 function getBtnScrape(): HTMLButtonElement {
@@ -38,34 +39,41 @@ function getToBePerformedHoursValue(): HTMLSpanElement {
   return document.getElementById('to-be-performed-hours-value') as HTMLSpanElement;
 }
 
+function getScrapeStatus(): HTMLSpanElement {
+  return document.getElementById('scrape-status') as HTMLSpanElement;
+}
+
 getBtnScrape().addEventListener('click', () => {
   void analyseActiveTab();
 });
 
-void autoAnalyseIfTimesheetTab();
-
-async function autoAnalyseIfTimesheetTab(): Promise<void> {
-  const activeTab = await getActiveTab();
-  if (!isTimesheetTab(activeTab)) {
-    setStatus('Open SAP My Timesheet to analyse the current page automatically.');
-    return;
+// Initialize busy-state listener and auto-analyze on ready
+initBusyStateListener((busy) => {
+  if (!busy) {
+    // SAP page is ready, automatically scrape
+    void analyseActiveTab();
   }
+});
 
-  await analyseActiveTab(activeTab);
-}
+// Scrape immediately when popup opens
+void analyseActiveTab();
 
-async function analyseActiveTab(existingTab?: chrome.tabs.Tab): Promise<void> {
+async function analyseActiveTab(): Promise<void> {
   setStatus('Pagina analyseren...');
   getBtnScrape().disabled = true;
 
   try {
-    const activeTab = existingTab ?? await getActiveTab();
+    const activeTab = await getActiveTab();
     if (!activeTab?.id) {
       throw new Error('Geen actief tabblad gevonden.');
     }
 
     if (!isTimesheetTab(activeTab)) {
       throw new Error('Het actieve tabblad is geen SAP My Timesheet pagina.');
+    }
+
+    if (isSAPPageBusy()) {
+      throw new Error('De pagina laadt nog. Probeer het over een moment opnieuw.');
     }
 
     const response = await chrome.tabs.sendMessage<MessageRequest, MessageResponse>(activeTab.id, {
@@ -77,8 +85,9 @@ async function analyseActiveTab(existingTab?: chrome.tabs.Tab): Promise<void> {
     }
 
     const snapshot = response.data as TimesheetSnapshot;
-    renderSnapshot(snapshot);
-    setStatus('Timesheet gegevens opgehaald.');
+    const hasAllData = snapshot.totals.worked !== null && snapshot.totals.absent !== null && snapshot.totals.toBePerformed !== null;
+    renderSnapshot(snapshot, hasAllData);
+    setStatus('');
   } catch (err) {
     setStatus(`Fout: ${(err as Error).message}`);
   } finally {
@@ -95,12 +104,17 @@ export function isTimesheetTab(tab: chrome.tabs.Tab | undefined): boolean {
   return (tab?.url ?? '').includes(SAP_TIMESHEET_URL_PATTERN);
 }
 
-export function renderSnapshot(snapshot: TimesheetSnapshot): void {
+export function renderSnapshot(snapshot: TimesheetSnapshot, hasAllData: boolean = false): void {
   getPeriodValue().textContent = snapshot.month && snapshot.year ? `${snapshot.month}/${snapshot.year}` : '-';
   getProjectCodesValue().textContent = snapshot.projectCodes.length > 0 ? snapshot.projectCodes.join(', ') : '-';
   getWorkedHoursValue().textContent = formatHours(snapshot.totals.worked);
   getAbsentHoursValue().textContent = formatHours(snapshot.totals.absent);
   getToBePerformedHoursValue().textContent = formatHours(snapshot.totals.toBePerformed);
+
+  // Show status emoji: green checkmark if all data present, yellow warning if partial
+  const statusEmoji = hasAllData ? '✅' : '⚠️';
+  getScrapeStatus().textContent = ` ${statusEmoji}`;
+
   getSummarySection().hidden = false;
 }
 

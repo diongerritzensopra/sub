@@ -8,6 +8,7 @@
  */
 
 import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
+import { initBusyStateListener } from '../shared/busy-state';
 
 const ICON_SETS = {
   noMatch: {
@@ -29,6 +30,14 @@ const ICON_SETS = {
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('[service-worker] sub installed.');
+});
+
+// Initialize busy-state listener for icon management
+initBusyStateListener((busy, tabId) => {
+  if (tabId === undefined) {
+    return;
+  }
+  applyIconForTab(tabId, busy ? ICON_SETS.loading : ICON_SETS.loaded);
 });
 
 // Reset icon when switching tabs or navigating away from SAP
@@ -58,18 +67,6 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
   });
 });
 
-// Content script reports SAP busy-indicator changes
-chrome.runtime.onMessage.addListener((message, sender) => {
-  if (message.type !== 'SAP_BUSY_STATE_CHANGED') {
-    return;
-  }
-  const tabId = sender.tab?.id;
-  if (tabId === undefined) {
-    return;
-  }
-  const busy = (message.payload as { busy: boolean }).busy;
-  applyIconForTab(tabId, busy ? ICON_SETS.loading : ICON_SETS.loaded);
-});
 
 function applyIconForTab(tabId: number, iconSet: typeof ICON_SETS[keyof typeof ICON_SETS]): void {
   chrome.action.setIcon({ tabId, path: iconSet });

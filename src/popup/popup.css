@@ -20,9 +20,15 @@ body {
 }
 
 header {
-  background: #1a73e8;
+  background: #1c65bf;
   color: #fff;
   padding: 12px 16px;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 header h1 {
@@ -69,7 +75,6 @@ footer {
 }
 
 button {
-  flex: 1;
   padding: 8px 12px;
   border: none;
   border-radius: 4px;
@@ -85,10 +90,20 @@ button:disabled {
 }
 
 #btn-scrape {
-  background: #1a73e8;
-  color: #fff;
+  background: #fff;
+  color: #1c65bf;
+  font-size: 20px;
+  padding: 6px 6px;
+  border-radius: 4px;
+  transition: background-color 0.15s;
+  line-height: 1;
+  height: 32px;
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #btn-scrape:hover:not(:disabled) {
-  background: #1558b0;
+  background-color: #f0f0f0;
 }

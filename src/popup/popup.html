@@ -9,16 +9,19 @@
   <body>
     <div id="app">
       <header>
-        <h1>sub</h1>
+        <div class="header-content">
+          <h1>sub</h1>
+          <button id="btn-scrape" type="button" title="Refresh timesheet data">🔄</button>
+        </div>
       </header>
 
       <main>
         <section id="status-section">
-          <p id="status-message">Klik op "Analyseer pagina" om te beginnen.</p>
+          <p id="status-message">Klik op het vernieuwingspictogram om te beginnen.</p>
         </section>
 
         <section id="summary-section" hidden>
-          <h2>Timesheet overzicht</h2>
+          <h2>Timesheet overzicht <span id="scrape-status"></span></h2>
           <ul id="summary-list">
             <li><strong>Periode:</strong> <span id="period-value">-</span></li>
             <li><strong>Projectcodes:</strong> <span id="project-codes-value">-</span></li>
@@ -28,10 +31,6 @@
           </ul>
         </section>
       </main>
-
-      <footer>
-        <button id="btn-scrape" type="button">Analyseer pagina</button>
-      </footer>
     </div>
 
     <script type="module" src="popup.ts"></script>

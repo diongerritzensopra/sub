@@ -25,14 +25,17 @@ beforeEach(() => {
   document.body.innerHTML = `
     <div id="app">
       <header>
-        <h1>sub</h1>
+        <div class="header-content">
+          <h1>sub</h1>
+          <button id="btn-scrape" type="button">🔄</button>
+        </div>
       </header>
       <main>
         <section id="status-section">
-          <p id="status-message">Klik op "Analyseer pagina" om te beginnen.</p>
+          <p id="status-message">Klik op het vernieuwingspictogram om te beginnen.</p>
         </section>
         <section id="summary-section" hidden>
-          <h2>Timesheet overzicht</h2>
+          <h2>Timesheet overzicht <span id="scrape-status"></span></h2>
           <ul id="summary-list">
             <li><strong>Periode:</strong> <span id="period-value">-</span></li>
             <li><strong>Projectcodes:</strong> <span id="project-codes-value">-</span></li>
@@ -42,9 +45,6 @@ beforeEach(() => {
           </ul>
         </section>
       </main>
-      <footer>
-        <button id="btn-scrape" type="button">Analyseer pagina</button>
-      </footer>
     </div>
   `;
 
@@ -242,6 +242,42 @@ describe('popup', () => {
       expect(document.getElementById('worked-hours-value')?.textContent).toBe('-');
       expect(document.getElementById('absent-hours-value')?.textContent).toBe('-');
       expect(document.getElementById('to-be-performed-hours-value')?.textContent).toBe('-');
+    });
+
+    it('shows green checkmark emoji when all data is present', async () => {
+      const { renderSnapshot } = await import('./popup');
+      const snapshot: TimesheetSnapshot = {
+        month: 4,
+        year: 2026,
+        projectCodes: [],
+        totals: {
+          worked: 160,
+          absent: 0,
+          toBePerformed: 0,
+        },
+      };
+
+      renderSnapshot(snapshot, true);
+
+      expect(document.getElementById('scrape-status')?.textContent).toBe(' ✅');
+    });
+
+    it('shows warning triangle emoji when data is incomplete', async () => {
+      const { renderSnapshot } = await import('./popup');
+      const snapshot: TimesheetSnapshot = {
+        month: 4,
+        year: 2026,
+        projectCodes: [],
+        totals: {
+          worked: 160,
+          absent: null,
+          toBePerformed: 0,
+        },
+      };
+
+      renderSnapshot(snapshot, false);
+
+      expect(document.getElementById('scrape-status')?.textContent).toBe(' ⚠️');
     });
   });
 
