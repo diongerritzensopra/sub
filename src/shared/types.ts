@@ -31,7 +31,8 @@ export type MessageType =
   | 'SCRAPE_ENTRIES'
   | 'SCRAPE_TIMESHEET_SUMMARY'
   | 'AUTOFILL_ENTRY'
-  | 'SAP_BUSY_STATE_CHANGED';
+  | 'SAP_BUSY_STATE_CHANGED'
+  | 'GET_SAP_BUSY_STATE';
 
 export interface MessageRequest {
   type: MessageType;

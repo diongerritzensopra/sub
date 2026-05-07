@@ -10,6 +10,8 @@
 import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
 import { initBusyStateListener } from '../shared/busy-state';
 
+const busyStateByTabId = new Map<number, boolean>();
+
 const ICON_SETS = {
   noMatch: {
     '16': 'src/assets/icons/status-no-match-16.png',
@@ -37,6 +39,7 @@ initBusyStateListener((busy, tabId) => {
   if (tabId === undefined) {
     return;
   }
+  busyStateByTabId.set(tabId, busy);
   applyIconForTab(tabId, busy ? ICON_SETS.loading : ICON_SETS.loaded);
 });
 
@@ -47,8 +50,10 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
   const url = tab.url ?? '';
   if (!url.includes(SAP_TIMESHEET_URL_PATTERN)) {
+    busyStateByTabId.delete(tabId);
     applyIconForTab(tabId, ICON_SETS.noMatch);
   } else {
+    busyStateByTabId.set(tabId, true);
     // Show loading (red submarine) until SAP_BUSY_STATE_CHANGED says otherwise
     applyIconForTab(tabId, ICON_SETS.loading);
   }
@@ -61,10 +66,29 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
     }
     const url = tab.url ?? '';
     if (!url.includes(SAP_TIMESHEET_URL_PATTERN)) {
+      busyStateByTabId.delete(tabId);
       applyIconForTab(tabId, ICON_SETS.noMatch);
     }
     // If it is the SAP URL, keep whatever icon the content script last set
   });
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  busyStateByTabId.delete(tabId);
+});
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.type !== 'GET_SAP_BUSY_STATE') {
+    return;
+  }
+
+  const tabId = (message.payload as { tabId?: number } | undefined)?.tabId;
+  if (tabId === undefined) {
+    sendResponse({ success: false, error: 'tabId ontbreekt.' });
+    return;
+  }
+
+  sendResponse({ success: true, data: { busy: busyStateByTabId.get(tabId) ?? false } });
 });
 
 

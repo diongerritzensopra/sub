@@ -12,6 +12,7 @@ globalThis.chrome = {
     onActivated: { addListener: vi.fn() },
   },
   runtime: {
+    sendMessage: vi.fn(),
     onMessage: { addListener: vi.fn() },
     lastError: null,
   },
@@ -51,6 +52,10 @@ beforeEach(() => {
   // Reset mock
   vi.clearAllMocks();
   mockChromeQuery.mockResolvedValue([]);
+  vi.mocked(chrome.runtime.sendMessage).mockResolvedValue({
+    success: true,
+    data: { busy: false },
+  } as never);
 });
 
 describe('popup', () => {

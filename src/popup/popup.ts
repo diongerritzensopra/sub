@@ -4,7 +4,7 @@
 
 import type { MessageRequest, MessageResponse, TimesheetSnapshot } from '../shared/types';
 import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
-import { initBusyStateListener, isSAPPageBusy } from '../shared/busy-state';
+import { getSAPBusyStateForTab, initBusyStateListener } from '../shared/busy-state';
 
 // Getters for DOM elements (allows for flexible testing)
 function getBtnScrape(): HTMLButtonElement {
@@ -72,7 +72,12 @@ async function analyseActiveTab(): Promise<void> {
       throw new Error('Het actieve tabblad is geen SAP My Timesheet pagina.');
     }
 
-    if (isSAPPageBusy()) {
+    if (activeTab.status === 'loading') {
+      throw new Error('De pagina laadt nog. Probeer het over een moment opnieuw.');
+    }
+
+    const busy = await getSAPBusyStateForTab(activeTab.id);
+    if (busy) {
       throw new Error('De pagina laadt nog. Probeer het over een moment opnieuw.');
     }
 
