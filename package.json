@@ -10,7 +10,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "generate-icons": "node scripts/generate-icons.mjs",
-    "package": "vite build && cd dist && zip -r ../sub-extension.zip . && cd .."
+    "package": "vite build && node scripts/package.mjs"
   },
   "keywords": [],
   "author": "Dion Gerritzen <dion.gerritzen@soprasteria.com>",

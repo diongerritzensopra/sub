@@ -51,6 +51,7 @@ coverage/
 # Build output
 dist/
 build/Release
+sub-extension*.zip
 
 # TypeScript cache
 *.tsbuildinfo
