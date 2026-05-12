@@ -10,6 +10,9 @@
 - Content script with the initial scraping/autofill structure.
 - MV3 service worker as the lifecycle entry point.
 
+## Feature roadmap
+- Planned and completed features are tracked in `FEATURES.md`.
+
 ## Target URL
 - Full URL:
   - `https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet`

@@ -46,6 +46,7 @@ Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for he
 ## Maintenance Notes
 - Update this file when architecture, workflow, or SAP-specific targeting changes.
 - Prefer repository-specific instructions over generic advice.
+- Track planned/completed product features in `FEATURES.md`.
 
 ## Active TODO Surface
 - Map real SAP My Timesheet selectors in `src/content/content-script.ts` for scraping and autofill.
