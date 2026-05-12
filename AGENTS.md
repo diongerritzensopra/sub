@@ -33,7 +33,7 @@ Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for he
 | Package zip | `npm run package` |
 
 ## Agent Execution Rules
-- Every executed step that generates or edits code/files MUST be committed to git immediately after the step.
+- Do not commit automatically after each generated or edited step; wait for explicit user confirmation to commit.
 - Commit messages for generated changes MUST start with `[AI]`.
 - The commit message body MUST include both a `Prompt summary` and a `Step executed` summary; order them as prompt first, then step, with one blank line between them (paraphrasing is allowed when intent is preserved).
 
