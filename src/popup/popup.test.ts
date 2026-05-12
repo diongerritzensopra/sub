@@ -2,17 +2,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { TimesheetSnapshot } from '../shared/types';
 
 // Mock chrome API before any imports
-const mockChromeQuery = vi.fn();
+const mockChromeTabsQuery = vi.fn<
+    (queryInfo: chrome.tabs.QueryInfo) => Promise<chrome.tabs.Tab[]>
+>();
+const mockChromeRuntimeSendMessage = vi.fn<
+    (message: any, options?: chrome.runtime.MessageOptions) => Promise<any>
+>();
 globalThis.chrome = {
   tabs: {
-    query: mockChromeQuery,
+    query: mockChromeTabsQuery,
     get: vi.fn(),
     sendMessage: vi.fn(),
     onUpdated: { addListener: vi.fn() },
     onActivated: { addListener: vi.fn() },
   },
   runtime: {
-    sendMessage: vi.fn(),
+    sendMessage: mockChromeRuntimeSendMessage,
     onMessage: { addListener: vi.fn() },
     lastError: null,
   },
@@ -51,11 +56,11 @@ beforeEach(() => {
 
   // Reset mock
   vi.clearAllMocks();
-  mockChromeQuery.mockResolvedValue([]);
-  vi.mocked(chrome.runtime.sendMessage).mockResolvedValue({
+  mockChromeTabsQuery.mockResolvedValue([]);
+  mockChromeRuntimeSendMessage.mockResolvedValue({
     success: true,
     data: { busy: false },
-  } as never);
+  });
 });
 
 describe('popup', () => {
@@ -310,7 +315,7 @@ describe('popup', () => {
   describe('getActiveTab', () => {
     it('returns the active tab in current window', async () => {
       const mockTab = { id: 42, url: 'https://example.com' } as chrome.tabs.Tab;
-      mockChromeQuery.mockResolvedValue([mockTab]);
+      mockChromeTabsQuery.mockResolvedValue([mockTab]);
 
       const { getActiveTab } = await import('./popup');
       const tab = await getActiveTab();
@@ -320,7 +325,7 @@ describe('popup', () => {
     });
 
     it('returns undefined when no active tab found', async () => {
-      mockChromeQuery.mockResolvedValue([]);
+      mockChromeTabsQuery.mockResolvedValue([]);
 
       const { getActiveTab } = await import('./popup');
       const tab = await getActiveTab();
