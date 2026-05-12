@@ -26,6 +26,13 @@ export interface TimesheetSnapshot {
   totals: TimesheetTotals;
 }
 
+/** Cache payload for a scraped timesheet snapshot. */
+export interface CachedTimesheetSnapshot {
+  snapshot: TimesheetSnapshot;
+  cachedAt: string; // ISO timestamp
+  sourceUrl: string;
+}
+
 /** Union of all message types sent between extension components. */
 export type MessageType =
   | 'SCRAPE_ENTRIES'
