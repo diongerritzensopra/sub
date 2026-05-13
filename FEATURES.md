@@ -30,7 +30,7 @@ Shared feature roadmap for `sub`.
   - Render cached snapshot immediately when popup opens.
 - [x] Chunk 4 - Popup write-through path.
   - Save fresh scrape results to cache after successful scrape.
-- [ ] Chunk 5 - Busy/loading UX behavior.
+- [x] Chunk 5 - Busy/loading UX behavior.
   - Keep cached data visible while SAP page is still loading.
 - [ ] Chunk 6 - Staleness/invalidation.
   - Add period-based validation and stale cache handling.

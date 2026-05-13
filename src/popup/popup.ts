@@ -44,6 +44,8 @@ function getScrapeStatus(): HTMLSpanElement {
   return document.getElementById('scrape-status') as HTMLSpanElement;
 }
 
+let isCachedData = false;
+
 getBtnScrape().addEventListener('click', () => {
   void analyseActiveTab();
 });
@@ -69,11 +71,16 @@ async function renderCachedSnapshotIfAvailable(): Promise<void> {
     return;
   }
 
+  isCachedData = true;
   renderSnapshot(cached.snapshot, isSnapshotComplete(cached.snapshot));
 }
 
 async function analyseActiveTab(): Promise<void> {
-  setStatus('Pagina analyseren...');
+  const hasCachedData = (await getCachedTimesheetSnapshot()) !== undefined;
+
+  if (!hasCachedData) {
+    setStatus('Pagina analyseren...');
+  }
   getBtnScrape().disabled = true;
 
   try {
@@ -86,13 +93,14 @@ async function analyseActiveTab(): Promise<void> {
       throw new Error('Het actieve tabblad is geen SAP My Timesheet pagina.');
     }
 
-    if (activeTab.status === 'loading') {
-      throw new Error('De pagina laadt nog. Probeer het over een moment opnieuw.');
-    }
-
-    const busy = await getSAPBusyStateForTab(activeTab.id);
-    if (busy) {
-      throw new Error('De pagina laadt nog. Probeer het over een moment opnieuw.');
+    const isPageLoading = activeTab.status === 'loading' || await getSAPBusyStateForTab(activeTab.id);
+    if (isPageLoading) {
+      // If we have cached data, keep showing it while page loads; otherwise show error
+      if (!hasCachedData) {
+        throw new Error('De pagina laadt nog. Probeer het over een moment opnieuw.');
+      }
+      setStatus('Pagina laadt nog, gegevens kunnen verouderd zijn...');
+      return;
     }
 
     const response = await chrome.tabs.sendMessage<MessageRequest, MessageResponse>(activeTab.id, {
@@ -105,6 +113,7 @@ async function analyseActiveTab(): Promise<void> {
 
     const scrapedSnapshot = response.data as TimesheetSnapshot;
     const scrapedIsComplete = isSnapshotComplete(scrapedSnapshot);
+    isCachedData = false; // Mark as fresh data
     renderSnapshot(scrapedSnapshot, scrapedIsComplete);
 
     // Write-through: persist fresh snapshot to cache only when it improves on
@@ -146,7 +155,15 @@ export function renderSnapshot(snapshot: TimesheetSnapshot, hasAllData: boolean 
   const statusEmoji = hasAllData ? '✅' : '⚠️';
   getScrapeStatus().textContent = ` ${statusEmoji}`;
 
-  getSummarySection().hidden = false;
+  // Add visual indicator for cached data
+  const summarySection = getSummarySection();
+  if (isCachedData) {
+    summarySection.classList.add('cached-data');
+  } else {
+    summarySection.classList.remove('cached-data');
+  }
+
+  summarySection.hidden = false;
 }
 
 export function formatHours(value: number | null): string {

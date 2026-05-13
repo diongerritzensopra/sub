@@ -211,8 +211,87 @@ describe('popup', () => {
          }),
          expect.any(Function),
        );
-     });
-  });
+      });
+   });
+
+  describe('busy/loading UX behavior', () => {
+    const sapTab = {
+      id: 99,
+      url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my',
+      status: 'complete',
+    } as chrome.tabs.Tab;
+
+    it('shows cached data and gentle loading message when SAP page is loading', async () => {
+      const cachedSnapshot: TimesheetSnapshot = {
+        month: 5, year: 2026,
+        projectCodes: ['C0007012.1.1'],
+        totals: { worked: 120, absent: 8, toBePerformed: 160 },
+      };
+      const cachedData: CachedTimesheetSnapshot = {
+        snapshot: cachedSnapshot,
+        cachedAt: '2026-05-12T10:00:00.000Z',
+      };
+
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeRuntimeSendMessage.mockResolvedValue({ success: true, data: { busy: true } });
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: cachedData });
+      });
+
+      await import('./popup');
+      await new Promise((r) => setTimeout(r, 0));
+
+      // Cached data should still be visible
+      expect(document.getElementById('period-value')?.textContent).toBe('5/2026');
+      expect(document.getElementById('project-codes-value')?.textContent).toBe('C0007012.1.1');
+      expect(document.getElementById('worked-hours-value')?.textContent).toBe('120 u');
+      // Status message should be gentle, not an error
+      expect(document.getElementById('status-message')?.textContent).toContain('Pagina laadt nog');
+    });
+
+    it('returns early with cached data visible when tab status is loading', async () => {
+      const cachedSnapshot: TimesheetSnapshot = {
+        month: 5, year: 2026,
+        projectCodes: ['C0007012.1.1'],
+        totals: { worked: 120, absent: 8, toBePerformed: 160 },
+      };
+      const cachedData: CachedTimesheetSnapshot = {
+        snapshot: cachedSnapshot,
+        cachedAt: '2026-05-12T10:00:00.000Z',
+      };
+      const loadingTab = { ...sapTab, status: 'loading' } as chrome.tabs.Tab;
+
+      mockChromeTabsQuery.mockResolvedValue([loadingTab]);
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: cachedData });
+      });
+
+      await import('./popup');
+      await new Promise((r) => setTimeout(r, 0));
+
+      // Cached data should still be visible
+      expect(document.getElementById('period-value')?.textContent).toBe('5/2026');
+      expect(document.getElementById('summary-section')?.hidden).toBe(false);
+      // Should not throw error when cached data is available
+      expect(document.getElementById('status-message')?.textContent).toContain('Pagina laadt nog');
+    });
+
+    it('throws error when tab is loading and no cached data available', async () => {
+      const loadingTab = { ...sapTab, status: 'loading' } as chrome.tabs.Tab;
+
+      mockChromeTabsQuery.mockResolvedValue([loadingTab]);
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: undefined });
+      });
+
+      await import('./popup');
+      await new Promise((r) => setTimeout(r, 0));
+
+      // Should show error
+      expect(document.getElementById('status-message')?.textContent).toContain('Fout:');
+      expect(document.getElementById('status-message')?.textContent).toContain('De pagina laadt nog');
+    });
+   });
 
   describe('isTimesheetTab', () => {
     it('returns true when tab URL includes SAP timesheet pattern', async () => {
