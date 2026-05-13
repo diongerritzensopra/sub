@@ -28,7 +28,7 @@ Shared feature roadmap for `sub`.
   - Added/updated tests in `src/shared/storage.test.ts`.
 - [x] Chunk 3 - Popup read path.
   - Render cached snapshot immediately when popup opens.
-- [ ] Chunk 4 - Popup write-through path.
+- [x] Chunk 4 - Popup write-through path.
   - Save fresh scrape results to cache after successful scrape.
 - [ ] Chunk 5 - Busy/loading UX behavior.
   - Keep cached data visible while SAP page is still loading.

@@ -5,7 +5,7 @@
 import type { MessageRequest, MessageResponse, TimesheetSnapshot } from '../shared/types';
 import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
 import { getSAPBusyStateForTab, initBusyStateListener } from '../shared/busy-state';
-import { getCachedTimesheetSnapshot } from '../shared/storage';
+import { getCachedTimesheetSnapshot, setCachedTimesheetSnapshot } from '../shared/storage';
 
 // Getters for DOM elements (allows for flexible testing)
 function getBtnScrape(): HTMLButtonElement {
@@ -69,7 +69,7 @@ async function renderCachedSnapshotIfAvailable(): Promise<void> {
     return;
   }
 
-  renderSnapshot(cached.snapshot, hasAllScrapedData(cached.snapshot));
+  renderSnapshot(cached.snapshot, isSnapshotComplete(cached.snapshot));
 }
 
 async function analyseActiveTab(): Promise<void> {
@@ -103,9 +103,24 @@ async function analyseActiveTab(): Promise<void> {
       throw new Error(response.error ?? 'Onbekende fout.');
     }
 
-    const snapshot = response.data as TimesheetSnapshot;
-    const hasAllData = hasAllScrapedData(snapshot);
-    renderSnapshot(snapshot, hasAllData);
+    const scrapedSnapshot = response.data as TimesheetSnapshot;
+    const scrapedIsComplete = isSnapshotComplete(scrapedSnapshot);
+    renderSnapshot(scrapedSnapshot, scrapedIsComplete);
+
+    // Write-through: persist fresh snapshot to cache only when period is known
+    // and only when it improves on what is already cached (don't downgrade complete → partial)
+    if (scrapedSnapshot.month && scrapedSnapshot.year) {
+      const cachedSnapshot = await getCachedTimesheetSnapshot();
+      const cachedIsComplete = cachedSnapshot ? isSnapshotComplete(cachedSnapshot.snapshot) : false;
+      if (!cachedIsComplete || scrapedIsComplete) {
+        await setCachedTimesheetSnapshot({
+          snapshot: scrapedSnapshot,
+          cachedAt: new Date().toISOString(),
+          periodKey: `${scrapedSnapshot.year}-${String(scrapedSnapshot.month).padStart(2, '0')}`,
+        });
+      }
+    }
+
     setStatus('');
   } catch (err) {
     setStatus(`Fout: ${(err as Error).message}`);
@@ -149,7 +164,7 @@ export function setStatus(message: string): void {
   getStatusMessage().textContent = message;
 }
 
-function hasAllScrapedData(snapshot: TimesheetSnapshot): boolean {
+function isSnapshotComplete(snapshot: TimesheetSnapshot): boolean {
   return snapshot.totals.worked !== null
     && snapshot.totals.absent !== null
     && snapshot.totals.toBePerformed !== null;

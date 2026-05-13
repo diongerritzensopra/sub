@@ -3,10 +3,13 @@ import type { CachedTimesheetSnapshot, TimesheetSnapshot } from '../shared/types
 
 // Mock chrome API before any imports
 const mockChromeTabsQuery = vi.fn<
-    (queryInfo: chrome.tabs.QueryInfo) => Promise<chrome.tabs.Tab[]>
+  (queryInfo: chrome.tabs.QueryInfo) => Promise<chrome.tabs.Tab[]>
 >();
 const mockChromeRuntimeSendMessage = vi.fn<
-    (message: any, options?: chrome.runtime.MessageOptions) => Promise<any>
+  (message: any, options?: chrome.runtime.MessageOptions) => Promise<any>
+>();
+const mockChromeTabsSendMessage = vi.fn<
+  (tabId: number, message: any) => Promise<any>
 >();
 const mockChromeStorageLocalGet = vi.fn<
   (keys: string[], callback: (result: Record<string, unknown>) => void) => void
@@ -21,7 +24,7 @@ globalThis.chrome = {
   tabs: {
     query: mockChromeTabsQuery,
     get: vi.fn(),
-    sendMessage: vi.fn(),
+    sendMessage: mockChromeTabsSendMessage,
     onUpdated: { addListener: vi.fn() },
     onActivated: { addListener: vi.fn() },
   },
@@ -74,6 +77,7 @@ beforeEach(() => {
   vi.resetModules();
   vi.clearAllMocks();
   mockChromeTabsQuery.mockResolvedValue([]);
+  mockChromeTabsSendMessage.mockResolvedValue({ success: false, error: 'not mocked' });
   mockChromeRuntimeSendMessage.mockResolvedValue({
     success: true,
     data: { busy: false },
@@ -117,6 +121,96 @@ describe('popup', () => {
       expect(document.getElementById('project-codes-value')?.textContent).toBe('C0007012.1.1');
       expect(document.getElementById('worked-hours-value')?.textContent).toBe('120 u');
       expect(document.getElementById('summary-section')?.hasAttribute('hidden')).toBe(false);
+    });
+  });
+
+  describe('cache write-through', () => {
+    const sapTab = {
+      id: 99,
+      url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my',
+      status: 'complete',
+    } as chrome.tabs.Tab;
+
+    function setupScrapeReturning(snapshot: TimesheetSnapshot, storedValues: Record<string, unknown> = {}) {
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeRuntimeSendMessage.mockResolvedValue({ success: true, data: { busy: false } });
+      mockChromeTabsSendMessage.mockResolvedValue({ success: true, data: snapshot });
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: storedValues[keys[0]] });
+      });
+      mockChromeStorageLocalSet.mockImplementation((values, callback) => {
+        Object.assign(storedValues, values);
+        callback();
+      });
+    }
+
+    it('saves snapshot to cache after successful scrape', async () => {
+      const snapshot: TimesheetSnapshot = {
+        month: 5, year: 2026,
+        projectCodes: ['C0007012.1.1'],
+        totals: { worked: 120, absent: 8, toBePerformed: 160 },
+      };
+      const storedValues: Record<string, unknown> = {};
+      setupScrapeReturning(snapshot, storedValues);
+
+      await import('./popup');
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(mockChromeStorageLocalSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          timesheetSnapshotCache: expect.objectContaining({ periodKey: '2026-05', snapshot }),
+        }),
+        expect.any(Function),
+      );
+    });
+
+    it('does not overwrite a complete cache with a partial fresh snapshot', async () => {
+      const completeSnapshot: TimesheetSnapshot = {
+        month: 5, year: 2026,
+        projectCodes: ['C0007012.1.1'],
+        totals: { worked: 120, absent: 8, toBePerformed: 160 },
+      };
+      const partialSnapshot: TimesheetSnapshot = {
+        month: 5, year: 2026,
+        projectCodes: ['C0007012.1.1'],
+        totals: { worked: null, absent: null, toBePerformed: null },
+      };
+      const existingCache: CachedTimesheetSnapshot = {
+        snapshot: completeSnapshot,
+        cachedAt: '2026-05-12T10:00:00.000Z',
+        periodKey: '2026-05',
+      };
+      // Cache already has complete data; fresh scrape returns partial
+      const storedValues: Record<string, unknown> = { timesheetSnapshotCache: existingCache };
+      setupScrapeReturning(partialSnapshot, storedValues);
+
+      await import('./popup');
+      await new Promise((r) => setTimeout(r, 0));
+
+      // set should not have been called with partial data
+      expect(mockChromeStorageLocalSet).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          timesheetSnapshotCache: expect.objectContaining({ snapshot: partialSnapshot }),
+        }),
+        expect.any(Function),
+      );
+    });
+
+    it('does not cache when snapshot has no month or year', async () => {
+      const snapshotNoDate: TimesheetSnapshot = {
+        month: null, year: null,
+        projectCodes: [],
+        totals: { worked: null, absent: null, toBePerformed: null },
+      };
+      setupScrapeReturning(snapshotNoDate);
+
+      await import('./popup');
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(mockChromeStorageLocalSet).not.toHaveBeenCalledWith(
+        expect.objectContaining({ timesheetSnapshotCache: expect.anything() }),
+        expect.any(Function),
+      );
     });
   });
 
