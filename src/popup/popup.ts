@@ -107,18 +107,15 @@ async function analyseActiveTab(): Promise<void> {
     const scrapedIsComplete = isSnapshotComplete(scrapedSnapshot);
     renderSnapshot(scrapedSnapshot, scrapedIsComplete);
 
-    // Write-through: persist fresh snapshot to cache only when period is known
-    // and only when it improves on what is already cached (don't downgrade complete → partial)
-    if (scrapedSnapshot.month && scrapedSnapshot.year) {
-      const cachedSnapshot = await getCachedTimesheetSnapshot();
-      const cachedIsComplete = cachedSnapshot ? isSnapshotComplete(cachedSnapshot.snapshot) : false;
-      if (!cachedIsComplete || scrapedIsComplete) {
-        await setCachedTimesheetSnapshot({
-          snapshot: scrapedSnapshot,
-          cachedAt: new Date().toISOString(),
-          periodKey: `${scrapedSnapshot.year}-${String(scrapedSnapshot.month).padStart(2, '0')}`,
-        });
-      }
+    // Write-through: persist fresh snapshot to cache only when it improves on
+    // what is already cached (don't downgrade complete → partial)
+    const cachedSnapshot = await getCachedTimesheetSnapshot();
+    const cachedIsComplete = cachedSnapshot ? isSnapshotComplete(cachedSnapshot.snapshot) : false;
+    if (!cachedIsComplete || scrapedIsComplete) {
+      await setCachedTimesheetSnapshot({
+        snapshot: scrapedSnapshot,
+        cachedAt: new Date().toISOString(),
+      });
     }
 
     setStatus('');

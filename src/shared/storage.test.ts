@@ -55,7 +55,6 @@ describe('storage helpers', () => {
         },
       },
       cachedAt: '2026-05-12T10:00:00.000Z',
-      periodKey: '2026-05',
     };
 
     await setCachedTimesheetSnapshot(cache);

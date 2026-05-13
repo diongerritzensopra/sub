@@ -108,7 +108,6 @@ describe('popup', () => {
           },
         },
         cachedAt: '2026-05-12T10:00:00.000Z',
-        periodKey: '2026-05',
       };
       mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
         callback({ [keys[0]]: cached });
@@ -156,12 +155,12 @@ describe('popup', () => {
       await import('./popup');
       await new Promise((r) => setTimeout(r, 0));
 
-      expect(mockChromeStorageLocalSet).toHaveBeenCalledWith(
-        expect.objectContaining({
-          timesheetSnapshotCache: expect.objectContaining({ periodKey: '2026-05', snapshot }),
-        }),
-        expect.any(Function),
-      );
+       expect(mockChromeStorageLocalSet).toHaveBeenCalledWith(
+         expect.objectContaining({
+           timesheetSnapshotCache: expect.objectContaining({ snapshot }),
+         }),
+         expect.any(Function),
+       );
     });
 
     it('does not overwrite a complete cache with a partial fresh snapshot', async () => {
@@ -175,11 +174,10 @@ describe('popup', () => {
         projectCodes: ['C0007012.1.1'],
         totals: { worked: null, absent: null, toBePerformed: null },
       };
-      const existingCache: CachedTimesheetSnapshot = {
-        snapshot: completeSnapshot,
-        cachedAt: '2026-05-12T10:00:00.000Z',
-        periodKey: '2026-05',
-      };
+       const existingCache: CachedTimesheetSnapshot = {
+         snapshot: completeSnapshot,
+         cachedAt: '2026-05-12T10:00:00.000Z',
+       };
       // Cache already has complete data; fresh scrape returns partial
       const storedValues: Record<string, unknown> = { timesheetSnapshotCache: existingCache };
       setupScrapeReturning(partialSnapshot, storedValues);
@@ -196,22 +194,24 @@ describe('popup', () => {
       );
     });
 
-    it('does not cache when snapshot has no month or year', async () => {
-      const snapshotNoDate: TimesheetSnapshot = {
-        month: null, year: null,
-        projectCodes: [],
-        totals: { worked: null, absent: null, toBePerformed: null },
-      };
-      setupScrapeReturning(snapshotNoDate);
+    it('caches snapshot even when it has no month or year', async () => {
+       const snapshotNoDate: TimesheetSnapshot = {
+         month: null, year: null,
+         projectCodes: [],
+         totals: { worked: null, absent: null, toBePerformed: null },
+       };
+       setupScrapeReturning(snapshotNoDate);
 
-      await import('./popup');
-      await new Promise((r) => setTimeout(r, 0));
+       await import('./popup');
+       await new Promise((r) => setTimeout(r, 0));
 
-      expect(mockChromeStorageLocalSet).not.toHaveBeenCalledWith(
-        expect.objectContaining({ timesheetSnapshotCache: expect.anything() }),
-        expect.any(Function),
-      );
-    });
+       expect(mockChromeStorageLocalSet).toHaveBeenCalledWith(
+         expect.objectContaining({
+           timesheetSnapshotCache: expect.objectContaining({ snapshot: snapshotNoDate }),
+         }),
+         expect.any(Function),
+       );
+     });
   });
 
   describe('isTimesheetTab', () => {

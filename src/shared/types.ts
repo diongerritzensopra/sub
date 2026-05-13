@@ -30,7 +30,6 @@ export interface TimesheetSnapshot {
 export interface CachedTimesheetSnapshot {
   snapshot: TimesheetSnapshot;
   cachedAt: string; // ISO timestamp
-  periodKey: string; // e.g. "2026-05"
 }
 
 /** Union of all message types sent between extension components. */
