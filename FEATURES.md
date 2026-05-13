@@ -26,7 +26,7 @@ Shared feature roadmap for `sub`.
 - [x] Chunk 2 - Add typed storage helpers and tests.
   - Added cache helpers in `src/shared/storage.ts`.
   - Added/updated tests in `src/shared/storage.test.ts`.
-- [ ] Chunk 3 - Popup read path.
+- [x] Chunk 3 - Popup read path.
   - Render cached snapshot immediately when popup opens.
 - [ ] Chunk 4 - Popup write-through path.
   - Save fresh scrape results to cache after successful scrape.

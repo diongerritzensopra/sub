@@ -5,6 +5,7 @@
 import type { MessageRequest, MessageResponse, TimesheetSnapshot } from '../shared/types';
 import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
 import { getSAPBusyStateForTab, initBusyStateListener } from '../shared/busy-state';
+import { getCachedTimesheetSnapshot } from '../shared/storage';
 
 // Getters for DOM elements (allows for flexible testing)
 function getBtnScrape(): HTMLButtonElement {
@@ -55,8 +56,21 @@ initBusyStateListener((busy) => {
   }
 });
 
-// Scrape immediately when popup opens
-void analyseActiveTab();
+void bootstrapPopup();
+
+async function bootstrapPopup(): Promise<void> {
+  await renderCachedSnapshotIfAvailable();
+  await analyseActiveTab();
+}
+
+async function renderCachedSnapshotIfAvailable(): Promise<void> {
+  const cached = await getCachedTimesheetSnapshot();
+  if (!cached) {
+    return;
+  }
+
+  renderSnapshot(cached.snapshot, hasAllScrapedData(cached.snapshot));
+}
 
 async function analyseActiveTab(): Promise<void> {
   setStatus('Pagina analyseren...');
@@ -90,7 +104,7 @@ async function analyseActiveTab(): Promise<void> {
     }
 
     const snapshot = response.data as TimesheetSnapshot;
-    const hasAllData = snapshot.totals.worked !== null && snapshot.totals.absent !== null && snapshot.totals.toBePerformed !== null;
+    const hasAllData = hasAllScrapedData(snapshot);
     renderSnapshot(snapshot, hasAllData);
     setStatus('');
   } catch (err) {
@@ -134,3 +148,10 @@ export function formatHours(value: number | null): string {
 export function setStatus(message: string): void {
   getStatusMessage().textContent = message;
 }
+
+function hasAllScrapedData(snapshot: TimesheetSnapshot): boolean {
+  return snapshot.totals.worked !== null
+    && snapshot.totals.absent !== null
+    && snapshot.totals.toBePerformed !== null;
+}
+

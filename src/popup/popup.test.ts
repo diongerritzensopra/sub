@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { TimesheetSnapshot } from '../shared/types';
+import type { CachedTimesheetSnapshot, TimesheetSnapshot } from '../shared/types';
 
 // Mock chrome API before any imports
 const mockChromeTabsQuery = vi.fn<
@@ -7,6 +7,15 @@ const mockChromeTabsQuery = vi.fn<
 >();
 const mockChromeRuntimeSendMessage = vi.fn<
     (message: any, options?: chrome.runtime.MessageOptions) => Promise<any>
+>();
+const mockChromeStorageLocalGet = vi.fn<
+  (keys: string[], callback: (result: Record<string, unknown>) => void) => void
+>();
+const mockChromeStorageLocalSet = vi.fn<
+  (values: Record<string, unknown>, callback: () => void) => void
+>();
+const mockChromeStorageLocalRemove = vi.fn<
+  (key: string, callback: () => void) => void
 >();
 globalThis.chrome = {
   tabs: {
@@ -20,6 +29,13 @@ globalThis.chrome = {
     sendMessage: mockChromeRuntimeSendMessage,
     onMessage: { addListener: vi.fn() },
     lastError: null,
+  },
+  storage: {
+    local: {
+      get: mockChromeStorageLocalGet,
+      set: mockChromeStorageLocalSet,
+      remove: mockChromeStorageLocalRemove,
+    },
   },
   action: {
     setIcon: vi.fn(),
@@ -55,15 +71,55 @@ beforeEach(() => {
   `;
 
   // Reset mock
+  vi.resetModules();
   vi.clearAllMocks();
   mockChromeTabsQuery.mockResolvedValue([]);
   mockChromeRuntimeSendMessage.mockResolvedValue({
     success: true,
     data: { busy: false },
   });
+  mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+    callback({ [keys[0]]: undefined });
+  });
+  mockChromeStorageLocalSet.mockImplementation((_values, callback) => {
+    callback();
+  });
+  mockChromeStorageLocalRemove.mockImplementation((_key, callback) => {
+    callback();
+  });
 });
 
 describe('popup', () => {
+  describe('cache bootstrap', () => {
+    it('renders cached snapshot immediately when popup opens', async () => {
+      const cached: CachedTimesheetSnapshot = {
+        snapshot: {
+          month: 5,
+          year: 2026,
+          projectCodes: ['C0007012.1.1'],
+          totals: {
+            worked: 120,
+            absent: 8,
+            toBePerformed: 160,
+          },
+        },
+        cachedAt: '2026-05-12T10:00:00.000Z',
+        periodKey: '2026-05',
+      };
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: cached });
+      });
+
+      await import('./popup');
+      await Promise.resolve();
+
+      expect(document.getElementById('period-value')?.textContent).toBe('5/2026');
+      expect(document.getElementById('project-codes-value')?.textContent).toBe('C0007012.1.1');
+      expect(document.getElementById('worked-hours-value')?.textContent).toBe('120 u');
+      expect(document.getElementById('summary-section')?.hasAttribute('hidden')).toBe(false);
+    });
+  });
+
   describe('isTimesheetTab', () => {
     it('returns true when tab URL includes SAP timesheet pattern', async () => {
       const { isTimesheetTab } = await import('./popup');
