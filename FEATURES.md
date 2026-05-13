@@ -37,6 +37,14 @@ Shared feature roadmap for `sub`.
 - [ ] Chunk 7 - Final polish.
   - Add subtle cached/fresh indicators and final cleanup.
 
+### i18n
+- [ ] Support both Dutch and English in the extension UI.
+- [ ] Bundle user-facing text in language-specific localization files.
+  - Keep localization structure extensible for additional languages later.
+- [ ] Add a language selection menu in the popup.
+  - Selection options are represented by country flag emojis.
+  - Persist the selected language in local storage.
+
 ## Notes
 - Keep message contracts typed in `src/shared/types.ts`.
 - Keep storage helpers in `src/shared/storage.ts` when implementing cache behavior.
