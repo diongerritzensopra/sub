@@ -2,10 +2,12 @@
  * Popup script — handles UI interactions for scraping hours from SAP My Timesheet.
  */
 
-import type { MessageRequest, MessageResponse, TimesheetSnapshot } from '../shared/types';
+import type { CachedTimesheetSnapshot, MessageRequest, MessageResponse, TimesheetSnapshot } from '../shared/types';
 import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
 import { getSAPBusyStateForTab, initBusyStateListener } from '../shared/busy-state';
-import { getCachedTimesheetSnapshot, setCachedTimesheetSnapshot } from '../shared/storage';
+import { getCachedTimesheetSnapshot, setCachedTimesheetSnapshot, clearCachedTimesheetSnapshot, isCacheStale } from '../shared/storage';
+
+const ROUTE_PERIOD_PATTERN = /[?&]\/(1[0-2]|0?[1-9])\/(20\d{2})(?:[/?&#]|$)/i;
 
 // Getters for DOM elements (allows for flexible testing)
 function getBtnScrape(): HTMLButtonElement {
@@ -66,7 +68,8 @@ async function bootstrapPopup(): Promise<void> {
 }
 
 async function renderCachedSnapshotIfAvailable(): Promise<void> {
-  const cached = await getCachedTimesheetSnapshot();
+  const activeTab = await getActiveTab();
+  const cached = await getValidCachedSnapshot(activeTab);
   if (!cached) {
     return;
   }
@@ -76,11 +79,6 @@ async function renderCachedSnapshotIfAvailable(): Promise<void> {
 }
 
 async function analyseActiveTab(): Promise<void> {
-  const hasCachedData = (await getCachedTimesheetSnapshot()) !== undefined;
-
-  if (!hasCachedData) {
-    setStatus('Pagina analyseren...');
-  }
   getBtnScrape().disabled = true;
 
   try {
@@ -91,6 +89,12 @@ async function analyseActiveTab(): Promise<void> {
 
     if (!isTimesheetTab(activeTab)) {
       throw new Error('Het actieve tabblad is geen SAP My Timesheet pagina.');
+    }
+
+    const cachedSnapshot = await getValidCachedSnapshot(activeTab);
+    const hasCachedData = cachedSnapshot !== undefined;
+    if (!hasCachedData) {
+      setStatus('Pagina analyseren...');
     }
 
     const isPageLoading = activeTab.status === 'loading' || await getSAPBusyStateForTab(activeTab.id);
@@ -118,7 +122,6 @@ async function analyseActiveTab(): Promise<void> {
 
     // Write-through: persist fresh snapshot to cache only when it improves on
     // what is already cached (don't downgrade complete → partial)
-    const cachedSnapshot = await getCachedTimesheetSnapshot();
     const cachedIsComplete = cachedSnapshot ? isSnapshotComplete(cachedSnapshot.snapshot) : false;
     if (!cachedIsComplete || scrapedIsComplete) {
       await setCachedTimesheetSnapshot({
@@ -142,6 +145,46 @@ export async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
 
 export function isTimesheetTab(tab: chrome.tabs.Tab | undefined): boolean {
   return (tab?.url ?? '').includes(SAP_TIMESHEET_URL_PATTERN);
+}
+
+export function extractPeriodFromTimesheetUrl(url: string | undefined): { month: number; year: number } | null {
+  if (!url) {
+    return null;
+  }
+
+  const match = url.match(ROUTE_PERIOD_PATTERN);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    month: Number.parseInt(match[1], 10),
+    year: Number.parseInt(match[2], 10),
+  };
+}
+
+function resolveValidationPeriod(tab: chrome.tabs.Tab | undefined): { month: number; year: number } {
+  const routePeriod = extractPeriodFromTimesheetUrl(tab?.url);
+  if (routePeriod) {
+    return routePeriod;
+  }
+
+  const now = new Date();
+  return { month: now.getMonth() + 1, year: now.getFullYear() };
+}
+
+async function getValidCachedSnapshot(tab: chrome.tabs.Tab | undefined): Promise<CachedTimesheetSnapshot | undefined> {
+  const cached = await getCachedTimesheetSnapshot();
+  if (!cached) {
+    return undefined;
+  }
+
+  if (isCacheStale(cached, resolveValidationPeriod(tab))) {
+    await clearCachedTimesheetSnapshot();
+    return undefined;
+  }
+
+  return cached;
 }
 
 export function renderSnapshot(snapshot: TimesheetSnapshot, hasAllData: boolean = false): void {

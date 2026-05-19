@@ -4,6 +4,7 @@ import type { CachedTimesheetSnapshot } from './types';
 import {
   clearCachedTimesheetSnapshot,
   getCachedTimesheetSnapshot,
+  isCacheStale,
   setCachedTimesheetSnapshot,
   STORAGE_KEYS,
 } from './storage';
@@ -73,6 +74,46 @@ describe('storage helpers', () => {
 
     expect(value).toBeUndefined();
     expect(mockRemove).toHaveBeenCalledWith(STORAGE_KEYS.timesheetSnapshotCache, expect.any(Function));
+  });
+});
+
+describe('isCacheStale', () => {
+  function makeCache(month: number | null, year: number | null, cachedAt: string = '2026-05-12T10:00:00.000Z'): CachedTimesheetSnapshot {
+    return {
+      snapshot: { month, year, projectCodes: [], totals: { worked: null, absent: null, toBePerformed: null } },
+      cachedAt,
+    };
+  }
+
+  it('returns false when cache month/year matches the current month/year', () => {
+    expect(isCacheStale(makeCache(5, 2026), { month: 5, year: 2026 })).toBe(false);
+  });
+
+  it('returns true when cache month differs from current month', () => {
+    expect(isCacheStale(makeCache(4, 2026), { month: 5, year: 2026 })).toBe(true);
+  });
+
+  it('returns true when cache year differs from current year', () => {
+    expect(isCacheStale(makeCache(5, 2025), { month: 5, year: 2026 })).toBe(true);
+  });
+
+  it('returns false when cache has no month or year (undated snapshot is not stale)', () => {
+    expect(isCacheStale(makeCache(null, null), { month: 5, year: 2026 })).toBe(false);
+  });
+
+  it('returns true when cachedAt is older than 3 months', () => {
+    const now = new Date('2026-05-19T08:00:00.000Z');
+    expect(isCacheStale(makeCache(5, 2026, '2026-02-18T07:59:59.000Z'), { month: 5, year: 2026 }, now)).toBe(true);
+  });
+
+  it('returns false when cachedAt is within 3 months', () => {
+    const now = new Date('2026-05-19T08:00:00.000Z');
+    expect(isCacheStale(makeCache(5, 2026, '2026-02-20T08:00:00.000Z'), { month: 5, year: 2026 }, now)).toBe(false);
+  });
+
+  it('returns true when cachedAt is invalid', () => {
+    const now = new Date('2026-05-19T08:00:00.000Z');
+    expect(isCacheStale(makeCache(5, 2026, 'invalid-date'), { month: 5, year: 2026 }, now)).toBe(true);
   });
 });
 

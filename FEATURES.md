@@ -32,7 +32,7 @@ Shared feature roadmap for `sub`.
   - Save fresh scrape results to cache after successful scrape.
 - [x] Chunk 5 - Busy/loading UX behavior.
   - Keep cached data visible while SAP page is still loading.
-- [ ] Chunk 6 - Staleness/invalidation.
+- [x] Chunk 6 - Staleness/invalidation.
   - Add period-based validation and stale cache handling.
 - [ ] Chunk 7 - Final polish.
   - Add subtle cached/fresh indicators and final cleanup.

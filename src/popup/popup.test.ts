@@ -95,7 +95,7 @@ beforeEach(() => {
 
 describe('popup', () => {
   describe('cache bootstrap', () => {
-    it('renders cached snapshot immediately when popup opens', async () => {
+    it('renders cached snapshot when it matches period from route query parameter', async () => {
       const cached: CachedTimesheetSnapshot = {
         snapshot: {
           month: 5,
@@ -109,6 +109,11 @@ describe('popup', () => {
         },
         cachedAt: '2026-05-12T10:00:00.000Z',
       };
+      mockChromeTabsQuery.mockResolvedValue([{
+        id: 99,
+        url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/5/2026/project/ZSST',
+        status: 'complete',
+      } as chrome.tabs.Tab]);
       mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
         callback({ [keys[0]]: cached });
       });
@@ -120,6 +125,61 @@ describe('popup', () => {
       expect(document.getElementById('project-codes-value')?.textContent).toBe('C0007012.1.1');
       expect(document.getElementById('worked-hours-value')?.textContent).toBe('120 u');
       expect(document.getElementById('summary-section')?.hasAttribute('hidden')).toBe(false);
+    });
+
+    it('clears and does not render a stale cached snapshot when route period differs', async () => {
+      const staleCache: CachedTimesheetSnapshot = {
+        snapshot: {
+          month: 4,
+          year: 2026,
+          projectCodes: ['C0007012.1.1'],
+          totals: { worked: 120, absent: 8, toBePerformed: 160 },
+        },
+        cachedAt: '2026-04-30T10:00:00.000Z',
+      };
+      mockChromeTabsQuery.mockResolvedValue([{
+        id: 99,
+        url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/5/2026/project/ZSST',
+        status: 'complete',
+      } as chrome.tabs.Tab]);
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: staleCache });
+      });
+
+      await import('./popup');
+      await Promise.resolve();
+
+      // Summary section should remain hidden — stale data should not be displayed
+      expect(document.getElementById('summary-section')?.hidden).toBe(true);
+      // Cache should have been cleared
+      expect(mockChromeStorageLocalRemove).toHaveBeenCalled();
+    });
+
+    it('validates cache against current date when route has no month/year parameter', async () => {
+      const now = new Date();
+      const currentCache: CachedTimesheetSnapshot = {
+        snapshot: {
+          month: now.getMonth() + 1,
+          year: now.getFullYear(),
+          projectCodes: ['C0007012.1.1'],
+          totals: { worked: 120, absent: 8, toBePerformed: 160 },
+        },
+        cachedAt: '2026-05-12T10:00:00.000Z',
+      };
+      mockChromeTabsQuery.mockResolvedValue([{
+        id: 99,
+        url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my',
+        status: 'complete',
+      } as chrome.tabs.Tab]);
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: currentCache });
+      });
+
+      await import('./popup');
+      await Promise.resolve();
+
+      expect(document.getElementById('period-value')?.textContent).toBe(`${currentCache.snapshot.month}/${currentCache.snapshot.year}`);
+      expect(mockChromeStorageLocalRemove).not.toHaveBeenCalled();
     });
   });
 
@@ -318,6 +378,26 @@ describe('popup', () => {
       const { isTimesheetTab } = await import('./popup');
 
       expect(isTimesheetTab(undefined)).toBe(false);
+    });
+  });
+
+  describe('extractPeriodFromTimesheetUrl', () => {
+    it('extracts period when route contains month/year query segment', async () => {
+      const { extractPeriodFromTimesheetUrl } = await import('./popup');
+      const period = extractPeriodFromTimesheetUrl(
+        'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/4/2026/project/ZSST',
+      );
+
+      expect(period).toEqual({ month: 4, year: 2026 });
+    });
+
+    it('returns null when route has no month/year query segment', async () => {
+      const { extractPeriodFromTimesheetUrl } = await import('./popup');
+      const period = extractPeriodFromTimesheetUrl(
+        'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my',
+      );
+
+      expect(period).toBeNull();
     });
   });
 
