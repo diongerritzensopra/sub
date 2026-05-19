@@ -14,9 +14,9 @@ Shared feature roadmap for `sub`.
 
 ### Caching
 #### Feature description
-- [ ] Cache scraped SAP My Timesheet snapshot data in browser storage.
+- [x] Cache scraped SAP My Timesheet snapshot data in browser storage.
   - Storage backend: `chrome.storage.session` or `chrome.storage.local`.
-- [ ] Show cached data immediately when popup opens.
+- [x] Show cached data immediately when popup opens.
   - Keep automatic scrape/update behavior in parallel.
   - Replace cached values with fresh scraped values when available.
 
