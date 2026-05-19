@@ -46,7 +46,12 @@ function getScrapeStatus(): HTMLSpanElement {
   return document.getElementById('scrape-status') as HTMLSpanElement;
 }
 
+function getDataOriginIndicator(): HTMLParagraphElement {
+  return document.getElementById('data-origin-indicator') as HTMLParagraphElement;
+}
+
 let isCachedData = false;
+let snapshotTimestampIso: string | null = null;
 
 getBtnScrape().addEventListener('click', () => {
   void analyseActiveTab();
@@ -75,6 +80,7 @@ async function renderCachedSnapshotIfAvailable(): Promise<void> {
   }
 
   isCachedData = true;
+  snapshotTimestampIso = cached.cachedAt;
   renderSnapshot(cached.snapshot, isSnapshotComplete(cached.snapshot));
 }
 
@@ -117,6 +123,7 @@ async function analyseActiveTab(): Promise<void> {
 
     const scrapedSnapshot = response.data as TimesheetSnapshot;
     const scrapedIsComplete = isSnapshotComplete(scrapedSnapshot);
+    snapshotTimestampIso = new Date().toISOString();
     isCachedData = false; // Mark as fresh data
     renderSnapshot(scrapedSnapshot, scrapedIsComplete);
 
@@ -126,7 +133,7 @@ async function analyseActiveTab(): Promise<void> {
     if (!cachedIsComplete || scrapedIsComplete) {
       await setCachedTimesheetSnapshot({
         snapshot: scrapedSnapshot,
-        cachedAt: new Date().toISOString(),
+        cachedAt: snapshotTimestampIso,
       });
     }
 
@@ -194,19 +201,57 @@ export function renderSnapshot(snapshot: TimesheetSnapshot, hasAllData: boolean 
   getAbsentHoursValue().textContent = formatHours(snapshot.totals.absent);
   getToBePerformedHoursValue().textContent = formatHours(snapshot.totals.toBePerformed);
 
-  // Show status emoji: green checkmark if all data present, yellow warning if partial
-  const statusEmoji = hasAllData ? '✅' : '⚠️';
-  getScrapeStatus().textContent = ` ${statusEmoji}`;
+  const scrapeStatus = getScrapeStatus();
+  scrapeStatus.classList.add('subtle-indicator');
+  if (hasAllData) {
+    scrapeStatus.hidden = true;
+    scrapeStatus.textContent = '';
+    scrapeStatus.classList.remove('warning');
+  } else {
+    scrapeStatus.hidden = false;
+    scrapeStatus.textContent = 'Onvolledig';
+    scrapeStatus.classList.add('warning');
+  }
 
   // Add visual indicator for cached data
   const summarySection = getSummarySection();
+  const dataOriginIndicator = getDataOriginIndicator();
   if (isCachedData) {
     summarySection.classList.add('cached-data');
+    dataOriginIndicator.classList.add('cached');
+    dataOriginIndicator.classList.remove('fresh');
   } else {
     summarySection.classList.remove('cached-data');
+    dataOriginIndicator.classList.add('fresh');
+    dataOriginIndicator.classList.remove('cached');
   }
 
+  dataOriginIndicator.textContent = isCachedData
+    ? `Cache gebruikt${formatTimestampSuffix(snapshotTimestampIso)}`
+    : `Vers bijgewerkt${formatTimestampSuffix(snapshotTimestampIso)}`;
+  dataOriginIndicator.hidden = false;
+
   summarySection.hidden = false;
+}
+
+function formatTimestampSuffix(timestampIso: string | null): string {
+  if (!timestampIso) {
+    return '';
+  }
+
+  const date = new Date(timestampIso);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const formatted = new Intl.DateTimeFormat('nl-NL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+  return ` (${formatted})`;
 }
 
 export function formatHours(value: number | null): string {

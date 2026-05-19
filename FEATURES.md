@@ -34,7 +34,7 @@ Shared feature roadmap for `sub`.
   - Keep cached data visible while SAP page is still loading.
 - [x] Chunk 6 - Staleness/invalidation.
   - Add period-based validation and stale cache handling.
-- [ ] Chunk 7 - Final polish.
+- [x] Chunk 7 - Final polish.
   - Add subtle cached/fresh indicators and final cleanup.
 
 ### i18n

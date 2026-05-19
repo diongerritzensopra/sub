@@ -60,7 +60,7 @@ beforeEach(() => {
           <p id="status-message">Klik op het vernieuwingspictogram om te beginnen.</p>
         </section>
         <section id="summary-section" hidden>
-          <h2>Timesheet overzicht <span id="scrape-status"></span></h2>
+          <h2>Timesheet overzicht</h2>
           <ul id="summary-list">
             <li><strong>Periode:</strong> <span id="period-value">-</span></li>
             <li><strong>Projectcodes:</strong> <span id="project-codes-value">-</span></li>
@@ -68,6 +68,8 @@ beforeEach(() => {
             <li><strong>Uren afwezig:</strong> <span id="absent-hours-value">-</span></li>
             <li><strong>Uren uit te voeren:</strong> <span id="to-be-performed-hours-value">-</span></li>
           </ul>
+          <p id="scrape-status" class="subtle-indicator" hidden></p>
+          <p id="data-origin-indicator" class="subtle-indicator" hidden></p>
         </section>
       </main>
     </div>
@@ -125,6 +127,8 @@ describe('popup', () => {
       expect(document.getElementById('project-codes-value')?.textContent).toBe('C0007012.1.1');
       expect(document.getElementById('worked-hours-value')?.textContent).toBe('120 u');
       expect(document.getElementById('summary-section')?.hasAttribute('hidden')).toBe(false);
+      expect(document.getElementById('data-origin-indicator')?.textContent).toContain('Cache gebruikt');
+      expect(document.getElementById('data-origin-indicator')?.classList.contains('cached')).toBe(true);
     });
 
     it('clears and does not render a stale cached snapshot when route period differs', async () => {
@@ -221,6 +225,8 @@ describe('popup', () => {
          }),
          expect.any(Function),
        );
+       expect(document.getElementById('data-origin-indicator')?.textContent).toContain('Vers bijgewerkt');
+       expect(document.getElementById('data-origin-indicator')?.classList.contains('fresh')).toBe(true);
     });
 
     it('does not overwrite a complete cache with a partial fresh snapshot', async () => {
@@ -563,7 +569,7 @@ describe('popup', () => {
       expect(document.getElementById('to-be-performed-hours-value')?.textContent).toBe('-');
     });
 
-    it('shows green checkmark emoji when all data is present', async () => {
+    it('hides scrape status indicator when all data is present', async () => {
       const { renderSnapshot } = await import('./popup');
       const snapshot: TimesheetSnapshot = {
         month: 4,
@@ -578,10 +584,10 @@ describe('popup', () => {
 
       renderSnapshot(snapshot, true);
 
-      expect(document.getElementById('scrape-status')?.textContent).toBe(' ✅');
+      expect(document.getElementById('scrape-status')?.hidden).toBe(true);
     });
 
-    it('shows warning triangle emoji when data is incomplete', async () => {
+    it('shows subtle warning status indicator when data is incomplete', async () => {
       const { renderSnapshot } = await import('./popup');
       const snapshot: TimesheetSnapshot = {
         month: 4,
@@ -596,7 +602,9 @@ describe('popup', () => {
 
       renderSnapshot(snapshot, false);
 
-      expect(document.getElementById('scrape-status')?.textContent).toBe(' ⚠️');
+      expect(document.getElementById('scrape-status')?.hidden).toBe(false);
+      expect(document.getElementById('scrape-status')?.textContent).toBe('Onvolledig');
+      expect(document.getElementById('scrape-status')?.classList.contains('warning')).toBe(true);
     });
   });
 

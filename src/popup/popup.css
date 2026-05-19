@@ -53,6 +53,37 @@ h2 {
   margin-bottom: 6px;
 }
 
+.subtle-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: #666;
+}
+
+.subtle-indicator::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #9aa0a6;
+}
+
+.subtle-indicator.fresh::before {
+  background: #2e7d32;
+}
+
+.subtle-indicator.cached::before,
+.subtle-indicator.warning::before {
+  background: #d4a017;
+}
+
+
+.subtle-indicator[hidden] {
+  display: none;
+}
+
 #summary-list {
   list-style: none;
   display: flex;
