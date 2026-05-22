@@ -2,10 +2,11 @@
  * chrome.storage helper — typed wrappers around chrome.storage.local.
  */
 
-import type { CachedTimesheetSnapshot } from './types';
+import type { CachedTimesheetSnapshot, WeeklySchedule } from './types';
 
 export const STORAGE_KEYS = {
   timesheetSnapshotCache: 'timesheetSnapshotCache',
+  projectSchedules: 'projectSchedules',
 } as const;
 
 export interface CachePeriod {
@@ -56,6 +57,32 @@ export async function setCachedTimesheetSnapshot(cache: CachedTimesheetSnapshot)
 
 export async function clearCachedTimesheetSnapshot(): Promise<void> {
   await storageRemove(STORAGE_KEYS.timesheetSnapshotCache);
+}
+
+export async function getSchedules(): Promise<WeeklySchedule[]> {
+  const schedules = await storageGet<WeeklySchedule[]>(STORAGE_KEYS.projectSchedules);
+  return schedules ?? [];
+}
+
+export async function saveSchedule(schedule: WeeklySchedule): Promise<void> {
+  const existing = await getSchedules();
+  const existingIndex = existing.findIndex((item) => item.id === schedule.id);
+
+  if (existingIndex === -1) {
+    await storageSet(STORAGE_KEYS.projectSchedules, [...existing, schedule]);
+    return;
+  }
+
+  const updated = [...existing];
+  updated[existingIndex] = schedule;
+  await storageSet(STORAGE_KEYS.projectSchedules, updated);
+}
+
+export async function deleteSchedule(scheduleId: string): Promise<void> {
+  const existing = await getSchedules();
+  const filtered = existing.filter((schedule) => schedule.id !== scheduleId);
+
+  await storageSet(STORAGE_KEYS.projectSchedules, filtered);
 }
 
 /**

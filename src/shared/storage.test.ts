@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { CachedTimesheetSnapshot } from './types';
+import type { CachedTimesheetSnapshot, WeeklySchedule } from './types';
 import {
   clearCachedTimesheetSnapshot,
+  deleteSchedule,
   getCachedTimesheetSnapshot,
+  getSchedules,
   isCacheStale,
+  saveSchedule,
   setCachedTimesheetSnapshot,
   STORAGE_KEYS,
 } from './storage';
@@ -74,6 +77,87 @@ describe('storage helpers', () => {
 
     expect(value).toBeUndefined();
     expect(mockRemove).toHaveBeenCalledWith(STORAGE_KEYS.timesheetSnapshotCache, expect.any(Function));
+  });
+});
+
+describe('schedule storage helpers', () => {
+  const scheduleA: WeeklySchedule = {
+    id: 'schedule-a',
+    label: 'Project A - 32h',
+    projectCode: 'C0007012.1.1',
+    hoursPerWeekday: {
+      monday: 8,
+      tuesday: 8,
+      wednesday: 8,
+      thursday: 8,
+      friday: 0,
+      saturday: 0,
+      sunday: 0,
+    },
+  };
+
+  const scheduleB: WeeklySchedule = {
+    id: 'schedule-b',
+    label: 'Project B - 40h',
+    projectCode: 'ZTEST_42',
+    hoursPerWeekday: {
+      monday: 8,
+      tuesday: 8,
+      wednesday: 8,
+      thursday: 8,
+      friday: 8,
+      saturday: 0,
+      sunday: 0,
+    },
+  };
+
+  beforeEach(() => {
+    Object.keys(localState).forEach((key) => delete localState[key]);
+    mockGet.mockClear();
+    mockSet.mockClear();
+    mockRemove.mockClear();
+  });
+
+  it('returns an empty array when no schedules are stored', async () => {
+    const schedules = await getSchedules();
+
+    expect(schedules).toEqual([]);
+    expect(mockGet).toHaveBeenCalledWith([STORAGE_KEYS.projectSchedules], expect.any(Function));
+  });
+
+  it('stores a new schedule', async () => {
+    await saveSchedule(scheduleA);
+    const schedules = await getSchedules();
+
+    expect(schedules).toEqual([scheduleA]);
+    expect(mockSet).toHaveBeenCalledWith({ [STORAGE_KEYS.projectSchedules]: [scheduleA] }, expect.any(Function));
+  });
+
+  it('updates an existing schedule with the same id', async () => {
+    const updatedScheduleA: WeeklySchedule = {
+      ...scheduleA,
+      label: 'Project A - updated',
+      hoursPerWeekday: {
+        ...scheduleA.hoursPerWeekday,
+        friday: 4,
+      },
+    };
+
+    await saveSchedule(scheduleA);
+    await saveSchedule(updatedScheduleA);
+    const schedules = await getSchedules();
+
+    expect(schedules).toEqual([updatedScheduleA]);
+  });
+
+  it('deletes a schedule by id and keeps the others', async () => {
+    await saveSchedule(scheduleA);
+    await saveSchedule(scheduleB);
+
+    await deleteSchedule(scheduleA.id);
+    const schedules = await getSchedules();
+
+    expect(schedules).toEqual([scheduleB]);
   });
 });
 

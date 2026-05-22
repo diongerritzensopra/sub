@@ -17,7 +17,7 @@ Shared feature roadmap for `sub`.
 - [x] Chunk 1 - Define schedule types in shared types.
   - Add `WeeklySchedule` interface (project code + hours per weekday Mon–Sun) to `src/shared/types.ts`.
   - Add `AUTOFILL_ENTRIES` to `MessageType`.
-- [ ] Chunk 2 - Storage helpers for schedules.
+- [x] Chunk 2 - Storage helpers for schedules.
   - Add CRUD helpers (`getSchedules`, `saveSchedule`, `deleteSchedule`) to `src/shared/storage.ts`.
   - Add tests in `src/shared/storage.test.ts`.
 - [ ] Chunk 3 - Schedule list view in popup.
