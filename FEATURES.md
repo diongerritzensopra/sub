@@ -5,12 +5,39 @@ Shared feature roadmap for `sub`.
 ## Planned
 
 ### Project schedules
+#### Feature description
 - [ ] Allow users to configure a weekly schedule per project code.
   - Per weekday (Mon-Sun), user can define planned hours.
   - Schedule is stored and reusable.
 - [ ] Allow users to apply a saved project schedule to the currently opened month.
   - Filling planned hours should target the whole month.
   - Action should work from the extension flow without manual day-by-day entry.
+
+#### Implementation chunks
+- [ ] Chunk 1 - Define schedule types in shared types.
+  - Add `WeeklySchedule` interface (project code + hours per weekday Mon–Sun) to `src/shared/types.ts`.
+  - Add `AUTOFILL_ENTRIES` to `MessageType` for bulk autofill requests.
+- [ ] Chunk 2 - Storage helpers for schedules.
+  - Add CRUD helpers (`getSchedules`, `saveSchedule`, `deleteSchedule`) to `src/shared/storage.ts`.
+  - Add tests in `src/shared/storage.test.ts`.
+- [ ] Chunk 3 - Schedule list view in popup.
+  - Show saved schedules in the popup with an empty state when none are configured.
+  - Read-only; no create/edit yet.
+- [ ] Chunk 4 - Add/edit schedule form in popup.
+  - Form to pick a project code (from scraped snapshot) and set planned hours per weekday.
+  - Save new or updated schedule to storage.
+- [ ] Chunk 5 - Delete schedule in popup.
+  - Add delete action per schedule in the list view.
+- [ ] Chunk 6 - Schedule expansion logic.
+  - Pure function that expands a `WeeklySchedule` into `HoursEntry[]` for a given month/year.
+  - Skips weekends/weekdays with 0 hours; covers every applicable day in the month.
+  - Fully unit-tested in isolation.
+- [ ] Chunk 7 - Content script autofill implementation.
+  - Map SAP My Timesheet form fields and implement `AUTOFILL_ENTRIES` message handler in `src/content/content-script.ts`.
+- [ ] Chunk 8 - Popup apply action.
+  - Add an "Apply" button per schedule that expands it for the current month and sends entries to the content script.
+- [ ] Chunk 9 - Final polish.
+  - Validation feedback, disable apply when SAP page is not ready, and UX cleanup.
 
 ### Caching
 #### Feature description
