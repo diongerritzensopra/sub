@@ -32,11 +32,29 @@ export interface CachedTimesheetSnapshot {
   cachedAt: string; // ISO timestamp
 }
 
+/** The days of the week, Monday-first. */
+export type Weekday = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+
+/** Ordered list of all weekday keys, Monday-first. */
+export const WEEKDAYS: Weekday[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+/** Planned hours for each day of the week. Zero means the day is skipped. */
+export type WeeklyHours = Record<Weekday, number>;
+
+/** A named, reusable weekly booking schedule for a single project code. */
+export interface WeeklySchedule {
+  id: string;          // Unique identifier (e.g. crypto.randomUUID())
+  label: string;       // Human-readable name for the schedule
+  projectCode: string; // SAP project code to book against
+  hoursPerWeekday: WeeklyHours;
+}
+
 /** Union of all message types sent between extension components. */
 export type MessageType =
   | 'SCRAPE_ENTRIES'
   | 'SCRAPE_TIMESHEET_SUMMARY'
   | 'AUTOFILL_ENTRY'
+  | 'AUTOFILL_ENTRIES'
   | 'SAP_BUSY_STATE_CHANGED'
   | 'GET_SAP_BUSY_STATE';
 
