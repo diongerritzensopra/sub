@@ -125,6 +125,14 @@ describe('schedule storage helpers', () => {
     expect(mockGet).toHaveBeenCalledWith([STORAGE_KEYS.projectSchedules], expect.any(Function));
   });
 
+  it('returns an empty array when stored schedules payload is malformed', async () => {
+    localState[STORAGE_KEYS.projectSchedules] = { invalid: true };
+
+    const schedules = await getSchedules();
+
+    expect(schedules).toEqual([]);
+  });
+
   it('stores a new schedule', async () => {
     await saveSchedule(scheduleA);
     const schedules = await getSchedules();

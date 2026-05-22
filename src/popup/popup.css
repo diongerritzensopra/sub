@@ -98,6 +98,35 @@ h2 {
   font-size: 13px;
 }
 
+#schedules-empty {
+  font-size: 12px;
+  color: #666;
+}
+
+#schedules-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#schedules-list li {
+  background: #f5f5f5;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.schedule-title {
+  font-weight: 600;
+}
+
+.schedule-meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #666;
+}
+
 /* Visual indication for cached (stale) data */
 #summary-section.cached-data #summary-list li {
   opacity: 0.65;

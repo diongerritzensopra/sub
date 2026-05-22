@@ -61,7 +61,11 @@ export async function clearCachedTimesheetSnapshot(): Promise<void> {
 
 export async function getSchedules(): Promise<WeeklySchedule[]> {
   const schedules = await storageGet<WeeklySchedule[]>(STORAGE_KEYS.projectSchedules);
-  return schedules ?? [];
+  if (!Array.isArray(schedules)) {
+    return [];
+  }
+
+  return schedules;
 }
 
 export async function saveSchedule(schedule: WeeklySchedule): Promise<void> {

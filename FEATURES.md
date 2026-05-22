@@ -20,7 +20,7 @@ Shared feature roadmap for `sub`.
 - [x] Chunk 2 - Storage helpers for schedules.
   - Add CRUD helpers (`getSchedules`, `saveSchedule`, `deleteSchedule`) to `src/shared/storage.ts`.
   - Add tests in `src/shared/storage.test.ts`.
-- [ ] Chunk 3 - Schedule list view in popup.
+- [x] Chunk 3 - Schedule list view in popup.
   - Show saved schedules in the popup with an empty state when none are configured.
   - Read-only; no create/edit yet.
 - [ ] Chunk 4 - Add/edit schedule form in popup.

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { CachedTimesheetSnapshot, TimesheetSnapshot } from '../shared/types';
+import type { CachedTimesheetSnapshot, TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 
 // Mock chrome API before any imports
 const mockChromeTabsQuery = vi.fn<
@@ -59,6 +59,11 @@ beforeEach(() => {
         <section id="status-section">
           <p id="status-message">Klik op het vernieuwingspictogram om te beginnen.</p>
         </section>
+        <section id="schedules-section">
+          <h2>Projectschema's</h2>
+          <p id="schedules-empty">Nog geen schema's opgeslagen.</p>
+          <ul id="schedules-list" hidden></ul>
+        </section>
         <section id="summary-section" hidden>
           <h2>Timesheet overzicht</h2>
           <ul id="summary-list">
@@ -96,6 +101,74 @@ beforeEach(() => {
 });
 
 describe('popup', () => {
+  describe('schedule list', () => {
+    it('shows empty state when no schedules are stored', async () => {
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: undefined });
+      });
+
+      await import('./popup');
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(document.getElementById('schedules-empty')?.hidden).toBe(false);
+      expect(document.getElementById('schedules-list')?.hidden).toBe(true);
+    });
+
+    it('renders saved schedules in read-only list', async () => {
+      const schedules: WeeklySchedule[] = [
+        {
+          id: 'schedule-1',
+          label: 'Kantooruren',
+          projectCode: 'C0007012.1.1',
+          hoursPerWeekday: {
+            monday: 8,
+            tuesday: 8,
+            wednesday: 8,
+            thursday: 8,
+            friday: 8,
+            saturday: 0,
+            sunday: 0,
+          },
+        },
+        {
+          id: 'schedule-2',
+          label: 'Deeltijd',
+          projectCode: 'ZTEST_42',
+          hoursPerWeekday: {
+            monday: 4,
+            tuesday: 4,
+            wednesday: 4,
+            thursday: 4,
+            friday: 4,
+            saturday: 0,
+            sunday: 0,
+          },
+        },
+      ];
+
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        const key = keys[0];
+        if (key === 'projectSchedules') {
+          callback({ [key]: schedules });
+          return;
+        }
+        callback({ [key]: undefined });
+      });
+
+      await import('./popup');
+      await new Promise((r) => setTimeout(r, 0));
+
+      const list = document.getElementById('schedules-list') as HTMLUListElement;
+      expect(document.getElementById('schedules-empty')?.hidden).toBe(true);
+      expect(list.hidden).toBe(false);
+      expect(list.querySelectorAll('li')).toHaveLength(2);
+      expect(list.textContent).toContain('Kantooruren');
+      expect(list.textContent).toContain('Project: C0007012.1.1');
+      expect(list.textContent).toContain('Deeltijd');
+      expect(list.textContent).toContain('Project: ZTEST_42');
+    });
+  });
+
   describe('cache bootstrap', () => {
     it('renders cached snapshot when it matches period from route query parameter', async () => {
       const cached: CachedTimesheetSnapshot = {
@@ -121,7 +194,7 @@ describe('popup', () => {
       });
 
       await import('./popup');
-      await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
 
       expect(document.getElementById('period-value')?.textContent).toBe('5/2026');
       expect(document.getElementById('project-codes-value')?.textContent).toBe('C0007012.1.1');
@@ -151,7 +224,7 @@ describe('popup', () => {
       });
 
       await import('./popup');
-      await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
 
       // Summary section should remain hidden — stale data should not be displayed
       expect(document.getElementById('summary-section')?.hidden).toBe(true);
@@ -180,7 +253,7 @@ describe('popup', () => {
       });
 
       await import('./popup');
-      await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
 
       expect(document.getElementById('period-value')?.textContent).toBe(`${currentCache.snapshot.month}/${currentCache.snapshot.year}`);
       expect(mockChromeStorageLocalRemove).not.toHaveBeenCalled();

@@ -2,10 +2,10 @@
  * Popup script — handles UI interactions for scraping hours from SAP My Timesheet.
  */
 
-import type { CachedTimesheetSnapshot, MessageRequest, MessageResponse, TimesheetSnapshot } from '../shared/types';
+import type { CachedTimesheetSnapshot, MessageRequest, MessageResponse, TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
 import { getSAPBusyStateForTab, initBusyStateListener } from '../shared/busy-state';
-import { getCachedTimesheetSnapshot, setCachedTimesheetSnapshot, clearCachedTimesheetSnapshot, isCacheStale } from '../shared/storage';
+import { getCachedTimesheetSnapshot, setCachedTimesheetSnapshot, clearCachedTimesheetSnapshot, getSchedules, isCacheStale } from '../shared/storage';
 
 const ROUTE_PERIOD_PATTERN = /[?&]\/(1[0-2]|0?[1-9])\/(20\d{2})(?:[/?&#]|$)/i;
 
@@ -50,6 +50,14 @@ function getDataOriginIndicator(): HTMLParagraphElement {
   return document.getElementById('data-origin-indicator') as HTMLParagraphElement;
 }
 
+function getSchedulesList(): HTMLUListElement {
+  return document.getElementById('schedules-list') as HTMLUListElement;
+}
+
+function getSchedulesEmpty(): HTMLParagraphElement {
+  return document.getElementById('schedules-empty') as HTMLParagraphElement;
+}
+
 let isCachedData = false;
 let snapshotTimestampIso: string | null = null;
 
@@ -68,8 +76,47 @@ initBusyStateListener((busy) => {
 void bootstrapPopup();
 
 async function bootstrapPopup(): Promise<void> {
+  await renderSchedules();
   await renderCachedSnapshotIfAvailable();
   await analyseActiveTab();
+}
+
+async function renderSchedules(): Promise<void> {
+  const schedules = await getSchedules();
+  const list = getSchedulesList();
+  const empty = getSchedulesEmpty();
+
+  list.innerHTML = '';
+  if (schedules.length === 0) {
+    empty.hidden = false;
+    list.hidden = true;
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  schedules.forEach((schedule) => {
+    fragment.appendChild(renderScheduleListItem(schedule));
+  });
+
+  list.appendChild(fragment);
+  empty.hidden = true;
+  list.hidden = false;
+}
+
+function renderScheduleListItem(schedule: WeeklySchedule): HTMLLIElement {
+  const item = document.createElement('li');
+
+  const title = document.createElement('div');
+  title.className = 'schedule-title';
+  title.textContent = schedule.label;
+
+  const meta = document.createElement('div');
+  meta.className = 'schedule-meta';
+  meta.textContent = `Project: ${schedule.projectCode}`;
+
+  item.appendChild(title);
+  item.appendChild(meta);
+  return item;
 }
 
 async function renderCachedSnapshotIfAvailable(): Promise<void> {
