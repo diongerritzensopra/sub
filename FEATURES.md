@@ -28,7 +28,7 @@ Shared feature roadmap for `sub`.
   - Save new or updated schedule to storage.
 - [x] Chunk 5 - Delete schedule in popup.
   - Add delete action per schedule in the list view.
-- [ ] Chunk 6 - Schedule expansion logic.
+- [x] Chunk 6 - Schedule expansion logic.
   - Pure function that expands a `WeeklySchedule` into `HoursEntry[]` for a given month/year.
   - Skips weekends/weekdays with 0 hours; covers every applicable day in the month.
   - Fully unit-tested in isolation.

@@ -9,7 +9,6 @@ export const SAP_TIMESHEET_URL_PATTERN = 'p10mq7ma.launchpad.cfapps.eu10.hana.on
 export interface HoursEntry {
   date: string;       // ISO date string: "YYYY-MM-DD"
   project: string;    // Project name or code
-  activity: string;   // Activity / task description
   hours: number;      // Hours logged (e.g. 7.5)
 }
 
