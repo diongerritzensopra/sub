@@ -117,6 +117,17 @@ h2 {
   font-size: 13px;
 }
 
+#btn-add-schedule {
+  background: #1c65bf;
+  color: #fff;
+  margin: 4px 0 10px;
+  width: 100%;
+}
+
+#btn-add-schedule:hover:not(:disabled) {
+  background: #17539d;
+}
+
 .schedule-title {
   font-weight: 600;
 }
@@ -125,6 +136,84 @@ h2 {
   margin-top: 2px;
   font-size: 12px;
   color: #666;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.form-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+}
+
+.form-group input,
+.form-group select {
+  padding: 6px 8px;
+  font-size: 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #1c65bf;
+  box-shadow: 0 0 0 2px rgba(28, 101, 191, 0.1);
+}
+
+.weekday-hours {
+  border: none;
+  padding: 0;
+  margin: 0 0 12px 0;
+}
+
+.weekday-hours legend {
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  padding: 0 0 8px 0;
+}
+
+.weekday-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.weekday-input {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.weekday-input label {
+  font-size: 11px;
+  color: #666;
+}
+
+.weekday-input input {
+  padding: 4px 6px;
+  font-size: 11px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.weekday-input input:focus {
+  outline: none;
+  border-color: #1c65bf;
+  box-shadow: 0 0 0 2px rgba(28, 101, 191, 0.1);
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 /* Visual indication for cached (stale) data */

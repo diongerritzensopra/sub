@@ -22,8 +22,62 @@
 
         <section id="schedules-section">
           <h2>Projectschema's</h2>
+          <button id="btn-add-schedule" type="button" disabled>Nieuw schema</button>
           <p id="schedules-empty">Nog geen schema's opgeslagen.</p>
           <ul id="schedules-list" hidden></ul>
+          </section>
+
+          <section id="schedule-form-section" hidden>
+            <h2 id="schedule-form-title">Nieuw schema</h2>
+            <form id="schedule-form">
+              <div class="form-group">
+                <label for="schedule-label">Naam</label>
+                <input type="text" id="schedule-label" required>
+              </div>
+              <div class="form-group">
+                <label for="schedule-project">Projectcode</label>
+                <select id="schedule-project" required>
+                  <option value="">-- Selecteer project --</option>
+                </select>
+              </div>
+              <fieldset class="weekday-hours">
+                <legend>Uren per dag</legend>
+                <div class="weekday-inputs">
+                  <div class="weekday-input">
+                    <label for="hours-monday">Maandag</label>
+                    <input type="number" id="hours-monday" min="0" step="0.5" value="0">
+                  </div>
+                  <div class="weekday-input">
+                    <label for="hours-tuesday">Dinsdag</label>
+                    <input type="number" id="hours-tuesday" min="0" step="0.5" value="0">
+                  </div>
+                  <div class="weekday-input">
+                    <label for="hours-wednesday">Woensdag</label>
+                    <input type="number" id="hours-wednesday" min="0" step="0.5" value="0">
+                  </div>
+                  <div class="weekday-input">
+                    <label for="hours-thursday">Donderdag</label>
+                    <input type="number" id="hours-thursday" min="0" step="0.5" value="0">
+                  </div>
+                  <div class="weekday-input">
+                    <label for="hours-friday">Vrijdag</label>
+                    <input type="number" id="hours-friday" min="0" step="0.5" value="0">
+                  </div>
+                  <div class="weekday-input">
+                    <label for="hours-saturday">Zaterdag</label>
+                    <input type="number" id="hours-saturday" min="0" step="0.5" value="0">
+                  </div>
+                  <div class="weekday-input">
+                    <label for="hours-sunday">Zondag</label>
+                    <input type="number" id="hours-sunday" min="0" step="0.5" value="0">
+                  </div>
+                </div>
+              </fieldset>
+              <div class="form-actions">
+                <button type="submit">Opslaan</button>
+                <button type="button" id="schedule-form-cancel">Annuleren</button>
+              </div>
+            </form>
         </section>
 
         <section id="summary-section" hidden>

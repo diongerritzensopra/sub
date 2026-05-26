@@ -58,11 +58,20 @@ function getSchedulesEmpty(): HTMLParagraphElement {
   return document.getElementById('schedules-empty') as HTMLParagraphElement;
 }
 
+function getAddScheduleButton(): HTMLButtonElement {
+  return document.getElementById('btn-add-schedule') as HTMLButtonElement;
+}
+
 let isCachedData = false;
 let snapshotTimestampIso: string | null = null;
+let currentSnapshot: TimesheetSnapshot | null = null;
 
 getBtnScrape().addEventListener('click', () => {
   void analyseActiveTab();
+});
+
+getAddScheduleButton().addEventListener('click', () => {
+  openScheduleFormFromLatestSnapshot();
 });
 
 // Initialize busy-state listener and auto-analyze on ready
@@ -72,6 +81,8 @@ initBusyStateListener((busy) => {
     void analyseActiveTab();
   }
 });
+
+updateAddScheduleButtonState();
 
 void bootstrapPopup();
 
@@ -119,6 +130,134 @@ function renderScheduleListItem(schedule: WeeklySchedule): HTMLLIElement {
   return item;
 }
 
+// Form state and DOM getters
+function getScheduleFormSection(): HTMLElement {
+  return document.getElementById('schedule-form-section') as HTMLElement;
+}
+
+function getScheduleForm(): HTMLFormElement {
+  return document.getElementById('schedule-form') as HTMLFormElement;
+}
+
+function getScheduleFormTitle(): HTMLElement {
+  return document.getElementById('schedule-form-title') as HTMLElement;
+}
+
+function getScheduleLabelInput(): HTMLInputElement {
+  return document.getElementById('schedule-label') as HTMLInputElement;
+}
+
+function getScheduleProjectSelect(): HTMLSelectElement {
+  return document.getElementById('schedule-project') as HTMLSelectElement;
+}
+
+function getScheduleFormCancel(): HTMLButtonElement {
+  return document.getElementById('schedule-form-cancel') as HTMLButtonElement;
+}
+
+function getHoursInputs(): Record<string, HTMLInputElement> {
+  return {
+    monday: document.getElementById('hours-monday') as HTMLInputElement,
+    tuesday: document.getElementById('hours-tuesday') as HTMLInputElement,
+    wednesday: document.getElementById('hours-wednesday') as HTMLInputElement,
+    thursday: document.getElementById('hours-thursday') as HTMLInputElement,
+    friday: document.getElementById('hours-friday') as HTMLInputElement,
+    saturday: document.getElementById('hours-saturday') as HTMLInputElement,
+    sunday: document.getElementById('hours-sunday') as HTMLInputElement,
+  };
+}
+
+// Form event setup
+getScheduleForm().addEventListener('submit', (e) => {
+  e.preventDefault();
+  void handleScheduleFormSubmit();
+});
+
+getScheduleFormCancel().addEventListener('click', () => {
+  hideScheduleForm();
+});
+
+async function handleScheduleFormSubmit(): Promise<void> {
+  if (!currentSnapshot) {
+    setStatus('Geen project beschikbaar. Ververs alstublieft de pagina.');
+    return;
+  }
+
+  const label = getScheduleLabelInput().value.trim();
+  const projectCode = getScheduleProjectSelect().value;
+
+  if (!label || !projectCode) {
+    setStatus('Vul alstublieft alle vereiste velden in.');
+    return;
+  }
+
+  const hoursInputs = getHoursInputs();
+  const schedule: WeeklySchedule = {
+    id: crypto.randomUUID?.() || Date.now().toString(),
+    label,
+    projectCode,
+    hoursPerWeekday: {
+      monday: Number(hoursInputs.monday.value) || 0,
+      tuesday: Number(hoursInputs.tuesday.value) || 0,
+      wednesday: Number(hoursInputs.wednesday.value) || 0,
+      thursday: Number(hoursInputs.thursday.value) || 0,
+      friday: Number(hoursInputs.friday.value) || 0,
+      saturday: Number(hoursInputs.saturday.value) || 0,
+      sunday: Number(hoursInputs.sunday.value) || 0,
+    },
+  };
+
+  try {
+    const { saveSchedule } = await import('../shared/storage');
+    await saveSchedule(schedule);
+    await renderSchedules();
+    hideScheduleForm();
+    setStatus('Schema opgeslagen');
+    setTimeout(() => setStatus(''), 2000);
+  } catch (err) {
+    setStatus(`Fout bij opslaan: ${(err as Error).message}`);
+  }
+}
+
+function hideScheduleForm(): void {
+  const form = getScheduleForm();
+  form.reset();
+  getScheduleFormSection().hidden = true;
+}
+
+export function showScheduleForm(snapshot: TimesheetSnapshot | null): void {
+  if (snapshot === null) {
+    hideScheduleForm();
+    return;
+  }
+
+  currentSnapshot = snapshot;
+  const section = getScheduleFormSection();
+  const projectSelect = getScheduleProjectSelect();
+
+  // Populate project options
+  projectSelect.innerHTML = '<option value="">-- Selecteer project --</option>';
+  if (snapshot?.projectCodes) {
+    snapshot.projectCodes.forEach((code) => {
+      const option = document.createElement('option');
+      option.value = code;
+      option.textContent = code;
+      projectSelect.appendChild(option);
+    });
+  }
+
+  // Reset form fields
+  getScheduleLabelInput().value = '';
+  getScheduleFormTitle().textContent = 'Nieuw schema';
+  const hoursInputs = getHoursInputs();
+  Object.values(hoursInputs).forEach((input) => {
+    input.value = '0';
+  });
+
+  section.hidden = false;
+  getScheduleLabelInput().focus();
+}
+
 async function renderCachedSnapshotIfAvailable(): Promise<void> {
   const activeTab = await getActiveTab();
   const cached = await getValidCachedSnapshot(activeTab);
@@ -129,6 +268,15 @@ async function renderCachedSnapshotIfAvailable(): Promise<void> {
   isCachedData = true;
   snapshotTimestampIso = cached.cachedAt;
   renderSnapshot(cached.snapshot, isSnapshotComplete(cached.snapshot));
+}
+
+function openScheduleFormFromLatestSnapshot(): void {
+  if (!currentSnapshot) {
+    setStatus('Analyseer eerst de huidige timesheet voordat je een schema toevoegt.');
+    return;
+  }
+
+  showScheduleForm(currentSnapshot);
 }
 
 async function analyseActiveTab(): Promise<void> {
@@ -242,6 +390,9 @@ async function getValidCachedSnapshot(tab: chrome.tabs.Tab | undefined): Promise
 }
 
 export function renderSnapshot(snapshot: TimesheetSnapshot, hasAllData: boolean = false): void {
+  currentSnapshot = snapshot;
+  updateAddScheduleButtonState();
+
   getPeriodValue().textContent = snapshot.month && snapshot.year ? `${snapshot.month}/${snapshot.year}` : '-';
   getProjectCodesValue().textContent = snapshot.projectCodes.length > 0 ? snapshot.projectCodes.join(', ') : '-';
   getWorkedHoursValue().textContent = formatHours(snapshot.totals.worked);
@@ -279,6 +430,11 @@ export function renderSnapshot(snapshot: TimesheetSnapshot, hasAllData: boolean 
   dataOriginIndicator.hidden = false;
 
   summarySection.hidden = false;
+}
+
+function updateAddScheduleButtonState(): void {
+  const button = getAddScheduleButton();
+  button.disabled = currentSnapshot === null;
 }
 
 function formatTimestampSuffix(timestampIso: string | null): string {

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { CachedTimesheetSnapshot, TimesheetSnapshot, WeeklySchedule } from '../shared/types';
+import { STORAGE_KEYS } from '../shared/storage';
 
 // Mock chrome API before any imports
 const mockChromeTabsQuery = vi.fn<
@@ -61,8 +62,61 @@ beforeEach(() => {
         </section>
         <section id="schedules-section">
           <h2>Projectschema's</h2>
+          <button id="btn-add-schedule" type="button" disabled>Nieuw schema</button>
           <p id="schedules-empty">Nog geen schema's opgeslagen.</p>
           <ul id="schedules-list" hidden></ul>
+        </section>
+        <section id="schedule-form-section" hidden>
+          <h2 id="schedule-form-title">Nieuw schema</h2>
+          <form id="schedule-form">
+            <div class="form-group">
+              <label for="schedule-label">Naam</label>
+              <input type="text" id="schedule-label" required>
+            </div>
+            <div class="form-group">
+              <label for="schedule-project">Projectcode</label>
+              <select id="schedule-project" required>
+                <option value="">-- Selecteer project --</option>
+              </select>
+            </div>
+            <fieldset class="weekday-hours">
+              <legend>Uren per dag</legend>
+              <div class="weekday-inputs">
+                <div class="weekday-input">
+                  <label for="hours-monday">Maandag</label>
+                  <input type="number" id="hours-monday" min="0" step="0.5" value="0">
+                </div>
+                <div class="weekday-input">
+                  <label for="hours-tuesday">Dinsdag</label>
+                  <input type="number" id="hours-tuesday" min="0" step="0.5" value="0">
+                </div>
+                <div class="weekday-input">
+                  <label for="hours-wednesday">Woensdag</label>
+                  <input type="number" id="hours-wednesday" min="0" step="0.5" value="0">
+                </div>
+                <div class="weekday-input">
+                  <label for="hours-thursday">Donderdag</label>
+                  <input type="number" id="hours-thursday" min="0" step="0.5" value="0">
+                </div>
+                <div class="weekday-input">
+                  <label for="hours-friday">Vrijdag</label>
+                  <input type="number" id="hours-friday" min="0" step="0.5" value="0">
+                </div>
+                <div class="weekday-input">
+                  <label for="hours-saturday">Zaterdag</label>
+                  <input type="number" id="hours-saturday" min="0" step="0.5" value="0">
+                </div>
+                <div class="weekday-input">
+                  <label for="hours-sunday">Zondag</label>
+                  <input type="number" id="hours-sunday" min="0" step="0.5" value="0">
+                </div>
+              </div>
+            </fieldset>
+            <div class="form-actions">
+              <button type="submit">Opslaan</button>
+              <button type="button" id="schedule-form-cancel">Annuleren</button>
+            </div>
+          </form>
         </section>
         <section id="summary-section" hidden>
           <h2>Timesheet overzicht</h2>
@@ -723,8 +777,105 @@ describe('popup', () => {
       expect(tab).toBeUndefined();
     });
   });
+
+  describe('schedule form', () => {
+    it('keeps the add button disabled until a snapshot is rendered', async () => {
+      await import('./popup');
+
+      expect(document.getElementById('btn-add-schedule')?.hasAttribute('disabled')).toBe(true);
+    });
+
+    it('opens the form from the add button after a snapshot is rendered', async () => {
+      const { renderSnapshot } = await import('./popup');
+      const snapshot: TimesheetSnapshot = {
+        month: 5,
+        year: 2026,
+        projectCodes: ['C0007012.1.1', 'ZTEST_42'],
+        totals: { worked: 120, absent: 8, toBePerformed: 160 },
+      };
+
+      renderSnapshot(snapshot);
+
+      const button = document.getElementById('btn-add-schedule') as HTMLButtonElement;
+      expect(button.disabled).toBe(false);
+
+      button.click();
+
+      const formSection = document.getElementById('schedule-form-section') as HTMLElement;
+      const projectSelect = document.getElementById('schedule-project') as HTMLSelectElement;
+
+      expect(formSection.hidden).toBe(false);
+      expect(projectSelect.querySelectorAll('option')).toHaveLength(3);
+      expect(projectSelect.innerHTML).toContain('C0007012.1.1');
+      expect(projectSelect.innerHTML).toContain('ZTEST_42');
+    });
+
+    it('displays form with project options from snapshot', async () => {
+      const { showScheduleForm } = await import('./popup');
+      const snapshot: TimesheetSnapshot = {
+        month: 5,
+        year: 2026,
+        projectCodes: ['C0007012.1.1', 'ZTEST_42'],
+        totals: { worked: 120, absent: 8, toBePerformed: 160 },
+      };
+
+      showScheduleForm(snapshot);
+
+      const formSection = document.getElementById('schedule-form-section') as HTMLElement;
+      const projectSelect = document.getElementById('schedule-project') as HTMLSelectElement;
+
+      expect(formSection.hidden).toBe(false);
+      expect(projectSelect.querySelectorAll('option')).toHaveLength(3); // blank + 2 projects
+      expect(projectSelect.innerHTML).toContain('C0007012.1.1');
+      expect(projectSelect.innerHTML).toContain('ZTEST_42');
+    });
+
+    it('hides form when showScheduleForm called with null', async () => {
+      const { showScheduleForm } = await import('./popup');
+
+      showScheduleForm(null);
+
+      const formSection = document.getElementById('schedule-form-section') as HTMLElement;
+      expect(formSection.hidden).toBe(true);
+    });
+
+    it('saves new schedule on form submit', async () => {
+      const storedValues: Record<string, unknown> = {};
+      mockChromeStorageLocalSet.mockImplementation((values, callback) => {
+        Object.assign(storedValues, values);
+        callback();
+      });
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: storedValues[keys[0]] });
+      });
+
+      const { showScheduleForm } = await import('./popup');
+      const snapshot: TimesheetSnapshot = {
+        month: 5,
+        year: 2026,
+        projectCodes: ['C0007012.1.1'],
+        totals: { worked: 120, absent: 8, toBePerformed: 160 },
+      };
+
+      showScheduleForm(snapshot);
+
+      const form = document.getElementById('schedule-form') as HTMLFormElement;
+      const labelInput = document.getElementById('schedule-label') as HTMLInputElement;
+      const projectSelect = document.getElementById('schedule-project') as HTMLSelectElement;
+      const mondayInput = document.getElementById('hours-monday') as HTMLInputElement;
+
+      labelInput.value = 'Test Schedule';
+      projectSelect.value = 'C0007012.1.1';
+      mondayInput.value = '8';
+
+      form.dispatchEvent(new Event('submit'));
+
+      // Wait for async save
+      await new Promise((r) => setTimeout(r, 10));
+
+      const formSection = document.getElementById('schedule-form-section') as HTMLElement;
+      expect(formSection.hidden).toBe(true); // Form should be hidden after save
+      expect(storedValues[STORAGE_KEYS.projectSchedules]).toBeDefined();
+    });
+  });
 });
-
-
-
-
