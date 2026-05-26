@@ -873,9 +873,208 @@ describe('popup', () => {
       // Wait for async save
       await new Promise((r) => setTimeout(r, 10));
 
-      const formSection = document.getElementById('schedule-form-section') as HTMLElement;
-      expect(formSection.hidden).toBe(true); // Form should be hidden after save
-      expect(storedValues[STORAGE_KEYS.projectSchedules]).toBeDefined();
-    });
-  });
-});
+       const formSection = document.getElementById('schedule-form-section') as HTMLElement;
+       expect(formSection.hidden).toBe(true); // Form should be hidden after save
+       expect(storedValues[STORAGE_KEYS.projectSchedules]).toBeDefined();
+     });
+
+     it('opens edit form when edit button is clicked', async () => {
+       const storedValues: Record<string, unknown> = {};
+       mockChromeStorageLocalSet.mockImplementation((values, callback) => {
+         Object.assign(storedValues, values);
+         callback();
+       });
+       mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+         callback({ [keys[0]]: storedValues[keys[0]] });
+       });
+
+       const { renderSnapshot, renderSchedules } = await import('./popup');
+
+       const schedule: WeeklySchedule = {
+         id: 'sched-1',
+         label: 'Kantooruren',
+         projectCode: 'C0007012.1.1',
+         hoursPerWeekday: {
+           monday: 8,
+           tuesday: 8,
+           wednesday: 8,
+           thursday: 8,
+           friday: 8,
+           saturday: 0,
+           sunday: 0,
+         },
+       };
+
+       storedValues[STORAGE_KEYS.projectSchedules] = [schedule];
+
+       const snapshot: TimesheetSnapshot = {
+         month: 5,
+         year: 2026,
+         projectCodes: ['C0007012.1.1'],
+         totals: { worked: 120, absent: 8, toBePerformed: 160 },
+       };
+
+       // Render the schedule list and snapshot
+       await renderSchedules();
+       renderSnapshot(snapshot);
+
+       await new Promise((r) => setTimeout(r, 10));
+
+       const listItems = document.querySelectorAll('#schedules-list li');
+       expect(listItems).toHaveLength(1);
+
+       const editButton = listItems[0].querySelector('button.schedule-edit-button') as HTMLButtonElement;
+       expect(editButton).toBeTruthy();
+       expect(editButton.textContent).toBe('✏️');
+       editButton.click();
+
+       const formSection = document.getElementById('schedule-form-section') as HTMLElement;
+       const formTitle = document.getElementById('schedule-form-title') as HTMLElement;
+       const submitBtn = document.getElementById('schedule-form')?.querySelector('button[type="submit"]') as HTMLButtonElement;
+
+       expect(formSection.hidden).toBe(false);
+       expect(formTitle.textContent).toBe('Schema bewerken');
+       expect(submitBtn.textContent).toBe('Bijwerken');
+     });
+
+     it('populates form fields with existing schedule data in edit mode', async () => {
+       const { showScheduleForm } = await import('./popup');
+       const snapshot: TimesheetSnapshot = {
+         month: 5,
+         year: 2026,
+         projectCodes: ['C0007012.1.1', 'ZTEST_42'],
+         totals: { worked: 120, absent: 8, toBePerformed: 160 },
+       };
+
+       const scheduleToEdit: WeeklySchedule = {
+         id: 'sched-1',
+         label: 'Kantooruren',
+         projectCode: 'C0007012.1.1',
+         hoursPerWeekday: {
+           monday: 8,
+           tuesday: 8,
+           wednesday: 8,
+           thursday: 8,
+           friday: 8,
+           saturday: 0,
+           sunday: 0,
+         },
+       };
+
+       showScheduleForm(snapshot, scheduleToEdit);
+
+       const labelInput = document.getElementById('schedule-label') as HTMLInputElement;
+       const projectSelect = document.getElementById('schedule-project') as HTMLSelectElement;
+       const mondayInput = document.getElementById('hours-monday') as HTMLInputElement;
+       const fridayInput = document.getElementById('hours-friday') as HTMLInputElement;
+       const saturdayInput = document.getElementById('hours-saturday') as HTMLInputElement;
+
+       expect(labelInput.value).toBe('Kantooruren');
+       expect(projectSelect.value).toBe('C0007012.1.1');
+       expect(mondayInput.value).toBe('8');
+       expect(fridayInput.value).toBe('8');
+       expect(saturdayInput.value).toBe('0');
+     });
+
+     it('updates an existing schedule on form submit', async () => {
+       const storedValues: Record<string, unknown> = {};
+       mockChromeStorageLocalSet.mockImplementation((values, callback) => {
+         Object.assign(storedValues, values);
+         callback();
+       });
+       mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+         callback({ [keys[0]]: storedValues[keys[0]] });
+       });
+
+       const { showScheduleForm } = await import('./popup');
+       const snapshot: TimesheetSnapshot = {
+         month: 5,
+         year: 2026,
+         projectCodes: ['C0007012.1.1'],
+         totals: { worked: 120, absent: 8, toBePerformed: 160 },
+       };
+
+       const scheduleToEdit: WeeklySchedule = {
+         id: 'sched-1',
+         label: 'Kantooruren',
+         projectCode: 'C0007012.1.1',
+         hoursPerWeekday: {
+           monday: 8,
+           tuesday: 8,
+           wednesday: 8,
+           thursday: 8,
+           friday: 8,
+           saturday: 0,
+           sunday: 0,
+         },
+       };
+
+       showScheduleForm(snapshot, scheduleToEdit);
+
+       const form = document.getElementById('schedule-form') as HTMLFormElement;
+       const labelInput = document.getElementById('schedule-label') as HTMLInputElement;
+       const projectSelect = document.getElementById('schedule-project') as HTMLSelectElement;
+       const tuesdayInput = document.getElementById('hours-tuesday') as HTMLInputElement;
+
+       labelInput.value = 'Kantooruren (updated)';
+       projectSelect.value = 'C0007012.1.1';
+       tuesdayInput.value = '7.5';
+
+       form.dispatchEvent(new Event('submit'));
+
+       // Wait for async save
+       await new Promise((r) => setTimeout(r, 10));
+
+       const saved = (storedValues[STORAGE_KEYS.projectSchedules] as WeeklySchedule[]) || [];
+       expect(saved).toHaveLength(1);
+       expect(saved[0].id).toBe('sched-1');
+       expect(saved[0].label).toBe('Kantooruren (updated)');
+       expect(saved[0].hoursPerWeekday.tuesday).toBe(7.5);
+     });
+
+     it('shows "bijgewerkt" status when updating existing schedule', async () => {
+       const storedValues: Record<string, unknown> = {};
+       mockChromeStorageLocalSet.mockImplementation((values, callback) => {
+         Object.assign(storedValues, values);
+         callback();
+       });
+       mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+         callback({ [keys[0]]: storedValues[keys[0]] });
+       });
+
+       const { showScheduleForm } = await import('./popup');
+       const snapshot: TimesheetSnapshot = {
+         month: 5,
+         year: 2026,
+         projectCodes: ['C0007012.1.1'],
+         totals: { worked: 120, absent: 8, toBePerformed: 160 },
+       };
+
+       const scheduleToEdit: WeeklySchedule = {
+         id: 'sched-1',
+         label: 'Test',
+         projectCode: 'C0007012.1.1',
+         hoursPerWeekday: {
+           monday: 8,
+           tuesday: 8,
+           wednesday: 8,
+           thursday: 8,
+           friday: 8,
+           saturday: 0,
+           sunday: 0,
+         },
+       };
+
+       showScheduleForm(snapshot, scheduleToEdit);
+
+       const form = document.getElementById('schedule-form') as HTMLFormElement;
+       form.dispatchEvent(new Event('submit'));
+
+       // Wait for async save and status message
+       await new Promise((r) => setTimeout(r, 20));
+
+       expect(document.getElementById('status-message')?.textContent).toContain('bijgewerkt');
+     });
+   });
+ });
+

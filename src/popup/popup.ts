@@ -92,7 +92,8 @@ async function bootstrapPopup(): Promise<void> {
   await analyseActiveTab();
 }
 
-async function renderSchedules(): Promise<void> {
+
+export async function renderSchedules(): Promise<void> {
   const schedules = await getSchedules();
   const list = getSchedulesList();
   const empty = getSchedulesEmpty();
@@ -116,6 +117,10 @@ async function renderSchedules(): Promise<void> {
 
 function renderScheduleListItem(schedule: WeeklySchedule): HTMLLIElement {
   const item = document.createElement('li');
+  item.className = 'schedule-item';
+
+  const content = document.createElement('div');
+  content.className = 'schedule-content';
 
   const title = document.createElement('div');
   title.className = 'schedule-title';
@@ -125,12 +130,27 @@ function renderScheduleListItem(schedule: WeeklySchedule): HTMLLIElement {
   meta.className = 'schedule-meta';
   meta.textContent = `Project: ${schedule.projectCode}`;
 
-  item.appendChild(title);
-  item.appendChild(meta);
+  const editButton = document.createElement('button');
+  editButton.type = 'button';
+  editButton.className = 'schedule-edit-button';
+  editButton.textContent = '✏️';
+  editButton.title = 'Schema bewerken';
+  editButton.setAttribute('aria-label', `Bewerk schema ${schedule.label}`);
+  editButton.addEventListener('click', () => {
+    openScheduleFormForEdit(schedule);
+  });
+
+  content.appendChild(title);
+  content.appendChild(meta);
+  item.appendChild(content);
+  item.appendChild(editButton);
+
   return item;
 }
 
 // Form state and DOM getters
+let scheduleBeingEdited: WeeklySchedule | null = null;
+
 function getScheduleFormSection(): HTMLElement {
   return document.getElementById('schedule-form-section') as HTMLElement;
 }
@@ -192,27 +212,35 @@ async function handleScheduleFormSubmit(): Promise<void> {
   }
 
   const hoursInputs = getHoursInputs();
-  const schedule: WeeklySchedule = {
-    id: crypto.randomUUID?.() || Date.now().toString(),
-    label,
-    projectCode,
-    hoursPerWeekday: {
-      monday: Number(hoursInputs.monday.value) || 0,
-      tuesday: Number(hoursInputs.tuesday.value) || 0,
-      wednesday: Number(hoursInputs.wednesday.value) || 0,
-      thursday: Number(hoursInputs.thursday.value) || 0,
-      friday: Number(hoursInputs.friday.value) || 0,
-      saturday: Number(hoursInputs.saturday.value) || 0,
-      sunday: Number(hoursInputs.sunday.value) || 0,
-    },
+  const hoursPerWeekday = {
+    monday: Number(hoursInputs.monday.value) || 0,
+    tuesday: Number(hoursInputs.tuesday.value) || 0,
+    wednesday: Number(hoursInputs.wednesday.value) || 0,
+    thursday: Number(hoursInputs.thursday.value) || 0,
+    friday: Number(hoursInputs.friday.value) || 0,
+    saturday: Number(hoursInputs.saturday.value) || 0,
+    sunday: Number(hoursInputs.sunday.value) || 0,
   };
 
   try {
     const { saveSchedule } = await import('../shared/storage');
+
+    // Use existing ID if editing, otherwise generate new one
+    const scheduleId = scheduleBeingEdited?.id || crypto.randomUUID?.() || Date.now().toString();
+    const isEditing = Boolean(scheduleBeingEdited);
+
+    const schedule: WeeklySchedule = {
+      id: scheduleId,
+      label,
+      projectCode,
+      hoursPerWeekday,
+    };
+
     await saveSchedule(schedule);
     await renderSchedules();
     hideScheduleForm();
-    setStatus('Schema opgeslagen');
+    const action = isEditing ? 'bijgewerkt' : 'opgeslagen';
+    setStatus(`Schema ${action}`);
     setTimeout(() => setStatus(''), 2000);
   } catch (err) {
     setStatus(`Fout bij opslaan: ${(err as Error).message}`);
@@ -223,17 +251,30 @@ function hideScheduleForm(): void {
   const form = getScheduleForm();
   form.reset();
   getScheduleFormSection().hidden = true;
+  scheduleBeingEdited = null;
 }
 
-export function showScheduleForm(snapshot: TimesheetSnapshot | null): void {
+function openScheduleFormForEdit(schedule: WeeklySchedule): void {
+  if (!currentSnapshot) {
+    setStatus('Analyseer eerst de huidige timesheet voordat je een schema bewerkt.');
+    return;
+  }
+
+  showScheduleForm(currentSnapshot, schedule);
+}
+
+export function showScheduleForm(snapshot: TimesheetSnapshot | null, scheduleToEdit?: WeeklySchedule | null): void {
   if (snapshot === null) {
     hideScheduleForm();
     return;
   }
 
   currentSnapshot = snapshot;
+  scheduleBeingEdited = scheduleToEdit || null;
   const section = getScheduleFormSection();
   const projectSelect = getScheduleProjectSelect();
+  const formTitle = getScheduleFormTitle();
+  const submitBtn = getScheduleForm().querySelector('button[type="submit"]') as HTMLButtonElement;
 
   // Populate project options
   projectSelect.innerHTML = '<option value="">-- Selecteer project --</option>';
@@ -248,11 +289,27 @@ export function showScheduleForm(snapshot: TimesheetSnapshot | null): void {
 
   // Reset form fields
   getScheduleLabelInput().value = '';
-  getScheduleFormTitle().textContent = 'Nieuw schema';
   const hoursInputs = getHoursInputs();
   Object.values(hoursInputs).forEach((input) => {
     input.value = '0';
   });
+
+  // Set edit mode if schedule provided
+  const isEditMode = Boolean(scheduleToEdit);
+  if (isEditMode && scheduleToEdit) {
+    formTitle.textContent = 'Schema bewerken';
+    submitBtn.textContent = 'Bijwerken';
+    getScheduleLabelInput().value = scheduleToEdit.label;
+    projectSelect.value = scheduleToEdit.projectCode;
+    Object.entries(scheduleToEdit.hoursPerWeekday).forEach(([day, hours]) => {
+      if (day in hoursInputs) {
+        hoursInputs[day].value = String(hours);
+      }
+    });
+  } else {
+    formTitle.textContent = 'Nieuw schema';
+    submitBtn.textContent = 'Opslaan';
+  }
 
   section.hidden = false;
   getScheduleLabelInput().focus();

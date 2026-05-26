@@ -23,7 +23,7 @@ Shared feature roadmap for `sub`.
 - [x] Chunk 3 - Schedule list view in popup.
   - Show saved schedules in the popup with an empty state when none are configured.
   - Read-only; no create/edit yet.
-- [ ] Chunk 4 - Add/edit schedule form in popup.
+- [x] Chunk 4 - Add/edit schedule form in popup.
   - Form to pick a project code (from scraped snapshot) and set planned hours per weekday.
   - Save new or updated schedule to storage.
 - [ ] Chunk 5 - Delete schedule in popup.

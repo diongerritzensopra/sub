@@ -117,6 +117,30 @@ h2 {
   font-size: 13px;
 }
 
+.schedule-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.schedule-content {
+  min-width: 0;
+}
+
+.schedule-edit-button {
+  background: transparent;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  padding: 4px 4px;
+  line-height: 1;
+  font-size: 14px;
+}
+
+.schedule-edit-button:hover:not(:disabled) {
+  background: #ececec;
+}
+
 #btn-add-schedule {
   background: #1c65bf;
   color: #fff;
