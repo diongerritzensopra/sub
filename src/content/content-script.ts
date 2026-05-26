@@ -12,8 +12,11 @@ const SAP_SELECTORS = {
   monthButton: '#application-timesheet-my-component---idMaster--idSimpleCalendarHeader--Head-B1',
   yearButton: '#application-timesheet-my-component---idMaster--idSimpleCalendarHeader--Head-B2',
   projectCodesTree: '#application-timesheet-my-component---idMaster--idNavigationProjectCodes-subtree a[title]',
+  selectedProjectLink: '#application-timesheet-my-component---idMaster--idNavigationProjectCodes-subtree li.sapTntNLISelected > a[title]',
   totalPanelTitle: 'h5.sapUiFormTitle',
   totalPanelRows: '.sapUiFormElementLbl',
+  monthTableBody: '#application-timesheet-my-component---idDetail--idMonthTable-tblBody',
+  submitButton: '#application-timesheet-my-component---idDetail--idSubmitTimesheet',
 };
 
 const ROUTE_PERIOD_PATTERN = /(?:\/|#)(\d{1,2})\/(\d{4})(?:\/project\/|\b)/i;
@@ -297,11 +300,133 @@ function normalizeWhitespace(text: string): string {
 
 /**
  * Autofill a single entry back into the page.
- * Replace selectors and interactions once SAP My Timesheet form fields are mapped.
  */
 function autofillEntry(entry: HoursEntry): void {
-  // TODO: Implement once SAP My Timesheet form fields are mapped
-  console.log('[content-script] autofill (not yet implemented):', entry);
+  const timesheetDocument = resolveTimesheetDocument(document);
+  const currentProjectCode = extractCurrentProjectCode(timesheetDocument);
+  if (!currentProjectCode) {
+    throw new Error('Geen geselecteerde projectpagina gevonden.');
+  }
+
+  if (currentProjectCode !== entry.project.toUpperCase()) {
+    throw new Error(`Actieve projectpagina komt niet overeen met ${entry.project}.`);
+  }
+
+  const entryDate = parseIsoDate(entry.date);
+  const pagePeriod = resolvePeriodWithFallbacks(timesheetDocument, document);
+  if (pagePeriod.month !== entryDate.month || pagePeriod.year !== entryDate.year) {
+    throw new Error(`Datum ${entry.date} valt buiten de geopende periode.`);
+  }
+
+  const row = findMonthTableRowForDate(timesheetDocument, entryDate);
+  if (!row) {
+    throw new Error(`Geen rij gevonden voor datum ${entry.date}.`);
+  }
+
+  if (isMandatoryHolidayRow(row)) {
+    throw new Error(`Datum ${entry.date} is een verplichte feestdag en kan niet worden ingevoerd.`);
+  }
+
+  const hoursInput = row.querySelector<HTMLInputElement>('td[id$="-cell3"] input');
+  if (!hoursInput) {
+    throw new Error(`Geen urenveld gevonden voor datum ${entry.date}.`);
+  }
+
+  setInputValue(hoursInput, formatHoursAsSapTime(entry.hours));
+}
+
+function extractCurrentProjectCode(timesheetDocument: Document): string | null {
+  const selectedProjectTitle = timesheetDocument.querySelector<HTMLAnchorElement>(SAP_SELECTORS.selectedProjectLink)?.getAttribute('title') ?? '';
+  const leadingCode = selectedProjectTitle.match(/^\s*([A-Z][A-Z0-9._-]{2,20})\s*-/i);
+  return leadingCode?.[1]?.toUpperCase() ?? null;
+}
+
+function parseIsoDate(isoDate: string): { year: number; month: number; day: number } {
+  const match = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    throw new Error(`Ongeldige ISO datum: ${isoDate}.`);
+  }
+
+  return {
+    year: Number.parseInt(match[1], 10),
+    month: Number.parseInt(match[2], 10),
+    day: Number.parseInt(match[3], 10),
+  };
+}
+
+function formatDayLabelForDate(dateParts: { year: number; month: number; day: number }): string {
+  const date = new Date(Date.UTC(dateParts.year, dateParts.month - 1, dateParts.day));
+  const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' }).format(date);
+  const day = new Intl.DateTimeFormat('en-US', { day: 'numeric', timeZone: 'UTC' }).format(date);
+  return `${weekday} ${day}`;
+}
+
+function isMandatoryHolidayRow(row: HTMLTableRowElement): boolean {
+  if (!row.classList.contains('weekendRow')) {
+    return false;
+  }
+
+  const commentInput = row.querySelector<HTMLInputElement>('td[id$="-cell1"] input');
+  return Boolean(commentInput?.value?.trim());
+}
+
+function findMonthTableRowForDate(
+  timesheetDocument: Document,
+  dateParts: { year: number; month: number; day: number },
+): HTMLTableRowElement | null {
+  const tableBody = timesheetDocument.querySelector<HTMLElement>(SAP_SELECTORS.monthTableBody);
+  if (!tableBody) {
+    return null;
+  }
+
+  const expectedDayLabel = formatDayLabelForDate(dateParts);
+  const rows = tableBody.querySelectorAll<HTMLTableRowElement>('tr');
+  for (const row of rows) {
+    const dayText = normalizeWhitespace(row.querySelector<HTMLElement>('td[id$="-cell0"] bdi, td[id$="-cell0"]')?.textContent ?? '');
+    if (dayText === expectedDayLabel) {
+      return row;
+    }
+  }
+
+  return null;
+}
+
+function formatHoursAsSapTime(hours: number): string {
+  const totalMinutes = Math.round(hours * 60);
+  const wholeHours = Math.floor(totalMinutes / 60);
+  const minutes = Math.abs(totalMinutes % 60);
+  return `${wholeHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+}
+
+function setInputValue(input: HTMLInputElement, value: string): void {
+  input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function autofillEntries(entries: HoursEntry[]): { applied: number; failedDates: string[] } {
+  const failedDates: string[] = [];
+  let applied = 0;
+
+  entries.forEach((entry) => {
+    try {
+      autofillEntry(entry);
+      applied += 1;
+    } catch {
+      failedDates.push(entry.date);
+    }
+  });
+
+  if (applied > 0) {
+    const timesheetDocument = resolveTimesheetDocument(document);
+    const submitButton = timesheetDocument.querySelector<HTMLButtonElement>(SAP_SELECTORS.submitButton);
+    if (!submitButton) {
+      throw new Error('Submitknop niet gevonden na invullen van uren.');
+    }
+    submitButton.click();
+  }
+
+  return { applied, failedDates };
 }
 
 // Listen for messages from the popup or service worker
@@ -313,6 +438,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.type === 'AUTOFILL_ENTRY') {
     autofillEntry(message.payload as HoursEntry);
     sendResponse({ success: true });
+  }
+
+  if (message.type === 'AUTOFILL_ENTRIES') {
+    if (!Array.isArray(message.payload)) {
+      sendResponse({ success: false, error: 'Ongeldige payload voor AUTOFILL_ENTRIES.' });
+      return;
+    }
+
+    sendResponse({ success: true, data: autofillEntries(message.payload as HoursEntry[]) });
   }
 });
 

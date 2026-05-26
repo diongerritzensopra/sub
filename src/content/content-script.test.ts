@@ -1,15 +1,29 @@
 import { describe, expect, it, vi } from 'vitest';
 
+const addListener = vi.fn();
+
 globalThis.chrome = {
   runtime: {
     onMessage: {
-      addListener: vi.fn(),
+      addListener,
     },
     sendMessage: vi.fn(),
   },
 } as unknown as typeof chrome;
 
 const { scrapeTimesheetSnapshot } = await import('./content-script');
+
+function getMessageListener(): (
+  message: { type: string; payload?: unknown },
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response: unknown) => void,
+) => void {
+  return addListener.mock.calls[0][0] as (
+    message: { type: string; payload?: unknown },
+    sender: chrome.runtime.MessageSender,
+    sendResponse: (response: unknown) => void,
+  ) => void;
+}
 
 describe('scrapeTimesheetSnapshot', () => {
   it('extracts month/year from iframe route with no project segment', () => {
@@ -133,6 +147,237 @@ describe('scrapeTimesheetSnapshot', () => {
     expect(snapshot.totals.worked).toBeNull();
     expect(snapshot.totals.absent).toBeNull();
     expect(snapshot.totals.toBePerformed).toBeNull();
+  });
+});
+
+describe('AUTOFILL_ENTRIES', () => {
+  it('fills the Hours column for a matching day on the selected project page', () => {
+    document.body.innerHTML = `
+      <button id="application-timesheet-my-component---idMaster--idSimpleCalendarHeader--Head-B1">May</button>
+      <button id="application-timesheet-my-component---idMaster--idSimpleCalendarHeader--Head-B2">2026</button>
+      <ul id="application-timesheet-my-component---idMaster--idNavigationProjectCodes-subtree">
+        <li class="sapTntNLI sapTntNLISecondLevel sapTntNLISelected">
+          <a title="C0007012.1.1 - Politie DPC - Signalen" aria-current="page">Selected project</a>
+        </li>
+      </ul>
+      <table id="application-timesheet-my-component---idDetail--idMonthTable-listUl">
+        <tbody id="application-timesheet-my-component---idDetail--idMonthTable-tblBody">
+          <tr id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0">
+            <td></td>
+            <td id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0-cell0"><span><div><span><bdi>Fri 1</bdi></span></div></span></td>
+            <td id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0-cell1"></td>
+            <td id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0-cell2"></td>
+            <td id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0-cell3"><input value="00:00"></td>
+          </tr>
+        </tbody>
+      </table>
+      <button id="application-timesheet-my-component---idDetail--idSubmitTimesheet">Submit</button>
+    `;
+
+    const submitButton = document.getElementById('application-timesheet-my-component---idDetail--idSubmitTimesheet') as HTMLButtonElement;
+    const clickSpy = vi.spyOn(submitButton, 'click');
+
+    const sendResponse = vi.fn();
+    getMessageListener()(
+      {
+        type: 'AUTOFILL_ENTRIES',
+        payload: [{ date: '2026-05-01', project: 'C0007012.1.1', hours: 7.5 }],
+      },
+      {} as chrome.runtime.MessageSender,
+      sendResponse,
+    );
+
+    const hoursInput = document.querySelector('#__item22-application-timesheet-my-component---idDetail--idMonthTable-0-cell3 input') as HTMLInputElement;
+    expect(hoursInput.value).toBe('07:30');
+    expect(clickSpy).toHaveBeenCalledOnce();
+    expect(sendResponse).toHaveBeenCalledWith({ success: true, data: { applied: 1, failedDates: [] } });
+  });
+
+  it('returns failed dates when the active project does not match the entry project', () => {
+    document.body.innerHTML = `
+      <button id="application-timesheet-my-component---idMaster--idSimpleCalendarHeader--Head-B1">May</button>
+      <button id="application-timesheet-my-component---idMaster--idSimpleCalendarHeader--Head-B2">2026</button>
+      <ul id="application-timesheet-my-component---idMaster--idNavigationProjectCodes-subtree">
+        <li class="sapTntNLI sapTntNLISecondLevel sapTntNLISelected">
+          <a title="ZTEST_42 - Internal" aria-current="page">Wrong project</a>
+        </li>
+      </ul>
+      <table id="application-timesheet-my-component---idDetail--idMonthTable-listUl">
+        <tbody id="application-timesheet-my-component---idDetail--idMonthTable-tblBody">
+          <tr><td></td><td id="row-cell0"><bdi>Fri 1</bdi></td><td></td><td></td><td id="row-cell3"><input value="00:00"></td></tr>
+        </tbody>
+      </table>
+    `;
+
+    const sendResponse = vi.fn();
+    getMessageListener()(
+      {
+        type: 'AUTOFILL_ENTRIES',
+        payload: [{ date: '2026-05-01', project: 'C0007012.1.1', hours: 8 }],
+      },
+      {} as chrome.runtime.MessageSender,
+      sendResponse,
+    );
+
+    expect(sendResponse).toHaveBeenCalledWith({ success: true, data: { applied: 0, failedDates: ['2026-05-01'] } });
+  });
+
+  it('returns an error for invalid AUTOFILL_ENTRIES payload', () => {
+    const sendResponse = vi.fn();
+
+    getMessageListener()(
+      { type: 'AUTOFILL_ENTRIES', payload: { invalid: true } },
+      {} as chrome.runtime.MessageSender,
+      sendResponse,
+    );
+
+    expect(sendResponse).toHaveBeenCalledWith({ success: false, error: 'Ongeldige payload voor AUTOFILL_ENTRIES.' });
+  });
+
+  it('returns an error when submit button is missing after filling entries', () => {
+    document.body.innerHTML = `
+      <button id="application-timesheet-my-component---idMaster--idSimpleCalendarHeader--Head-B1">May</button>
+      <button id="application-timesheet-my-component---idMaster--idSimpleCalendarHeader--Head-B2">2026</button>
+      <ul id="application-timesheet-my-component---idMaster--idNavigationProjectCodes-subtree">
+        <li class="sapTntNLI sapTntNLISecondLevel sapTntNLISelected">
+          <a title="C0007012.1.1 - Politie DPC - Signalen" aria-current="page">Selected project</a>
+        </li>
+      </ul>
+      <table id="application-timesheet-my-component---idDetail--idMonthTable-listUl">
+        <tbody id="application-timesheet-my-component---idDetail--idMonthTable-tblBody">
+          <tr id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0">
+            <td></td>
+            <td id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0-cell0"><bdi>Fri 1</bdi></td>
+            <td id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0-cell1"></td>
+            <td id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0-cell2"></td>
+            <td id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0-cell3"><input value="00:00"></td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+
+    const sendResponse = vi.fn();
+    expect(() => getMessageListener()(
+      {
+        type: 'AUTOFILL_ENTRIES',
+        payload: [{ date: '2026-05-01', project: 'C0007012.1.1', hours: 8 }],
+      },
+      {} as chrome.runtime.MessageSender,
+      sendResponse,
+    )).toThrow('Submitknop niet gevonden na invullen van uren.');
+  });
+
+  it('does not click submit when all entries failed', () => {
+    document.body.innerHTML = `
+      <button id="application-timesheet-my-component---idMaster--idSimpleCalendarHeader--Head-B1">May</button>
+      <button id="application-timesheet-my-component---idMaster--idSimpleCalendarHeader--Head-B2">2026</button>
+      <ul id="application-timesheet-my-component---idMaster--idNavigationProjectCodes-subtree">
+        <li class="sapTntNLI sapTntNLISecondLevel sapTntNLISelected">
+          <a title="ZTEST_42 - Internal" aria-current="page">Wrong project</a>
+        </li>
+      </ul>
+      <table id="application-timesheet-my-component---idDetail--idMonthTable-listUl">
+        <tbody id="application-timesheet-my-component---idDetail--idMonthTable-tblBody"></tbody>
+      </table>
+      <button id="application-timesheet-my-component---idDetail--idSubmitTimesheet">Submit</button>
+    `;
+
+    const submitButton = document.getElementById('application-timesheet-my-component---idDetail--idSubmitTimesheet') as HTMLButtonElement;
+    const clickSpy = vi.spyOn(submitButton, 'click');
+
+    const sendResponse = vi.fn();
+    getMessageListener()(
+      {
+        type: 'AUTOFILL_ENTRIES',
+        payload: [{ date: '2026-05-01', project: 'C0007012.1.1', hours: 8 }],
+      },
+      {} as chrome.runtime.MessageSender,
+      sendResponse,
+    );
+
+    expect(clickSpy).not.toHaveBeenCalled();
+    expect(sendResponse).toHaveBeenCalledWith({ success: true, data: { applied: 0, failedDates: ['2026-05-01'] } });
+  });
+
+  it('skips a date that is a mandatory holiday (weekendRow with comment text)', () => {
+    document.body.innerHTML = `
+      <button id="application-timesheet-my-component---idMaster--idSimpleCalendarHeader--Head-B1">May</button>
+      <button id="application-timesheet-my-component---idMaster--idSimpleCalendarHeader--Head-B2">2026</button>
+      <ul id="application-timesheet-my-component---idMaster--idNavigationProjectCodes-subtree">
+        <li class="sapTntNLI sapTntNLISecondLevel sapTntNLISelected">
+          <a title="C0007012.1.1 - Politie DPC - Signalen" aria-current="page">Selected project</a>
+        </li>
+      </ul>
+      <table id="application-timesheet-my-component---idDetail--idMonthTable-listUl">
+        <tbody id="application-timesheet-my-component---idDetail--idMonthTable-tblBody">
+          <tr id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0"
+              class="sapMListTblRow weekendRow">
+            <td></td>
+            <td id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0-cell0"><bdi>Thu 21</bdi></td>
+            <td id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0-cell1">
+              <input value="Ascension Day">
+            </td>
+            <td id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0-cell2"></td>
+            <td id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0-cell3"><input value="00:00"></td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+
+    const sendResponse = vi.fn();
+    getMessageListener()(
+      {
+        type: 'AUTOFILL_ENTRIES',
+        payload: [{ date: '2026-05-21', project: 'C0007012.1.1', hours: 8 }],
+      },
+      {} as chrome.runtime.MessageSender,
+      sendResponse,
+    );
+
+    const hoursInput = document.querySelector('#__item22-application-timesheet-my-component---idDetail--idMonthTable-0-cell3 input') as HTMLInputElement;
+    expect(hoursInput.value).toBe('00:00'); // untouched
+    expect(sendResponse).toHaveBeenCalledWith({ success: true, data: { applied: 0, failedDates: ['2026-05-21'] } });
+  });
+
+  it('does not skip a weekendRow when the comment input is empty (regular weekend)', () => {
+    document.body.innerHTML = `
+      <button id="application-timesheet-my-component---idMaster--idSimpleCalendarHeader--Head-B1">May</button>
+      <button id="application-timesheet-my-component---idMaster--idSimpleCalendarHeader--Head-B2">2026</button>
+      <ul id="application-timesheet-my-component---idMaster--idNavigationProjectCodes-subtree">
+        <li class="sapTntNLI sapTntNLISecondLevel sapTntNLISelected">
+          <a title="C0007012.1.1 - Politie DPC - Signalen" aria-current="page">Selected project</a>
+        </li>
+      </ul>
+      <table id="application-timesheet-my-component---idDetail--idMonthTable-listUl">
+        <tbody id="application-timesheet-my-component---idDetail--idMonthTable-tblBody">
+          <tr id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0"
+              class="sapMListTblRow weekendRow">
+            <td></td>
+            <td id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0-cell0"><bdi>Sat 2</bdi></td>
+            <td id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0-cell1">
+              <input value="">
+            </td>
+            <td id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0-cell2"></td>
+            <td id="__item22-application-timesheet-my-component---idDetail--idMonthTable-0-cell3"><input value="00:00"></td>
+          </tr>
+        </tbody>
+      </table>
+      <button id="application-timesheet-my-component---idDetail--idSubmitTimesheet">Submit</button>
+    `;
+
+    const sendResponse = vi.fn();
+    getMessageListener()(
+      {
+        type: 'AUTOFILL_ENTRIES',
+        payload: [{ date: '2026-05-02', project: 'C0007012.1.1', hours: 4 }],
+      },
+      {} as chrome.runtime.MessageSender,
+      sendResponse,
+    );
+
+    const hoursInput = document.querySelector('#__item22-application-timesheet-my-component---idDetail--idMonthTable-0-cell3 input') as HTMLInputElement;
+    expect(hoursInput.value).toBe('04:00');
+    expect(sendResponse).toHaveBeenCalledWith({ success: true, data: { applied: 1, failedDates: [] } });
   });
 });
 

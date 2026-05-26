@@ -32,7 +32,7 @@ Shared feature roadmap for `sub`.
   - Pure function that expands a `WeeklySchedule` into `HoursEntry[]` for a given month/year.
   - Skips weekends/weekdays with 0 hours; covers every applicable day in the month.
   - Fully unit-tested in isolation.
-- [ ] Chunk 7 - Content script autofill implementation.
+- [x] Chunk 7 - Content script autofill implementation.
   - Map SAP My Timesheet form fields and implement `AUTOFILL_ENTRIES` message handler in `src/content/content-script.ts`.
 - [ ] Chunk 8 - Popup apply action.
   - Add an "Apply" button per schedule that expands it for the current month and sends entries to the content script.
