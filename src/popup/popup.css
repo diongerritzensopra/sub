@@ -128,7 +128,10 @@ h2 {
   min-width: 0;
 }
 
-.schedule-edit-button {
+.schedule-edit-button,
+.schedule-delete-button,
+.schedule-confirm-yes,
+.schedule-confirm-no {
   background: transparent;
   border: 1px solid #d0d0d0;
   border-radius: 4px;
@@ -137,9 +140,36 @@ h2 {
   font-size: 14px;
 }
 
-.schedule-edit-button:hover:not(:disabled) {
+.schedule-edit-button:hover:not(:disabled),
+.schedule-confirm-no:hover:not(:disabled) {
   background: #ececec;
 }
+
+.schedule-delete-button:hover:not(:disabled),
+.schedule-confirm-yes:hover:not(:disabled) {
+  background: #fdecea;
+  border-color: #e57373;
+}
+
+.schedule-actions,
+.schedule-confirm-delete {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.schedule-actions[hidden],
+.schedule-confirm-delete[hidden] {
+  display: none;
+}
+
+.schedule-confirm-label {
+  font-size: 11px;
+  color: #555;
+  white-space: nowrap;
+}
+
 
 #btn-add-schedule {
   background: #1c65bf;

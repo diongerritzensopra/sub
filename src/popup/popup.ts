@@ -130,6 +130,10 @@ function renderScheduleListItem(schedule: WeeklySchedule): HTMLLIElement {
   meta.className = 'schedule-meta';
   meta.textContent = `Project: ${schedule.projectCode}`;
 
+  // Normal action buttons
+  const actions = document.createElement('div');
+  actions.className = 'schedule-actions';
+
   const editButton = document.createElement('button');
   editButton.type = 'button';
   editButton.className = 'schedule-edit-button';
@@ -140,10 +144,58 @@ function renderScheduleListItem(schedule: WeeklySchedule): HTMLLIElement {
     openScheduleFormForEdit(schedule);
   });
 
+  const deleteButton = document.createElement('button');
+  deleteButton.type = 'button';
+  deleteButton.className = 'schedule-delete-button';
+  deleteButton.textContent = '🗑️';
+  deleteButton.title = 'Schema verwijderen';
+  deleteButton.setAttribute('aria-label', `Verwijder schema ${schedule.label}`);
+
+  // Inline confirmation UI (hidden initially)
+  const confirmRow = document.createElement('div');
+  confirmRow.className = 'schedule-confirm-delete';
+  confirmRow.hidden = true;
+
+  const confirmLabel = document.createElement('span');
+  confirmLabel.className = 'schedule-confirm-label';
+  confirmLabel.textContent = 'Verwijderen?';
+
+  const confirmYes = document.createElement('button');
+  confirmYes.type = 'button';
+  confirmYes.className = 'schedule-confirm-yes';
+  confirmYes.textContent = '✔️';
+  confirmYes.title = 'Ja, verwijderen';
+  confirmYes.addEventListener('click', () => {
+    void handleDeleteSchedule(schedule.id);
+  });
+
+  const confirmNo = document.createElement('button');
+  confirmNo.type = 'button';
+  confirmNo.className = 'schedule-confirm-no';
+  confirmNo.textContent = '❌';
+  confirmNo.title = 'Annuleren';
+  confirmNo.addEventListener('click', () => {
+    confirmRow.hidden = true;
+    actions.hidden = false;
+  });
+
+  deleteButton.addEventListener('click', () => {
+    actions.hidden = true;
+    confirmRow.hidden = false;
+  });
+
+  confirmRow.appendChild(confirmLabel);
+  confirmRow.appendChild(confirmYes);
+  confirmRow.appendChild(confirmNo);
+
+  actions.appendChild(editButton);
+  actions.appendChild(deleteButton);
+
   content.appendChild(title);
   content.appendChild(meta);
   item.appendChild(content);
-  item.appendChild(editButton);
+  item.appendChild(actions);
+  item.appendChild(confirmRow);
 
   return item;
 }
@@ -261,6 +313,16 @@ function openScheduleFormForEdit(schedule: WeeklySchedule): void {
   }
 
   showScheduleForm(currentSnapshot, schedule);
+}
+
+async function handleDeleteSchedule(scheduleId: string): Promise<void> {
+  try {
+    const { deleteSchedule } = await import('../shared/storage');
+    await deleteSchedule(scheduleId);
+    await renderSchedules();
+  } catch (err) {
+    setStatus(`Fout bij verwijderen: ${(err as Error).message}`);
+  }
 }
 
 export function showScheduleForm(snapshot: TimesheetSnapshot | null, scheduleToEdit?: WeeklySchedule | null): void {

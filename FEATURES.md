@@ -26,7 +26,7 @@ Shared feature roadmap for `sub`.
 - [x] Chunk 4 - Add/edit schedule form in popup.
   - Form to pick a project code (from scraped snapshot) and set planned hours per weekday.
   - Save new or updated schedule to storage.
-- [ ] Chunk 5 - Delete schedule in popup.
+- [x] Chunk 5 - Delete schedule in popup.
   - Add delete action per schedule in the list view.
 - [ ] Chunk 6 - Schedule expansion logic.
   - Pure function that expands a `WeeklySchedule` into `HoursEntry[]` for a given month/year.
