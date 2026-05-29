@@ -35,7 +35,10 @@ Shared feature roadmap for `sub`.
 - [x] Chunk 7 - Content script autofill implementation.
   - Map SAP My Timesheet form fields and implement `AUTOFILL_ENTRIES` message handler in `src/content/content-script.ts`.
 - [ ] Chunk 8 - Popup apply action.
-  - Add an "Apply" button per schedule that expands it for the current month and sends entries to the content script.
+  - Add one primary apply button in the popup.
+  - Default state is "Apply all" and applies every saved schedule.
+  - Allow selecting individual schedules; when one or more are selected, the button changes to "Apply" and applies only selected schedules.
+  - Before applying a schedule, navigate to its project page first; this is only possible when the project exists in the SAP navigation menu.
 - [ ] Chunk 9 - Final polish.
   - Validation feedback, disable apply when SAP page is not ready, and UX cleanup.
 
@@ -75,4 +78,3 @@ Shared feature roadmap for `sub`.
 ## Notes
 - Keep message contracts typed in `src/shared/types.ts`.
 - Keep storage helpers in `src/shared/storage.ts` when implementing cache behavior.
-
