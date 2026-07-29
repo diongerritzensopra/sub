@@ -30,15 +30,16 @@ Shared feature roadmap for `sub`.
   - Add delete action per schedule in the list view.
 - [x] Chunk 6 - Schedule expansion logic.
   - Pure function that expands a `WeeklySchedule` into `HoursEntry[]` for a given month/year.
-  - Skips weekends/weekdays with 0 hours; covers every applicable day in the month.
+  - Covers every applicable day in the month and preserves explicit 0-hour days so the apply flow can reset existing SAP values when needed.
   - Fully unit-tested in isolation.
 - [x] Chunk 7 - Content script autofill implementation.
   - Map SAP My Timesheet form fields and implement `AUTOFILL_ENTRIES` message handler in `src/content/content-script.ts`.
-- [ ] Chunk 8 - Popup apply action.
+- [x] Chunk 8 - Popup apply action.
   - Add one primary apply button in the popup.
   - Default state is "Apply all" and applies every saved schedule.
   - Allow selecting individual schedules; when one or more are selected, the button changes to "Apply" and applies only selected schedules.
-  - Before applying a schedule, navigate to its project page first; this is only possible when the project exists in the SAP navigation menu.
+  - Before applying a schedule, navigate to its project page first; this only proceeds when the target project code is present in the current snapshot `projectCodes` array derived from the SAP `projectsmodel`.
+  - Use SAP UI5 `projectsmodel`/`postTimeSheet` access via `chrome.scripting` instead of the old message-based content-script autofill path.
 - [ ] Chunk 9 - Final polish.
   - Validation feedback, disable apply when SAP page is not ready, and UX cleanup.
 
