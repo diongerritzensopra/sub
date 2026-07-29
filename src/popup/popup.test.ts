@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { CachedTimesheetSnapshot, TimesheetSnapshot, WeeklySchedule } from '../shared/types';
+import type {CachedTimesheetSnapshot, TimesheetSnapshot, WeeklySchedule} from '../shared/types';
 import { STORAGE_KEYS } from '../shared/storage';
 
 // Mock chrome API before any imports
@@ -11,6 +11,15 @@ const mockChromeRuntimeSendMessage = vi.fn<
 >();
 const mockChromeTabsSendMessage = vi.fn<
   (tabId: number, message: any) => Promise<any>
+>();
+const mockChromeTabsGet = vi.fn<
+  (tabId: number) => Promise<chrome.tabs.Tab>
+>();
+const mockChromeTabsUpdate = vi.fn<
+  (tabId: number, updateProperties: chrome.tabs.UpdateProperties) => Promise<chrome.tabs.Tab>
+>();
+const mockChromeScriptingExecuteScript = vi.fn<
+  (injection: chrome.scripting.ScriptInjection<any[], any>) => Promise<chrome.scripting.InjectionResult[]>
 >();
 const mockChromeStorageLocalGet = vi.fn<
   (keys: string[], callback: (result: Record<string, unknown>) => void) => void
@@ -24,10 +33,14 @@ const mockChromeStorageLocalRemove = vi.fn<
 globalThis.chrome = {
   tabs: {
     query: mockChromeTabsQuery,
-    get: vi.fn(),
+    get: mockChromeTabsGet,
+    update: mockChromeTabsUpdate,
     sendMessage: mockChromeTabsSendMessage,
     onUpdated: { addListener: vi.fn() },
     onActivated: { addListener: vi.fn() },
+  },
+  scripting: {
+    executeScript: mockChromeScriptingExecuteScript,
   },
   runtime: {
     sendMessage: mockChromeRuntimeSendMessage,
@@ -63,8 +76,9 @@ beforeEach(() => {
         <section id="schedules-section">
           <h2>Projectschema's</h2>
           <button id="btn-add-schedule" type="button" disabled>Nieuw schema</button>
+          <button id="btn-apply-schedules" type="button" disabled>Alles toepassen</button>
           <p id="schedules-empty">Nog geen schema's opgeslagen.</p>
-          <ul id="schedules-list" hidden></ul>
+          <ul id="schedules-list" hidden aria-label="Selecteerbare projectschema's"></ul>
         </section>
         <section id="schedule-form-section" hidden>
           <h2 id="schedule-form-title">Nieuw schema</h2>
@@ -124,7 +138,6 @@ beforeEach(() => {
             <li><strong>Periode:</strong> <span id="period-value">-</span></li>
             <li><strong>Projectcodes:</strong> <span id="project-codes-value">-</span></li>
             <li><strong>Uren gewerkt:</strong> <span id="worked-hours-value">-</span></li>
-            <li><strong>Uren afwezig:</strong> <span id="absent-hours-value">-</span></li>
             <li><strong>Uren uit te voeren:</strong> <span id="to-be-performed-hours-value">-</span></li>
           </ul>
           <p id="scrape-status" class="subtle-indicator" hidden></p>
@@ -138,6 +151,43 @@ beforeEach(() => {
   vi.resetModules();
   vi.clearAllMocks();
   mockChromeTabsQuery.mockResolvedValue([]);
+  mockChromeTabsGet.mockResolvedValue({ id: 99, status: 'complete' } as chrome.tabs.Tab);
+  mockChromeTabsUpdate.mockImplementation(async (tabId, updateProperties) => ({
+    id: tabId,
+    status: 'complete',
+    url: updateProperties.url,
+  } as chrome.tabs.Tab));
+  mockChromeScriptingExecuteScript.mockImplementation(async (injection) => {
+    const funcName = injection.func?.name;
+    if (funcName === 'ui5MainWorldAutofill') {
+      return [{
+        documentId: 'mock-id',
+        frameId: 0,
+        result: {
+          appliedDaysCount: 1,
+          failedDates: [],
+          submissionAttempted: true,
+          submissionConfirmed: true,
+        },
+      }];
+    }
+    if (funcName === 'ui5MainWorldReadSnapshot') {
+      return [{
+        documentId: 'mock-id',
+        frameId: 0,
+        result: {
+          success: false,
+          error: 'not mocked',
+        },
+      }];
+    }
+
+    return [{
+      documentId: 'mock-id',
+      frameId: 0,
+      result: undefined,
+    }];
+  });
   mockChromeTabsSendMessage.mockResolvedValue({ success: false, error: 'not mocked' });
   mockChromeRuntimeSendMessage.mockResolvedValue({
     success: true,
@@ -173,7 +223,7 @@ describe('popup', () => {
         {
           id: 'schedule-1',
           label: 'Kantooruren',
-          projectCode: 'C0007012.1.1',
+          projectCode: 'ZMOCK_001.1.1',
           hoursPerWeekday: {
             monday: 8,
             tuesday: 8,
@@ -217,7 +267,7 @@ describe('popup', () => {
       expect(list.hidden).toBe(false);
       expect(list.querySelectorAll('li')).toHaveLength(2);
       expect(list.textContent).toContain('Kantooruren');
-      expect(list.textContent).toContain('Project: C0007012.1.1');
+      expect(list.textContent).toContain('Project: ZMOCK_001.1.1');
       expect(list.textContent).toContain('Deeltijd');
       expect(list.textContent).toContain('Project: ZTEST_42');
     });
@@ -229,10 +279,11 @@ describe('popup', () => {
         snapshot: {
           month: 5,
           year: 2026,
-          projectCodes: ['C0007012.1.1'],
+          projectCodes: ['ZMOCK_001.1.1'],
+          currentProjectCode: 'ZMOCK_001.1.1',
           totals: {
             worked: 120,
-            absent: 8,
+            
             toBePerformed: 160,
           },
         },
@@ -251,7 +302,7 @@ describe('popup', () => {
       await new Promise((r) => setTimeout(r, 0));
 
       expect(document.getElementById('period-value')?.textContent).toBe('5/2026');
-      expect(document.getElementById('project-codes-value')?.textContent).toBe('C0007012.1.1');
+      expect(document.getElementById('project-codes-value')?.textContent).toBe('ZMOCK_001.1.1');
       expect(document.getElementById('worked-hours-value')?.textContent).toBe('120 u');
       expect(document.getElementById('summary-section')?.hasAttribute('hidden')).toBe(false);
       expect(document.getElementById('data-origin-indicator')?.textContent).toContain('Cache gebruikt');
@@ -263,8 +314,9 @@ describe('popup', () => {
         snapshot: {
           month: 4,
           year: 2026,
-          projectCodes: ['C0007012.1.1'],
-          totals: { worked: 120, absent: 8, toBePerformed: 160 },
+          projectCodes: ['ZMOCK_001.1.1'],
+          currentProjectCode: 'ZMOCK_001.1.1',
+          totals: { worked: 120, toBePerformed: 160 },
         },
         cachedAt: '2026-04-30T10:00:00.000Z',
       };
@@ -292,8 +344,9 @@ describe('popup', () => {
         snapshot: {
           month: now.getMonth() + 1,
           year: now.getFullYear(),
-          projectCodes: ['C0007012.1.1'],
-          totals: { worked: 120, absent: 8, toBePerformed: 160 },
+          projectCodes: ['ZMOCK_001.1.1'],
+          currentProjectCode: 'ZMOCK_001.1.1',
+          totals: { worked: 120, toBePerformed: 160 },
         },
         cachedAt: '2026-05-12T10:00:00.000Z',
       };
@@ -317,14 +370,42 @@ describe('popup', () => {
   describe('cache write-through', () => {
     const sapTab = {
       id: 99,
-      url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my',
+      url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/5/2026/project/ZSST',
       status: 'complete',
     } as chrome.tabs.Tab;
 
     function setupScrapeReturning(snapshot: TimesheetSnapshot, storedValues: Record<string, unknown> = {}) {
       mockChromeTabsQuery.mockResolvedValue([sapTab]);
       mockChromeRuntimeSendMessage.mockResolvedValue({ success: true, data: { busy: false } });
-      mockChromeTabsSendMessage.mockResolvedValue({ success: true, data: snapshot });
+      mockChromeScriptingExecuteScript.mockImplementation(async (injection) => {
+        const funcName = injection.func?.name;
+        if (funcName === 'ui5MainWorldReadSnapshot') {
+          return [{
+            documentId: 'mock-id',
+            frameId: 0,
+            result: {
+              success: true,
+              snapshot,
+            },
+          }];
+        }
+        if (funcName === 'ui5MainWorldAutofill') {
+          return [{
+            documentId: 'mock-id',
+            frameId: 0,
+            result: {
+              appliedDaysCount: 1,
+              failedDates: [],
+            },
+          }];
+        }
+
+        return [{
+          documentId: 'mock-id',
+          frameId: 0,
+          result: undefined,
+        }];
+      });
       mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
         callback({ [keys[0]]: storedValues[keys[0]] });
       });
@@ -337,8 +418,9 @@ describe('popup', () => {
     it('saves snapshot to cache after successful scrape', async () => {
       const snapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['C0007012.1.1'],
-        totals: { worked: 120, absent: 8, toBePerformed: 160 },
+        projectCodes: ['ZMOCK_001.1.1'],
+        currentProjectCode: 'ZMOCK_001.1.1',
+        totals: { worked: 120, toBePerformed: 160 },
       };
       const storedValues: Record<string, unknown> = {};
       setupScrapeReturning(snapshot, storedValues);
@@ -356,16 +438,36 @@ describe('popup', () => {
        expect(document.getElementById('data-origin-indicator')?.classList.contains('fresh')).toBe(true);
     });
 
+    it('renders summary values from the UI5 main-world snapshot reader', async () => {
+      const snapshot: TimesheetSnapshot = {
+        month: 5, year: 2026,
+        projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
+        currentProjectCode: 'ZMOCK_001.1.1',
+        totals: { worked: 120, toBePerformed: 160 },
+      };
+      setupScrapeReturning(snapshot);
+
+      await import('./popup');
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(document.getElementById('period-value')?.textContent).toBe('5/2026');
+      expect(document.getElementById('project-codes-value')?.textContent).toBe('ZMOCK_001.1.1, ZTEST_42');
+      expect(document.getElementById('worked-hours-value')?.textContent).toBe('120 u');
+      expect(document.getElementById('to-be-performed-hours-value')?.textContent).toBe('160 u');
+    });
+
     it('does not overwrite a complete cache with a partial fresh snapshot', async () => {
       const completeSnapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['C0007012.1.1'],
-        totals: { worked: 120, absent: 8, toBePerformed: 160 },
+        projectCodes: ['ZMOCK_001.1.1'],
+        currentProjectCode: 'ZMOCK_001.1.1',
+        totals: { worked: 120, toBePerformed: 160 },
       };
       const partialSnapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['C0007012.1.1'],
-        totals: { worked: null, absent: null, toBePerformed: null },
+        projectCodes: ['ZMOCK_001.1.1'],
+        currentProjectCode: 'ZMOCK_001.1.1',
+        totals: { worked: null, toBePerformed: null },
       };
        const existingCache: CachedTimesheetSnapshot = {
          snapshot: completeSnapshot,
@@ -391,7 +493,8 @@ describe('popup', () => {
        const snapshotNoDate: TimesheetSnapshot = {
          month: null, year: null,
          projectCodes: [],
-         totals: { worked: null, absent: null, toBePerformed: null },
+         currentProjectCode: null,
+         totals: { worked: null, toBePerformed: null },
        };
        setupScrapeReturning(snapshotNoDate);
 
@@ -410,15 +513,16 @@ describe('popup', () => {
   describe('busy/loading UX behavior', () => {
     const sapTab = {
       id: 99,
-      url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my',
+      url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/5/2026/project/ZSST',
       status: 'complete',
     } as chrome.tabs.Tab;
 
     it('shows cached data and gentle loading message when SAP page is loading', async () => {
       const cachedSnapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['C0007012.1.1'],
-        totals: { worked: 120, absent: 8, toBePerformed: 160 },
+        projectCodes: ['ZMOCK_001.1.1'],
+        currentProjectCode: 'ZMOCK_001.1.1',
+        totals: { worked: 120, toBePerformed: 160 },
       };
       const cachedData: CachedTimesheetSnapshot = {
         snapshot: cachedSnapshot,
@@ -436,7 +540,7 @@ describe('popup', () => {
 
       // Cached data should still be visible
       expect(document.getElementById('period-value')?.textContent).toBe('5/2026');
-      expect(document.getElementById('project-codes-value')?.textContent).toBe('C0007012.1.1');
+      expect(document.getElementById('project-codes-value')?.textContent).toBe('ZMOCK_001.1.1');
       expect(document.getElementById('worked-hours-value')?.textContent).toBe('120 u');
       // Status message should be gentle, not an error
       expect(document.getElementById('status-message')?.textContent).toContain('Pagina laadt nog');
@@ -445,8 +549,9 @@ describe('popup', () => {
     it('returns early with cached data visible when tab status is loading', async () => {
       const cachedSnapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['C0007012.1.1'],
-        totals: { worked: 120, absent: 8, toBePerformed: 160 },
+        projectCodes: ['ZMOCK_001.1.1'],
+        currentProjectCode: 'ZMOCK_001.1.1',
+        totals: { worked: 120, toBePerformed: 160 },
       };
       const cachedData: CachedTimesheetSnapshot = {
         snapshot: cachedSnapshot,
@@ -555,11 +660,9 @@ describe('popup', () => {
 
     it('handles large numbers', async () => {
       const { formatHours } = await import('./popup');
-
       expect(formatHours(160.5)).toBe('160,5 u');
     });
   });
-
   describe('renderSnapshot', () => {
     it('displays month and year when both are provided', async () => {
       const { renderSnapshot } = await import('./popup');
@@ -567,9 +670,10 @@ describe('popup', () => {
         month: 4,
         year: 2026,
         projectCodes: [],
+        currentProjectCode: null,
         totals: {
           worked: 0,
-          absent: 0,
+          
           toBePerformed: 0,
         },
       };
@@ -585,9 +689,10 @@ describe('popup', () => {
         month: null,
         year: null,
         projectCodes: [],
+        currentProjectCode: null,
         totals: {
           worked: 0,
-          absent: 0,
+          
           toBePerformed: 0,
         },
       };
@@ -602,10 +707,11 @@ describe('popup', () => {
       const snapshot: TimesheetSnapshot = {
         month: 4,
         year: 2026,
-        projectCodes: ['C0007012.1.1', 'ZTEST_42'],
+        projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
+        currentProjectCode: 'ZMOCK_001.1.1',
         totals: {
           worked: null,
-          absent: null,
+          
           toBePerformed: null,
         },
       };
@@ -613,7 +719,7 @@ describe('popup', () => {
       renderSnapshot(snapshot);
 
       expect(document.getElementById('project-codes-value')?.textContent).toBe(
-        'C0007012.1.1, ZTEST_42'
+        'ZMOCK_001.1.1, ZTEST_42'
       );
     });
 
@@ -623,9 +729,10 @@ describe('popup', () => {
         month: 4,
         year: 2026,
         projectCodes: [],
+        currentProjectCode: null,
         totals: {
           worked: null,
-          absent: null,
+          
           toBePerformed: null,
         },
       };
@@ -641,9 +748,10 @@ describe('popup', () => {
         month: 4,
         year: 2026,
         projectCodes: [],
+        currentProjectCode: null,
         totals: {
           worked: 134.5,
-          absent: 8,
+          
           toBePerformed: 160,
         },
       };
@@ -651,7 +759,6 @@ describe('popup', () => {
       renderSnapshot(snapshot);
 
       expect(document.getElementById('worked-hours-value')?.textContent).toBe('134,5 u');
-      expect(document.getElementById('absent-hours-value')?.textContent).toBe('8 u');
       expect(document.getElementById('to-be-performed-hours-value')?.textContent).toBe('160 u');
     });
 
@@ -661,9 +768,10 @@ describe('popup', () => {
         month: 4,
         year: 2026,
         projectCodes: [],
+        currentProjectCode: null,
         totals: {
           worked: 0,
-          absent: 0,
+          
           toBePerformed: 0,
         },
       };
@@ -682,9 +790,10 @@ describe('popup', () => {
         month: 4,
         year: 2026,
         projectCodes: [],
+        currentProjectCode: null,
         totals: {
           worked: null,
-          absent: null,
+          
           toBePerformed: null,
         },
       };
@@ -692,7 +801,6 @@ describe('popup', () => {
       renderSnapshot(snapshot);
 
       expect(document.getElementById('worked-hours-value')?.textContent).toBe('-');
-      expect(document.getElementById('absent-hours-value')?.textContent).toBe('-');
       expect(document.getElementById('to-be-performed-hours-value')?.textContent).toBe('-');
     });
 
@@ -702,9 +810,10 @@ describe('popup', () => {
         month: 4,
         year: 2026,
         projectCodes: [],
+        currentProjectCode: null,
         totals: {
           worked: 160,
-          absent: 0,
+          
           toBePerformed: 0,
         },
       };
@@ -720,9 +829,10 @@ describe('popup', () => {
         month: 4,
         year: 2026,
         projectCodes: [],
+        currentProjectCode: null,
         totals: {
           worked: 160,
-          absent: null,
+          
           toBePerformed: 0,
         },
       };
@@ -790,8 +900,9 @@ describe('popup', () => {
       const snapshot: TimesheetSnapshot = {
         month: 5,
         year: 2026,
-        projectCodes: ['C0007012.1.1', 'ZTEST_42'],
-        totals: { worked: 120, absent: 8, toBePerformed: 160 },
+        projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
+        currentProjectCode: 'ZMOCK_001.1.1',
+        totals: { worked: 120, toBePerformed: 160 },
       };
 
       renderSnapshot(snapshot);
@@ -806,7 +917,7 @@ describe('popup', () => {
 
       expect(formSection.hidden).toBe(false);
       expect(projectSelect.querySelectorAll('option')).toHaveLength(3);
-      expect(projectSelect.innerHTML).toContain('C0007012.1.1');
+      expect(projectSelect.innerHTML).toContain('ZMOCK_001.1.1');
       expect(projectSelect.innerHTML).toContain('ZTEST_42');
     });
 
@@ -815,8 +926,9 @@ describe('popup', () => {
       const snapshot: TimesheetSnapshot = {
         month: 5,
         year: 2026,
-        projectCodes: ['C0007012.1.1', 'ZTEST_42'],
-        totals: { worked: 120, absent: 8, toBePerformed: 160 },
+        projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
+        currentProjectCode: 'ZMOCK_001.1.1',
+        totals: { worked: 120, toBePerformed: 160 },
       };
 
       showScheduleForm(snapshot);
@@ -826,7 +938,7 @@ describe('popup', () => {
 
       expect(formSection.hidden).toBe(false);
       expect(projectSelect.querySelectorAll('option')).toHaveLength(3); // blank + 2 projects
-      expect(projectSelect.innerHTML).toContain('C0007012.1.1');
+      expect(projectSelect.innerHTML).toContain('ZMOCK_001.1.1');
       expect(projectSelect.innerHTML).toContain('ZTEST_42');
     });
 
@@ -853,8 +965,9 @@ describe('popup', () => {
       const snapshot: TimesheetSnapshot = {
         month: 5,
         year: 2026,
-        projectCodes: ['C0007012.1.1'],
-        totals: { worked: 120, absent: 8, toBePerformed: 160 },
+        projectCodes: ['ZMOCK_001.1.1'],
+        currentProjectCode: 'ZMOCK_001.1.1',
+        totals: { worked: 120, toBePerformed: 160 },
       };
 
       showScheduleForm(snapshot);
@@ -865,7 +978,7 @@ describe('popup', () => {
       const mondayInput = document.getElementById('hours-monday') as HTMLInputElement;
 
       labelInput.value = 'Test Schedule';
-      projectSelect.value = 'C0007012.1.1';
+      projectSelect.value = 'ZMOCK_001.1.1';
       mondayInput.value = '8';
 
       form.dispatchEvent(new Event('submit'));
@@ -893,7 +1006,7 @@ describe('popup', () => {
        const schedule: WeeklySchedule = {
          id: 'sched-1',
          label: 'Kantooruren',
-         projectCode: 'C0007012.1.1',
+         projectCode: 'ZMOCK_001.1.1',
          hoursPerWeekday: {
            monday: 8,
            tuesday: 8,
@@ -910,8 +1023,9 @@ describe('popup', () => {
        const snapshot: TimesheetSnapshot = {
          month: 5,
          year: 2026,
-         projectCodes: ['C0007012.1.1'],
-         totals: { worked: 120, absent: 8, toBePerformed: 160 },
+         projectCodes: ['ZMOCK_001.1.1'],
+         currentProjectCode: 'ZMOCK_001.1.1',
+         totals: { worked: 120, toBePerformed: 160 },
        };
 
        // Render the schedule list and snapshot
@@ -942,14 +1056,15 @@ describe('popup', () => {
        const snapshot: TimesheetSnapshot = {
          month: 5,
          year: 2026,
-         projectCodes: ['C0007012.1.1', 'ZTEST_42'],
-         totals: { worked: 120, absent: 8, toBePerformed: 160 },
+         projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
+         currentProjectCode: 'ZMOCK_001.1.1',
+         totals: { worked: 120, toBePerformed: 160 },
        };
 
        const scheduleToEdit: WeeklySchedule = {
          id: 'sched-1',
          label: 'Kantooruren',
-         projectCode: 'C0007012.1.1',
+         projectCode: 'ZMOCK_001.1.1',
          hoursPerWeekday: {
            monday: 8,
            tuesday: 8,
@@ -970,7 +1085,7 @@ describe('popup', () => {
        const saturdayInput = document.getElementById('hours-saturday') as HTMLInputElement;
 
        expect(labelInput.value).toBe('Kantooruren');
-       expect(projectSelect.value).toBe('C0007012.1.1');
+       expect(projectSelect.value).toBe('ZMOCK_001.1.1');
        expect(mondayInput.value).toBe('8');
        expect(fridayInput.value).toBe('8');
        expect(saturdayInput.value).toBe('0');
@@ -990,14 +1105,15 @@ describe('popup', () => {
        const snapshot: TimesheetSnapshot = {
          month: 5,
          year: 2026,
-         projectCodes: ['C0007012.1.1'],
-         totals: { worked: 120, absent: 8, toBePerformed: 160 },
+         projectCodes: ['ZMOCK_001.1.1'],
+         currentProjectCode: 'ZMOCK_001.1.1',
+         totals: { worked: 120, toBePerformed: 160 },
        };
 
        const scheduleToEdit: WeeklySchedule = {
          id: 'sched-1',
          label: 'Kantooruren',
-         projectCode: 'C0007012.1.1',
+         projectCode: 'ZMOCK_001.1.1',
          hoursPerWeekday: {
            monday: 8,
            tuesday: 8,
@@ -1017,7 +1133,7 @@ describe('popup', () => {
        const tuesdayInput = document.getElementById('hours-tuesday') as HTMLInputElement;
 
        labelInput.value = 'Kantooruren (updated)';
-       projectSelect.value = 'C0007012.1.1';
+       projectSelect.value = 'ZMOCK_001.1.1';
        tuesdayInput.value = '7.5';
 
        form.dispatchEvent(new Event('submit'));
@@ -1046,14 +1162,15 @@ describe('popup', () => {
        const snapshot: TimesheetSnapshot = {
          month: 5,
          year: 2026,
-         projectCodes: ['C0007012.1.1'],
-         totals: { worked: 120, absent: 8, toBePerformed: 160 },
+         projectCodes: ['ZMOCK_001.1.1'],
+         currentProjectCode: 'ZMOCK_001.1.1',
+         totals: { worked: 120, toBePerformed: 160 },
        };
 
        const scheduleToEdit: WeeklySchedule = {
          id: 'sched-1',
          label: 'Test',
-         projectCode: 'C0007012.1.1',
+         projectCode: 'ZMOCK_001.1.1',
          hoursPerWeekday: {
            monday: 8,
            tuesday: 8,
@@ -1081,7 +1198,7 @@ describe('popup', () => {
     const makeSchedule = (id: string, label: string): WeeklySchedule => ({
       id,
       label,
-      projectCode: 'C0007012.1.1',
+      projectCode: 'ZMOCK_001.1.1',
       hoursPerWeekday: { monday: 8, tuesday: 8, wednesday: 8, thursday: 8, friday: 8, saturday: 0, sunday: 0 },
     });
 
@@ -1202,5 +1319,480 @@ describe('popup', () => {
       expect(document.getElementById('schedules-list')?.hidden).toBe(true);
     });
   });
- });
 
+  describe('schedule apply', () => {
+    const makeSchedule = (id: string, label: string, projectCode: string): WeeklySchedule => ({
+      id,
+      label,
+      projectCode,
+      hoursPerWeekday: { monday: 8, tuesday: 0, wednesday: 0, thursday: 0, friday: 0, saturday: 0, sunday: 0 },
+    });
+
+    const snapshot: TimesheetSnapshot = {
+      month: 5,
+      year: 2026,
+      projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
+      currentProjectCode: 'ZMOCK_001.1.1',
+      totals: { worked: 120, toBePerformed: 160 },
+    };
+
+    const sapTab = {
+      id: 99,
+      url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my',
+      status: 'complete',
+    } as chrome.tabs.Tab;
+
+    it('shows "Alles toepassen" by default and switches to "Toepassen" when a schedule is selected', async () => {
+      const storedValues: Record<string, unknown> = {
+        [STORAGE_KEYS.projectSchedules]: [makeSchedule('s1', 'Kantooruren', 'ZMOCK_001.1.1')],
+      };
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: storedValues[keys[0]] });
+      });
+
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      await renderSchedules();
+      renderSnapshot(snapshot);
+
+      const applyButton = document.getElementById('btn-apply-schedules') as HTMLButtonElement;
+      expect(applyButton.textContent).toBe('Alles toepassen');
+
+      const scheduleItem = document.querySelector('#schedules-list .schedule-item') as HTMLElement;
+      scheduleItem.click();
+      expect(applyButton.textContent).toBe('Toepassen');
+    });
+
+    it('enables the apply button after the UI5 snapshot is loaded and schedules are available', async () => {
+      const storedValues: Record<string, unknown> = {
+        [STORAGE_KEYS.projectSchedules]: [makeSchedule('s1', 'Kantooruren', 'ZMOCK_001.1.1')],
+      };
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: storedValues[keys[0]] });
+      });
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeRuntimeSendMessage.mockResolvedValue({ success: true, data: { busy: false } });
+      mockChromeScriptingExecuteScript.mockImplementation(async (injection) => {
+        const funcName = injection.func?.name;
+        if (funcName === 'ui5MainWorldReadSnapshot') {
+          return [{
+            documentId: 'mock-id',
+            frameId: 0,
+            result: {
+              success: true,
+              snapshot,
+            },
+          }];
+        }
+        if (funcName === 'ui5MainWorldAutofill') {
+          return [{
+            documentId: 'mock-id',
+            frameId: 0,
+            result: {
+              appliedDaysCount: 1,
+              failedDates: [],
+              submissionAttempted: true,
+              submissionConfirmed: true,
+            },
+          }];
+        }
+
+        return [{ documentId: 'mock-id', frameId: 0, result: undefined }];
+      });
+
+      await import('./popup');
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect((document.getElementById('btn-apply-schedules') as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it('does not start apply flow when snapshot period is invalid', async () => {
+      const storedValues: Record<string, unknown> = {
+        [STORAGE_KEYS.projectSchedules]: [makeSchedule('s1', 'Kantooruren', 'ZMOCK_001.1.1')],
+      };
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: storedValues[keys[0]] });
+      });
+
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      await renderSchedules();
+      renderSnapshot({
+        ...snapshot,
+        month: null,
+      });
+
+      const applyButton = document.getElementById('btn-apply-schedules') as HTMLButtonElement;
+      expect(applyButton.disabled).toBe(true);
+
+      await new Promise((r) => setTimeout(r, 25));
+      vi.clearAllMocks();
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      document.getElementById('status-message')!.textContent = '';
+      applyButton.disabled = false;
+      applyButton.click();
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(document.getElementById('status-message')?.textContent).toBe(
+        'Fout: Kan niet toepassen zonder geldige periode. Analyseer eerst de timesheet.',
+      );
+      expect(mockChromeTabsQuery).not.toHaveBeenCalled();
+    });
+
+    it('appends autofill summary errors to the final status message', async () => {
+      const storedValues: Record<string, unknown> = {
+        [STORAGE_KEYS.projectSchedules]: [makeSchedule('s1', 'Kantooruren', 'ZMOCK_001.1.1')],
+      };
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: storedValues[keys[0]] });
+      });
+
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      await renderSchedules();
+      renderSnapshot(snapshot);
+
+      vi.clearAllMocks();
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeTabsGet.mockResolvedValue({ ...sapTab, status: 'complete' } as chrome.tabs.Tab);
+      mockChromeTabsUpdate.mockImplementation(async (tabId, updateProperties) => ({
+        id: tabId,
+        status: 'complete',
+        url: updateProperties.url,
+      } as chrome.tabs.Tab));
+      mockChromeScriptingExecuteScript.mockImplementation(async (injection) => {
+        const funcName = injection.func?.name;
+        if (funcName === 'ui5MainWorldAutofill') {
+          return [{
+            documentId: 'mock-id',
+            frameId: 0,
+            result: {
+              appliedDaysCount: 0,
+              failedDates: ['2026-05-05'],
+              submissionAttempted: true,
+              submissionConfirmed: false,
+              error: 'postTimeSheet gaf een fout terug',
+            },
+          }];
+        }
+
+        return [{ documentId: 'mock-id', frameId: 0, result: undefined }];
+      });
+
+      const applyButton = document.getElementById('btn-apply-schedules') as HTMLButtonElement;
+      applyButton.click();
+      await new Promise((r) => setTimeout(r, 25));
+
+      const statusMessage = document.getElementById('status-message')?.textContent ?? '';
+      expect(statusMessage).toContain('Fouten:');
+      expect(statusMessage).toContain('ZMOCK_001.1.1: postTimeSheet gaf een fout terug');
+    });
+
+    it('continues with remaining schedules when navigation fails for one schedule', async () => {
+      const storedValues: Record<string, unknown> = {
+        [STORAGE_KEYS.projectSchedules]: [
+          makeSchedule('s1', 'Kantooruren', 'ZMOCK_001.1.1'),
+          makeSchedule('s2', 'Deeltijd', 'ZTEST_42'),
+        ],
+      };
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: storedValues[keys[0]] });
+      });
+
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      await renderSchedules();
+      renderSnapshot(snapshot);
+
+      vi.clearAllMocks();
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeTabsGet.mockResolvedValue({ ...sapTab, status: 'complete' } as chrome.tabs.Tab);
+      mockChromeTabsUpdate.mockImplementation(async (tabId, updateProperties) => {
+        if ((updateProperties.url ?? '').includes('project/ZMOCK_001.1.1')) {
+          throw new Error('Navigatie mislukt voor project');
+        }
+        return {
+          id: tabId,
+          status: 'complete',
+          url: updateProperties.url,
+        } as chrome.tabs.Tab;
+      });
+
+      let autofillCalls = 0;
+      mockChromeScriptingExecuteScript.mockImplementation(async (injection) => {
+        const funcName = injection.func?.name;
+        if (funcName === 'ui5MainWorldAutofill') {
+          autofillCalls += 1;
+          return [{
+            documentId: 'mock-id',
+            frameId: 0,
+            result: {
+              appliedDaysCount: 1,
+              failedDates: [],
+              submissionAttempted: true,
+              submissionConfirmed: true,
+            },
+          }];
+        }
+
+        return [{ documentId: 'mock-id', frameId: 0, result: undefined }];
+      });
+
+      const applyButton = document.getElementById('btn-apply-schedules') as HTMLButtonElement;
+      applyButton.click();
+      await new Promise((r) => setTimeout(r, 40));
+
+      const statusMessage = document.getElementById('status-message')?.textContent ?? '';
+      expect(autofillCalls).toBe(1);
+      expect(statusMessage).toContain('Schema\'s toegepast: Kantooruren, Deeltijd.');
+      expect(statusMessage).toContain('Fouten:');
+      expect(statusMessage).toContain('ZMOCK_001.1.1: Navigatie mislukt voor project');
+    });
+
+    it('applies only selected schedules when one or more schedules are selected', async () => {
+      const storedValues: Record<string, unknown> = {
+        [STORAGE_KEYS.projectSchedules]: [
+          makeSchedule('s1', 'Kantooruren', 'ZMOCK_001.1.1'),
+          makeSchedule('s2', 'Deeltijd', 'ZTEST_42'),
+        ],
+      };
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: storedValues[keys[0]] });
+      });
+
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      await renderSchedules();
+      renderSnapshot(snapshot);
+
+      vi.clearAllMocks();
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeTabsGet.mockResolvedValue({ ...sapTab, status: 'complete' } as chrome.tabs.Tab);
+      mockChromeTabsUpdate.mockImplementation(async (tabId, updateProperties) => ({
+        id: tabId,
+        status: 'complete',
+        url: updateProperties.url,
+      } as chrome.tabs.Tab));
+      const schedules = document.querySelectorAll('#schedules-list .schedule-item');
+      (schedules[0] as HTMLElement).click();
+
+      const applyButton = document.getElementById('btn-apply-schedules') as HTMLButtonElement;
+      applyButton.click();
+      await new Promise((r) => setTimeout(r, 25));
+
+      expect(mockChromeScriptingExecuteScript).toHaveBeenCalledTimes(1);
+      expect(mockChromeTabsUpdate).toHaveBeenCalledTimes(1);
+      expect(document.getElementById('status-message')?.textContent).toContain('Schema toegepast: Kantooruren.');
+      expect(document.getElementById('status-message')?.textContent).toContain('1/');
+      expect(document.getElementById('status-message')?.textContent).toContain('dagen bijgewerkt');
+      expect(document.getElementById('status-message')?.textContent).toContain('SAP bevestiging: ontvangen (1/1)');
+    });
+
+    it('applies all schedules when none are selected', async () => {
+      const storedValues: Record<string, unknown> = {
+        [STORAGE_KEYS.projectSchedules]: [
+          makeSchedule('s1', 'Kantooruren', 'ZMOCK_001.1.1'),
+          makeSchedule('s2', 'Deeltijd', 'ZTEST_42'),
+        ],
+      };
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: storedValues[keys[0]] });
+      });
+
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      await renderSchedules();
+      renderSnapshot(snapshot);
+
+      vi.clearAllMocks();
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeTabsGet.mockResolvedValue({ ...sapTab, status: 'complete' } as chrome.tabs.Tab);
+      mockChromeTabsUpdate.mockImplementation(async (tabId, updateProperties) => ({
+        id: tabId,
+        status: 'complete',
+        url: updateProperties.url,
+      } as chrome.tabs.Tab));
+      const applyButton = document.getElementById('btn-apply-schedules') as HTMLButtonElement;
+      applyButton.click();
+      await new Promise((r) => setTimeout(r, 25));
+
+      expect(mockChromeScriptingExecuteScript).toHaveBeenCalledTimes(2);
+      expect(mockChromeTabsUpdate).toHaveBeenCalledTimes(2);
+      expect(document.getElementById('status-message')?.textContent).toContain('Schema\'s toegepast: Kantooruren, Deeltijd.');
+      expect(document.getElementById('status-message')?.textContent).toContain('2/');
+      expect(document.getElementById('status-message')?.textContent).toContain('dagen bijgewerkt');
+      expect(document.getElementById('status-message')?.textContent).toContain('SAP bevestiging: ontvangen (2/2)');
+    });
+
+    it('applies without navigation when already on the same project page', async () => {
+      const storedValues: Record<string, unknown> = {
+        [STORAGE_KEYS.projectSchedules]: [makeSchedule('s1', 'Kantooruren', 'ZMOCK_001.1.1')],
+      };
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: storedValues[keys[0]] });
+      });
+
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      await renderSchedules();
+      renderSnapshot(snapshot);
+
+      vi.clearAllMocks();
+      const sameProjectTab = {
+        ...sapTab,
+        url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/5/2026/project/ZMOCK_001.1.1',
+      } as chrome.tabs.Tab;
+      mockChromeTabsQuery.mockResolvedValue([sameProjectTab]);
+      mockChromeTabsGet.mockResolvedValue(sameProjectTab);
+
+      const applyButton = document.getElementById('btn-apply-schedules') as HTMLButtonElement;
+      applyButton.click();
+      await new Promise((r) => setTimeout(r, 25));
+
+      expect(mockChromeTabsUpdate).not.toHaveBeenCalled();
+      expect(mockChromeTabsGet).toHaveBeenCalledTimes(1);
+      expect(mockChromeScriptingExecuteScript).toHaveBeenCalledTimes(1);
+      expect(document.getElementById('status-message')?.textContent).toContain('Schema toegepast: Kantooruren.');
+      expect(document.getElementById('status-message')?.textContent).toContain('1/');
+      expect(document.getElementById('status-message')?.textContent).toContain('dagen bijgewerkt');
+      expect(document.getElementById('status-message')?.textContent).toContain('SAP bevestiging: ontvangen (1/1)');
+    });
+
+    it('reports failed days and SAP confirmation status when autofill is only partially successful', async () => {
+      const storedValues: Record<string, unknown> = {
+        [STORAGE_KEYS.projectSchedules]: [makeSchedule('s1', 'Kantooruren', 'ZMOCK_001.1.1')],
+      };
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: storedValues[keys[0]] });
+      });
+
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      await renderSchedules();
+      renderSnapshot(snapshot);
+
+      vi.clearAllMocks();
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeTabsGet.mockResolvedValue({ ...sapTab, status: 'complete' } as chrome.tabs.Tab);
+      mockChromeTabsUpdate.mockImplementation(async (tabId, updateProperties) => ({
+        id: tabId,
+        status: 'complete',
+        url: updateProperties.url,
+      } as chrome.tabs.Tab));
+      mockChromeScriptingExecuteScript.mockImplementation(async (injection) => {
+        const funcName = injection.func?.name;
+        if (funcName === 'ui5MainWorldAutofill') {
+          return [{
+            documentId: 'mock-id',
+            frameId: 0,
+            result: {
+              appliedDaysCount: 0,
+              failedDates: ['2026-05-05'],
+              submissionAttempted: true,
+              submissionConfirmed: false,
+            },
+          }];
+        }
+
+        return [{ documentId: 'mock-id', frameId: 0, result: undefined }];
+      });
+
+      const applyButton = document.getElementById('btn-apply-schedules') as HTMLButtonElement;
+      applyButton.click();
+      await new Promise((r) => setTimeout(r, 25));
+
+      const statusMessage = document.getElementById('status-message')?.textContent ?? '';
+      expect(statusMessage).toContain('Schema toegepast: Kantooruren.');
+      expect(statusMessage).toContain('0/');
+      expect(statusMessage).toContain('dagen bijgewerkt');
+      expect(statusMessage).toContain('Mislukt per project:');
+      expect(statusMessage).toContain('- ZMOCK_001.1.1: 2026-05-05.');
+      expect(statusMessage).toContain('SAP bevestiging: gedeeltelijk (0/1)');
+    });
+
+    it('groups failed dates by project when applying multiple schedules', async () => {
+      const storedValues: Record<string, unknown> = {
+        [STORAGE_KEYS.projectSchedules]: [
+          makeSchedule('s1', 'Kantooruren', 'ZMOCK_001.1.1'),
+          makeSchedule('s2', 'Deeltijd', 'ZTEST_42'),
+        ],
+      };
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: storedValues[keys[0]] });
+      });
+
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      await renderSchedules();
+      renderSnapshot(snapshot);
+
+      vi.clearAllMocks();
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeTabsGet.mockResolvedValue({ ...sapTab, status: 'complete' } as chrome.tabs.Tab);
+      mockChromeTabsUpdate.mockImplementation(async (tabId, updateProperties) => ({
+        id: tabId,
+        status: 'complete',
+        url: updateProperties.url,
+      } as chrome.tabs.Tab));
+
+      let autofillCallCount = 0;
+      mockChromeScriptingExecuteScript.mockImplementation(async (injection) => {
+        const funcName = injection.func?.name;
+        if (funcName === 'ui5MainWorldAutofill') {
+          autofillCallCount += 1;
+          return [{
+            documentId: 'mock-id',
+            frameId: 0,
+            result: autofillCallCount === 1
+              ? {
+                appliedDaysCount: 0,
+                failedDates: ['2026-05-05'],
+                submissionAttempted: true,
+                submissionConfirmed: false,
+              }
+              : {
+                appliedDaysCount: 0,
+                failedDates: ['2026-05-12', '2026-05-19'],
+                submissionAttempted: true,
+                submissionConfirmed: false,
+              },
+          }];
+        }
+
+        return [{ documentId: 'mock-id', frameId: 0, result: undefined }];
+      });
+
+      const applyButton = document.getElementById('btn-apply-schedules') as HTMLButtonElement;
+      applyButton.click();
+      await new Promise((r) => setTimeout(r, 25));
+
+      const statusMessage = document.getElementById('status-message')?.textContent ?? '';
+      expect(statusMessage).toContain('Schema\'s toegepast: Kantooruren, Deeltijd.');
+      expect(statusMessage).toContain('Mislukt per project:');
+      expect(statusMessage).toContain('- ZMOCK_001.1.1: 2026-05-05.');
+      expect(statusMessage).toContain('- ZTEST_42: 2026-05-12, 2026-05-19.');
+    });
+
+    it('prevents navigation when a selected schedule project is not available', async () => {
+      const storedValues: Record<string, unknown> = {
+        [STORAGE_KEYS.projectSchedules]: [
+          makeSchedule('s1', 'Kantooruren', 'ZMOCK_001.1.1'),
+          makeSchedule('s2', 'Deeltijd', 'UNAVAILABLE_PROJECT'),
+        ],
+      };
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: storedValues[keys[0]] });
+      });
+
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeRuntimeSendMessage.mockResolvedValue({ success: true, data: { busy: false } });
+
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      await renderSchedules();
+      renderSnapshot(snapshot);
+
+      await new Promise((r) => setTimeout(r, 25));
+      vi.clearAllMocks();
+
+      const applyButton = document.getElementById('btn-apply-schedules') as HTMLButtonElement;
+      applyButton.click();
+      await new Promise((r) => setTimeout(r, 25));
+
+      expect(mockChromeTabsQuery).not.toHaveBeenCalled();
+      expect(mockChromeTabsUpdate).not.toHaveBeenCalled();
+      expect(document.getElementById('status-message')?.textContent).toContain('UNAVAILABLE_PROJECT');
+      expect(document.getElementById('status-message')?.textContent).toContain('niet beschikbaar');
+    });
+  });
+ });

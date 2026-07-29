@@ -23,8 +23,9 @@
         <section id="schedules-section">
           <h2>Projectschema's</h2>
           <button id="btn-add-schedule" type="button" disabled>Nieuw schema</button>
+          <button id="btn-apply-schedules" type="button" disabled>Alles toepassen</button>
           <p id="schedules-empty">Nog geen schema's opgeslagen.</p>
-          <ul id="schedules-list" hidden></ul>
+          <ul id="schedules-list" hidden aria-label="Selecteerbare projectschema's"></ul>
           </section>
 
           <section id="schedule-form-section" hidden>
@@ -86,7 +87,6 @@
             <li><strong>Periode:</strong> <span id="period-value">-</span></li>
             <li><strong>Projectcodes:</strong> <span id="project-codes-value">-</span></li>
             <li><strong>Uren gewerkt:</strong> <span id="worked-hours-value">-</span></li>
-            <li><strong>Uren afwezig:</strong> <span id="absent-hours-value">-</span></li>
             <li><strong>Uren uit te voeren:</strong> <span id="to-be-performed-hours-value">-</span></li>
           </ul>
           <p id="scrape-status" class="subtle-indicator" hidden></p>

@@ -51,10 +51,10 @@ describe('storage helpers', () => {
       snapshot: {
         month: 5,
         year: 2026,
-        projectCodes: ['C0007012.1.1'],
+        projectCodes: ['ZMOCK_001.1.1'],
+        currentProjectCode: 'ZMOCK_001.1.1',
         totals: {
           worked: 120,
-          absent: 8,
           toBePerformed: 160,
         },
       },
@@ -84,7 +84,7 @@ describe('schedule storage helpers', () => {
   const scheduleA: WeeklySchedule = {
     id: 'schedule-a',
     label: 'Project A - 32h',
-    projectCode: 'C0007012.1.1',
+    projectCode: 'ZMOCK_001.1.1',
     hoursPerWeekday: {
       monday: 8,
       tuesday: 8,
@@ -172,7 +172,7 @@ describe('schedule storage helpers', () => {
 describe('isCacheStale', () => {
   function makeCache(month: number | null, year: number | null, cachedAt: string = '2026-05-12T10:00:00.000Z'): CachedTimesheetSnapshot {
     return {
-      snapshot: { month, year, projectCodes: [], totals: { worked: null, absent: null, toBePerformed: null } },
+      snapshot: { month, year, projectCodes: [], currentProjectCode: null, totals: { worked: null, toBePerformed: null } },
       cachedAt,
     };
   }

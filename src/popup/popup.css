@@ -44,6 +44,11 @@ main {
   gap: 12px;
 }
 
+#status-message {
+  white-space: pre-line;
+  line-height: 1.4;
+}
+
 h2 {
   font-size: 13px;
   font-weight: 600;
@@ -51,6 +56,12 @@ h2 {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 6px;
+}
+
+#app :focus-visible {
+  outline: 2px solid #1c65bf;
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .subtle-indicator {
@@ -122,9 +133,19 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  cursor: pointer;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+  border-radius: 4px;
+  transition: outline-color 0.1s;
+}
+
+.schedule-item--selected {
+  outline-color: #1c65bf;
 }
 
 .schedule-content {
+  flex: 1;
   min-width: 0;
 }
 
@@ -174,12 +195,23 @@ h2 {
 #btn-add-schedule {
   background: #1c65bf;
   color: #fff;
-  margin: 4px 0 10px;
+  margin: 4px 0;
   width: 100%;
 }
 
 #btn-add-schedule:hover:not(:disabled) {
   background: #17539d;
+}
+
+#btn-apply-schedules {
+  background: #0b8043;
+  color: #fff;
+  margin: 0 0 10px;
+  width: 100%;
+}
+
+#btn-apply-schedules:hover:not(:disabled) {
+  background: #096b39;
 }
 
 .schedule-title {
@@ -214,12 +246,6 @@ h2 {
   font-family: inherit;
 }
 
-.form-group input:focus,
-.form-group select:focus {
-  outline: none;
-  border-color: #1c65bf;
-  box-shadow: 0 0 0 2px rgba(28, 101, 191, 0.1);
-}
 
 .weekday-hours {
   border: none;
@@ -258,11 +284,6 @@ h2 {
   border-radius: 4px;
 }
 
-.weekday-input input:focus {
-  outline: none;
-  border-color: #1c65bf;
-  box-shadow: 0 0 0 2px rgba(28, 101, 191, 0.1);
-}
 
 .form-actions {
   display: flex;
@@ -273,13 +294,6 @@ h2 {
 /* Visual indication for cached (stale) data */
 #summary-section.cached-data #summary-list li {
   opacity: 0.65;
-}
-
-footer {
-  padding: 12px 16px;
-  display: flex;
-  gap: 8px;
-  border-top: 1px solid #eee;
 }
 
 button {

@@ -1,11 +1,19 @@
 /**
- * Popup script — handles UI interactions for scraping hours from SAP My Timesheet.
+ * Popup script — UI interactions for SAP My Timesheet hour booking.
  */
 
-import type { CachedTimesheetSnapshot, MessageRequest, MessageResponse, TimesheetSnapshot, WeeklySchedule } from '../shared/types';
+import type { CachedTimesheetSnapshot, TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
 import { getSAPBusyStateForTab, initBusyStateListener } from '../shared/busy-state';
 import { getCachedTimesheetSnapshot, setCachedTimesheetSnapshot, clearCachedTimesheetSnapshot, getSchedules, isCacheStale } from '../shared/storage';
+import { expandWeeklyScheduleToMonthEntries } from '../shared/schedule-expansion';
+import { readTimesheetSnapshotViaUi5 } from './ui5-scripting';
+import {
+  navigateToProject,
+  autofillScheduleEntries,
+  addFailedDatesForProject,
+  buildApplyStatusMessage,
+} from './schedule-apply';
 
 const ROUTE_PERIOD_PATTERN = /[?&]\/(1[0-2]|0?[1-9])\/(20\d{2})(?:[/?&#]|$)/i;
 
@@ -34,10 +42,6 @@ function getWorkedHoursValue(): HTMLSpanElement {
   return document.getElementById('worked-hours-value') as HTMLSpanElement;
 }
 
-function getAbsentHoursValue(): HTMLSpanElement {
-  return document.getElementById('absent-hours-value') as HTMLSpanElement;
-}
-
 function getToBePerformedHoursValue(): HTMLSpanElement {
   return document.getElementById('to-be-performed-hours-value') as HTMLSpanElement;
 }
@@ -62,9 +66,15 @@ function getAddScheduleButton(): HTMLButtonElement {
   return document.getElementById('btn-add-schedule') as HTMLButtonElement;
 }
 
+function getApplySchedulesButton(): HTMLButtonElement {
+  return document.getElementById('btn-apply-schedules') as HTMLButtonElement;
+}
+
 let isCachedData = false;
 let snapshotTimestampIso: string | null = null;
 let currentSnapshot: TimesheetSnapshot | null = null;
+let renderedSchedules: WeeklySchedule[] = [];
+const selectedScheduleIds = new Set<string>();
 
 getBtnScrape().addEventListener('click', () => {
   void analyseActiveTab();
@@ -74,10 +84,13 @@ getAddScheduleButton().addEventListener('click', () => {
   openScheduleFormFromLatestSnapshot();
 });
 
+getApplySchedulesButton().addEventListener('click', () => {
+  void applySchedulesFromSelection();
+});
+
 // Initialize busy-state listener and auto-analyze on ready
 initBusyStateListener((busy) => {
   if (!busy) {
-    // SAP page is ready, automatically scrape
     void analyseActiveTab();
   }
 });
@@ -92,9 +105,16 @@ async function bootstrapPopup(): Promise<void> {
   await analyseActiveTab();
 }
 
-
 export async function renderSchedules(): Promise<void> {
   const schedules = await getSchedules();
+  renderedSchedules = schedules;
+  const availableIds = new Set(schedules.map((schedule) => schedule.id));
+  Array.from(selectedScheduleIds).forEach((id) => {
+    if (!availableIds.has(id)) {
+      selectedScheduleIds.delete(id);
+    }
+  });
+
   const list = getSchedulesList();
   const empty = getSchedulesEmpty();
 
@@ -102,6 +122,7 @@ export async function renderSchedules(): Promise<void> {
   if (schedules.length === 0) {
     empty.hidden = false;
     list.hidden = true;
+    updateApplySchedulesButtonState();
     return;
   }
 
@@ -113,14 +134,48 @@ export async function renderSchedules(): Promise<void> {
   list.appendChild(fragment);
   empty.hidden = true;
   list.hidden = false;
+  updateApplySchedulesButtonState();
 }
 
 function renderScheduleListItem(schedule: WeeklySchedule): HTMLLIElement {
   const item = document.createElement('li');
   item.className = 'schedule-item';
+  if (selectedScheduleIds.has(schedule.id)) {
+    item.classList.add('schedule-item--selected');
+  }
+
+  const toggleSelection = (): void => {
+    if (selectedScheduleIds.has(schedule.id)) {
+      selectedScheduleIds.delete(schedule.id);
+      item.classList.remove('schedule-item--selected');
+      content.setAttribute('aria-checked', 'false');
+    } else {
+      selectedScheduleIds.add(schedule.id);
+      item.classList.add('schedule-item--selected');
+      content.setAttribute('aria-checked', 'true');
+    }
+    updateApplySchedulesButtonState();
+  };
+
+  item.addEventListener('click', (event) => {
+    if ((event.target as HTMLElement).closest('button')) {
+      return;
+    }
+    toggleSelection();
+  });
 
   const content = document.createElement('div');
   content.className = 'schedule-content';
+  content.setAttribute('role', 'checkbox');
+  content.setAttribute('aria-checked', selectedScheduleIds.has(schedule.id) ? 'true' : 'false');
+  content.setAttribute('aria-label', `Selecteren: ${schedule.label} — ${schedule.projectCode}`);
+  content.tabIndex = 0;
+  content.addEventListener('keydown', (event) => {
+    if (event.key === ' ' || event.key === 'Enter') {
+      event.preventDefault();
+      toggleSelection();
+    }
+  });
 
   const title = document.createElement('div');
   title.className = 'schedule-title';
@@ -130,7 +185,6 @@ function renderScheduleListItem(schedule: WeeklySchedule): HTMLLIElement {
   meta.className = 'schedule-meta';
   meta.textContent = `Project: ${schedule.projectCode}`;
 
-  // Normal action buttons
   const actions = document.createElement('div');
   actions.className = 'schedule-actions';
 
@@ -277,7 +331,6 @@ async function handleScheduleFormSubmit(): Promise<void> {
   try {
     const { saveSchedule } = await import('../shared/storage');
 
-    // Use existing ID if editing, otherwise generate new one
     const scheduleId = scheduleBeingEdited?.id || crypto.randomUUID?.() || Date.now().toString();
     const isEditing = Boolean(scheduleBeingEdited);
 
@@ -315,6 +368,110 @@ function openScheduleFormForEdit(schedule: WeeklySchedule): void {
   showScheduleForm(currentSnapshot, schedule);
 }
 
+function getSchedulesToApply(): WeeklySchedule[] {
+  if (selectedScheduleIds.size === 0) {
+    return renderedSchedules;
+  }
+
+  return renderedSchedules.filter((schedule) => selectedScheduleIds.has(schedule.id));
+}
+
+function updateApplySchedulesButtonState(): void {
+  const button = getApplySchedulesButton();
+  const hasSelection = selectedScheduleIds.size > 0;
+  button.textContent = hasSelection ? 'Toepassen' : 'Alles toepassen';
+
+  const hasPeriod = currentSnapshot?.month !== null && currentSnapshot?.year !== null;
+  button.disabled = renderedSchedules.length === 0 || !hasPeriod;
+}
+
+async function applySchedulesFromSelection(): Promise<void> {
+  try {
+    if (!currentSnapshot || currentSnapshot.month === null || currentSnapshot.year === null) {
+      throw new Error('Kan niet toepassen zonder geldige periode. Analyseer eerst de timesheet.');
+    }
+
+    const month = currentSnapshot.month;
+    const year = currentSnapshot.year;
+
+    const schedulesToApply = getSchedulesToApply();
+    if (schedulesToApply.length === 0) {
+      throw new Error('Geen schema\'s beschikbaar om toe te passen.');
+    }
+
+    // Validate selected projects against the currently available SAP navigation projects
+    // before requiring an active tab or starting any navigation/autofill operations.
+    for (const schedule of schedulesToApply) {
+      if (!currentSnapshot.projectCodes.includes(schedule.projectCode)) {
+        throw new Error(`Project ${schedule.projectCode} is niet beschikbaar in het SAP navigatiemenu.`);
+      }
+    }
+
+    const activeTab = await getActiveTab();
+    if (!activeTab?.id) {
+      throw new Error('Geen actief tabblad gevonden.');
+    }
+
+    if (!isTimesheetTab(activeTab)) {
+      throw new Error('Het actieve tabblad is geen SAP My Timesheet pagina.');
+    }
+
+    const applyButton = getApplySchedulesButton();
+    applyButton.disabled = true;
+
+    let totalDaysCount = 0;
+    let appliedDaysCount = 0;
+    const failedDatesByProject = new Map<string, string[]>();
+    let submissionAttemptedCount = 0;
+    let submissionConfirmedCount = 0;
+    const scheduleErrors: string[] = [];
+
+    for (const schedule of schedulesToApply) {
+      try {
+        await navigateToProject(activeTab.id, month, year, schedule.projectCode);
+        const summary = await autofillScheduleEntries(activeTab.id, schedule, month, year);
+
+        totalDaysCount += summary.totalDaysCount;
+        appliedDaysCount += summary.appliedDaysCount;
+        addFailedDatesForProject(failedDatesByProject, schedule.projectCode, summary.failedDates);
+        if (summary.submissionAttempted) {
+          submissionAttemptedCount += 1;
+        }
+        if (summary.submissionConfirmed) {
+          submissionConfirmedCount += 1;
+        }
+        if (summary.error) {
+          scheduleErrors.push(`${schedule.projectCode}: ${summary.error}`);
+        }
+      } catch (error) {
+        const scheduleEntries = expandWeeklyScheduleToMonthEntries(schedule, month, year);
+        totalDaysCount += scheduleEntries.length;
+        addFailedDatesForProject(failedDatesByProject, schedule.projectCode, scheduleEntries.map((entry) => entry.date));
+        scheduleErrors.push(`${schedule.projectCode}: ${(error as Error).message}`);
+      }
+    }
+
+    let statusMessage = buildApplyStatusMessage(
+      schedulesToApply,
+      appliedDaysCount,
+      totalDaysCount,
+      failedDatesByProject,
+      submissionAttemptedCount,
+      submissionConfirmedCount,
+    );
+
+    if (scheduleErrors.length > 0) {
+      statusMessage += `\nFouten:\n- ${scheduleErrors.join('\n- ')}`;
+    }
+
+    setStatus(statusMessage);
+  } catch (error) {
+    setStatus(`Fout: ${(error as Error).message}`);
+  } finally {
+    updateApplySchedulesButtonState();
+  }
+}
+
 async function handleDeleteSchedule(scheduleId: string): Promise<void> {
   try {
     const { deleteSchedule } = await import('../shared/storage');
@@ -338,7 +495,6 @@ export function showScheduleForm(snapshot: TimesheetSnapshot | null, scheduleToE
   const formTitle = getScheduleFormTitle();
   const submitBtn = getScheduleForm().querySelector('button[type="submit"]') as HTMLButtonElement;
 
-  // Populate project options
   projectSelect.innerHTML = '<option value="">-- Selecteer project --</option>';
   if (snapshot?.projectCodes) {
     snapshot.projectCodes.forEach((code) => {
@@ -349,14 +505,12 @@ export function showScheduleForm(snapshot: TimesheetSnapshot | null, scheduleToE
     });
   }
 
-  // Reset form fields
   getScheduleLabelInput().value = '';
   const hoursInputs = getHoursInputs();
   Object.values(hoursInputs).forEach((input) => {
     input.value = '0';
   });
 
-  // Set edit mode if schedule provided
   const isEditMode = Boolean(scheduleToEdit);
   if (isEditMode && scheduleToEdit) {
     formTitle.textContent = 'Schema bewerken';
@@ -399,7 +553,12 @@ function openScheduleFormFromLatestSnapshot(): void {
 }
 
 async function analyseActiveTab(): Promise<void> {
-  getBtnScrape().disabled = true;
+  const scrapeButton = getBtnScrape() as HTMLButtonElement | null;
+  if (!scrapeButton) {
+    return;
+  }
+
+  scrapeButton.disabled = true;
 
   try {
     const activeTab = await getActiveTab();
@@ -419,7 +578,6 @@ async function analyseActiveTab(): Promise<void> {
 
     const isPageLoading = activeTab.status === 'loading' || await getSAPBusyStateForTab(activeTab.id);
     if (isPageLoading) {
-      // If we have cached data, keep showing it while page loads; otherwise show error
       if (!hasCachedData) {
         throw new Error('De pagina laadt nog. Probeer het over een moment opnieuw.');
       }
@@ -427,18 +585,10 @@ async function analyseActiveTab(): Promise<void> {
       return;
     }
 
-    const response = await chrome.tabs.sendMessage<MessageRequest, MessageResponse>(activeTab.id, {
-      type: 'SCRAPE_TIMESHEET_SUMMARY',
-    });
-
-    if (!response.success) {
-      throw new Error(response.error ?? 'Onbekende fout.');
-    }
-
-    const scrapedSnapshot = response.data as TimesheetSnapshot;
+    const scrapedSnapshot = await readTimesheetSnapshotViaUi5(activeTab.id);
     const scrapedIsComplete = isSnapshotComplete(scrapedSnapshot);
     snapshotTimestampIso = new Date().toISOString();
-    isCachedData = false; // Mark as fresh data
+    isCachedData = false;
     renderSnapshot(scrapedSnapshot, scrapedIsComplete);
 
     // Write-through: persist fresh snapshot to cache only when it improves on
@@ -455,7 +605,7 @@ async function analyseActiveTab(): Promise<void> {
   } catch (err) {
     setStatus(`Fout: ${(err as Error).message}`);
   } finally {
-    getBtnScrape().disabled = false;
+    scrapeButton.disabled = false;
   }
 }
 
@@ -511,11 +661,11 @@ async function getValidCachedSnapshot(tab: chrome.tabs.Tab | undefined): Promise
 export function renderSnapshot(snapshot: TimesheetSnapshot, hasAllData: boolean = false): void {
   currentSnapshot = snapshot;
   updateAddScheduleButtonState();
+  updateApplySchedulesButtonState();
 
   getPeriodValue().textContent = snapshot.month && snapshot.year ? `${snapshot.month}/${snapshot.year}` : '-';
   getProjectCodesValue().textContent = snapshot.projectCodes.length > 0 ? snapshot.projectCodes.join(', ') : '-';
   getWorkedHoursValue().textContent = formatHours(snapshot.totals.worked);
-  getAbsentHoursValue().textContent = formatHours(snapshot.totals.absent);
   getToBePerformedHoursValue().textContent = formatHours(snapshot.totals.toBePerformed);
 
   const scrapeStatus = getScrapeStatus();
@@ -530,7 +680,6 @@ export function renderSnapshot(snapshot: TimesheetSnapshot, hasAllData: boolean 
     scrapeStatus.classList.add('warning');
   }
 
-  // Add visual indicator for cached data
   const summarySection = getSummarySection();
   const dataOriginIndicator = getDataOriginIndicator();
   if (isCachedData) {
@@ -590,7 +739,6 @@ export function setStatus(message: string): void {
 
 function isSnapshotComplete(snapshot: TimesheetSnapshot): boolean {
   return snapshot.totals.worked !== null
-    && snapshot.totals.absent !== null
     && snapshot.totals.toBePerformed !== null;
 }
 

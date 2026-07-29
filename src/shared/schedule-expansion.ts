@@ -32,7 +32,8 @@ function validateMonthYear(month: number, year: number): void {
 
 /**
  * Expand a weekly schedule into concrete day-by-day entries for one month.
- * Days with zero or negative planned hours are skipped.
+ * Zero-hour days are included so the target form can be reset explicitly.
+ * Invalid or negative planned hours are skipped.
  */
 export function expandWeeklyScheduleToMonthEntries(
   schedule: WeeklySchedule,
@@ -48,7 +49,7 @@ export function expandWeeklyScheduleToMonthEntries(
     const weekday = getWeekdayUTC(year, month, day);
     const plannedHours = schedule.hoursPerWeekday[weekday];
 
-    if (!Number.isFinite(plannedHours) || plannedHours <= 0) {
+    if (!Number.isFinite(plannedHours) || plannedHours < 0) {
       continue;
     }
 
