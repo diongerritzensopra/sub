@@ -72,6 +72,7 @@ beforeEach(() => {
       <main>
         <section id="status-section">
           <p id="status-message">Klik op het vernieuwingspictogram om te beginnen.</p>
+          <button id="btn-status-dismiss" type="button" title="Sluiten" hidden>×</button>
         </section>
         <section id="schedules-section">
           <h2>Projectschema's</h2>
@@ -1793,6 +1794,245 @@ describe('popup', () => {
       expect(mockChromeTabsUpdate).not.toHaveBeenCalled();
       expect(document.getElementById('status-message')?.textContent).toContain('UNAVAILABLE_PROJECT');
       expect(document.getElementById('status-message')?.textContent).toContain('niet beschikbaar');
+    });
+  });
+
+  describe('status message caching', () => {
+    it('setStatus with persist=true saves message to storage', async () => {
+      const { setStatus } = await import('./popup');
+
+      setStatus('5/21 dagen bijgewerkt.', true);
+
+      expect(mockChromeStorageLocalSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          [STORAGE_KEYS.statusMessageCache]: expect.objectContaining({ message: '5/21 dagen bijgewerkt.' }),
+        }),
+        expect.any(Function),
+      );
+    });
+
+    it('setStatus with persist=false does not save message to storage', async () => {
+      const { setStatus } = await import('./popup');
+
+      setStatus('Pagina analyseren...', false);
+
+      expect(mockChromeStorageLocalSet).not.toHaveBeenCalledWith(
+        expect.objectContaining({ [STORAGE_KEYS.statusMessageCache]: expect.anything() }),
+        expect.any(Function),
+      );
+    });
+
+    it('setStatus with persist=true shows the dismiss button', async () => {
+      const { setStatus } = await import('./popup');
+
+      setStatus('Boekingen gelukt.', true);
+
+      expect(document.getElementById('btn-status-dismiss')?.hidden).toBe(false);
+    });
+
+    it('setStatus with persist=false hides the dismiss button', async () => {
+      const { setStatus } = await import('./popup');
+
+      setStatus('Pagina analyseren...', false);
+
+      expect(document.getElementById('btn-status-dismiss')?.hidden).toBe(true);
+    });
+
+    it('setStatus with empty string hides the dismiss button', async () => {
+      const { setStatus } = await import('./popup');
+      setStatus('Bericht', true); // first set a visible message
+      setStatus(''); // then clear
+
+      expect(document.getElementById('btn-status-dismiss')?.hidden).toBe(true);
+    });
+
+    it('clicking dismiss button clears message and removes it from storage', async () => {
+      const { setStatus } = await import('./popup');
+      setStatus('Te verwijderen bericht.', true);
+
+      const dismissButton = document.getElementById('btn-status-dismiss') as HTMLButtonElement;
+      dismissButton.click();
+
+      expect(document.getElementById('status-message')?.textContent).toBe('');
+      expect(document.getElementById('btn-status-dismiss')?.hidden).toBe(true);
+      expect(mockChromeStorageLocalRemove).toHaveBeenCalledWith(
+        STORAGE_KEYS.statusMessageCache,
+        expect.any(Function),
+      );
+    });
+
+    it('restores cached status message when analyseActiveTab succeeds', async () => {
+      const sapTab = {
+        id: 99,
+        url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/8/2026/project/ZSST',
+        status: 'complete',
+      } as chrome.tabs.Tab;
+      const freshCachedMessage = {
+        message: 'Eerder resultaat: 5 dagen bijgewerkt.',
+        cachedAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(), // 5 min ago
+      };
+
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeRuntimeSendMessage.mockResolvedValue({ success: true, data: { busy: false } });
+      mockChromeScriptingExecuteScript.mockImplementation(async (injection) => {
+        if (injection.func?.name === 'ui5MainWorldReadSnapshot') {
+          return [{
+            documentId: 'mock-id',
+            frameId: 0,
+            result: {
+              success: true,
+              snapshot: {
+                month: 8, year: 2026,
+                projectCodes: [],
+                currentProjectCode: null,
+                totals: { worked: null, toBePerformed: null },
+              },
+            },
+          }];
+        }
+        return [{ documentId: 'mock-id', frameId: 0, result: undefined }];
+      });
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        if (keys[0] === STORAGE_KEYS.statusMessageCache) {
+          callback({ [keys[0]]: freshCachedMessage });
+        } else {
+          callback({ [keys[0]]: undefined });
+        }
+      });
+
+      await import('./popup');
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(document.getElementById('status-message')?.textContent).toBe(freshCachedMessage.message);
+      expect(document.getElementById('btn-status-dismiss')?.hidden).toBe(false);
+    });
+
+    it('restores persisted status after pressing refresh and temporary loading messages', async () => {
+      const sapTab = {
+        id: 99,
+        url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/8/2026/project/ZSST',
+        status: 'complete',
+      } as chrome.tabs.Tab;
+      const storedValues: Record<string, unknown> = {};
+
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeRuntimeSendMessage.mockResolvedValue({ success: true, data: { busy: false } });
+      mockChromeScriptingExecuteScript.mockImplementation(async (injection) => {
+        if (injection.func?.name === 'ui5MainWorldReadSnapshot') {
+          return [{
+            documentId: 'mock-id',
+            frameId: 0,
+            result: {
+              success: true,
+              snapshot: {
+                month: 8,
+                year: 2026,
+                projectCodes: [],
+                currentProjectCode: null,
+                totals: { worked: null, toBePerformed: null },
+              },
+            },
+          }];
+        }
+
+        return [{ documentId: 'mock-id', frameId: 0, result: undefined }];
+      });
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: storedValues[keys[0]] });
+      });
+      mockChromeStorageLocalSet.mockImplementation((values, callback) => {
+        Object.assign(storedValues, values);
+        callback();
+      });
+
+      const { setStatus } = await import('./popup');
+      await new Promise((r) => setTimeout(r, 30));
+
+      setStatus('Eerder resultaat: 5 dagen bijgewerkt.', true);
+      expect(document.getElementById('status-message')?.textContent).toBe('Eerder resultaat: 5 dagen bijgewerkt.');
+
+      (document.getElementById('btn-scrape') as HTMLButtonElement).click();
+      await new Promise((r) => setTimeout(r, 40));
+
+      expect(document.getElementById('status-message')?.textContent).toBe('Eerder resultaat: 5 dagen bijgewerkt.');
+      expect(document.getElementById('btn-status-dismiss')?.hidden).toBe(false);
+    });
+
+    it('does not restore cached status message when analyseActiveTab sets an error', async () => {
+      const nonSapTab = {
+        id: 99,
+        url: 'https://www.google.com',
+        status: 'complete',
+      } as chrome.tabs.Tab;
+      const freshCachedMessage = {
+        message: 'Eerder resultaat: 5 dagen bijgewerkt.',
+        cachedAt: new Date().toISOString(),
+      };
+
+      mockChromeTabsQuery.mockResolvedValue([nonSapTab]);
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        if (keys[0] === STORAGE_KEYS.statusMessageCache) {
+          callback({ [keys[0]]: freshCachedMessage });
+        } else {
+          callback({ [keys[0]]: undefined });
+        }
+      });
+
+      await import('./popup');
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(document.getElementById('status-message')?.textContent).toContain('Fout:');
+      expect(document.getElementById('status-message')?.textContent).not.toContain('Eerder resultaat');
+    });
+
+    it('does not restore a cached status message older than 30 minutes', async () => {
+      const sapTab = {
+        id: 99,
+        url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/8/2026/project/ZSST',
+        status: 'complete',
+      } as chrome.tabs.Tab;
+      const expiredCachedMessage = {
+        message: 'Oud bericht.',
+        cachedAt: new Date(Date.now() - 31 * 60 * 1000).toISOString(), // 31 min ago
+      };
+
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeRuntimeSendMessage.mockResolvedValue({ success: true, data: { busy: false } });
+      mockChromeScriptingExecuteScript.mockImplementation(async (injection) => {
+        if (injection.func?.name === 'ui5MainWorldReadSnapshot') {
+          return [{
+            documentId: 'mock-id',
+            frameId: 0,
+            result: {
+              success: true,
+              snapshot: {
+                month: 8, year: 2026,
+                projectCodes: [],
+                currentProjectCode: null,
+                totals: { worked: null, toBePerformed: null },
+              },
+            },
+          }];
+        }
+        return [{ documentId: 'mock-id', frameId: 0, result: undefined }];
+      });
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        if (keys[0] === STORAGE_KEYS.statusMessageCache) {
+          callback({ [keys[0]]: expiredCachedMessage });
+        } else {
+          callback({ [keys[0]]: undefined });
+        }
+      });
+
+      await import('./popup');
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(document.getElementById('status-message')?.textContent).toBe('');
+      expect(document.getElementById('btn-status-dismiss')?.hidden).toBe(true);
+      expect(mockChromeStorageLocalRemove).toHaveBeenCalledWith(
+        STORAGE_KEYS.statusMessageCache,
+        expect.any(Function),
+      );
     });
   });
  });

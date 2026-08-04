@@ -133,6 +133,12 @@ export interface SapProjectsModelData {
   UserDetail?: SapUserDetail;
 }
 
+/** A status message cached to survive popup close/reopen cycles. */
+export interface CachedStatusMessage {
+  message: string;
+  cachedAt: string; // ISO timestamp
+}
+
 /** Union of all message types sent between extension components. */
 export type MessageType =
   | 'SAP_BUSY_STATE_CHANGED'

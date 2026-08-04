@@ -44,9 +44,31 @@ main {
   gap: 12px;
 }
 
+#status-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
 #status-message {
+  flex: 1;
   white-space: pre-line;
   line-height: 1.4;
+}
+
+#btn-status-dismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+#btn-status-dismiss:hover {
+  color: #333;
 }
 
 h2 {

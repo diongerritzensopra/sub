@@ -5,7 +5,16 @@
 import type { CachedTimesheetSnapshot, TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
 import { getSAPBusyStateForTab, initBusyStateListener } from '../shared/busy-state';
-import { getCachedTimesheetSnapshot, setCachedTimesheetSnapshot, clearCachedTimesheetSnapshot, getSchedules, isCacheStale } from '../shared/storage';
+import {
+  getCachedTimesheetSnapshot,
+  setCachedTimesheetSnapshot,
+  clearCachedTimesheetSnapshot,
+  getSchedules,
+  isCacheStale,
+  getCachedStatusMessage,
+  setCachedStatusMessage,
+  clearCachedStatusMessage,
+} from '../shared/storage';
 import { expandWeeklyScheduleToMonthEntries } from '../shared/schedule-expansion';
 import { readTimesheetSnapshotViaUi5 } from './ui5-scripting';
 import {
@@ -24,6 +33,10 @@ function getBtnScrape(): HTMLButtonElement {
 
 function getStatusMessage(): HTMLParagraphElement {
   return document.getElementById('status-message') as HTMLParagraphElement;
+}
+
+function getStatusDismissButton(): HTMLButtonElement {
+  return document.getElementById('btn-status-dismiss') as HTMLButtonElement;
 }
 
 function getSummarySection(): HTMLElement {
@@ -78,6 +91,10 @@ const selectedScheduleIds = new Set<string>();
 
 getBtnScrape().addEventListener('click', () => {
   void analyseActiveTab();
+});
+
+getStatusDismissButton().addEventListener('click', () => {
+  dismissStatus();
 });
 
 getAddScheduleButton().addEventListener('click', () => {
@@ -464,9 +481,9 @@ async function applySchedulesFromSelection(): Promise<void> {
       statusMessage += `\nFouten:\n- ${scheduleErrors.join('\n- ')}`;
     }
 
-    setStatus(statusMessage);
+    setStatus(statusMessage, true);
   } catch (error) {
-    setStatus(`Fout: ${(error as Error).message}`);
+    setStatus(`Fout: ${(error as Error).message}`, true);
   } finally {
     updateApplySchedulesButtonState();
   }
@@ -601,7 +618,10 @@ async function analyseActiveTab(): Promise<void> {
       });
     }
 
-    setStatus('');
+    const restoredCachedStatus = await restoreCachedStatusMessage();
+    if (!restoredCachedStatus) {
+      setStatus('');
+    }
   } catch (err) {
     setStatus(`Fout: ${(err as Error).message}`);
   } finally {
@@ -733,8 +753,49 @@ export function formatHours(value: number | null): string {
   return `${value.toString().replace('.', ',')} u`;
 }
 
-export function setStatus(message: string): void {
+export function setStatus(message: string, persist: boolean = false): void {
   getStatusMessage().textContent = message;
+  const dismissButton = getStatusDismissButton();
+  if (!message) {
+    dismissButton.hidden = true;
+    if (persist) {
+      void clearCachedStatusMessage();
+    }
+  } else if (persist) {
+    dismissButton.hidden = false;
+    void setCachedStatusMessage({ message, cachedAt: new Date().toISOString() });
+  } else {
+    // Transient message: hide the dismiss button so it doesn't linger
+    dismissButton.hidden = true;
+  }
+}
+
+function dismissStatus(): void {
+  setStatus('', true);
+}
+
+const STATUS_MESSAGE_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
+
+async function restoreCachedStatusMessage(): Promise<boolean> {
+  const cached = await getCachedStatusMessage();
+  if (!cached) {
+    return false;
+  }
+
+  const cachedAt = new Date(cached.cachedAt);
+  if (Number.isNaN(cachedAt.getTime())) {
+    await clearCachedStatusMessage();
+    return false;
+  }
+
+  if (Date.now() - cachedAt.getTime() > STATUS_MESSAGE_MAX_AGE_MS) {
+    await clearCachedStatusMessage();
+    return false;
+  }
+
+  getStatusMessage().textContent = cached.message;
+  getStatusDismissButton().hidden = false;
+  return true;
 }
 
 function isSnapshotComplete(snapshot: TimesheetSnapshot): boolean {

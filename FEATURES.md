@@ -42,6 +42,7 @@ Shared feature roadmap for `sub`.
   - Use SAP UI5 `projectsmodel`/`postTimeSheet` access via `chrome.scripting` instead of the old message-based content-script autofill path.
 - [ ] Chunk 9 - Final polish.
   - Rename `SapProjectsModel` → `SapProjectsModelData` (the interface represents the data payload, not the model itself).
+  - Persist the last apply/error status message so it survives popup close/reopen; messages expire after 30 minutes and can be dismissed with an × button.
   - Validation feedback, disable apply when SAP page is not ready, and UX cleanup.
 
 ### Caching

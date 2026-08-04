@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { CachedTimesheetSnapshot, WeeklySchedule } from './types';
+import type { CachedStatusMessage, CachedTimesheetSnapshot, WeeklySchedule } from './types';
 import {
+  clearCachedStatusMessage,
   clearCachedTimesheetSnapshot,
   deleteSchedule,
+  getCachedStatusMessage,
   getCachedTimesheetSnapshot,
   getSchedules,
   isCacheStale,
   saveSchedule,
+  setCachedStatusMessage,
   setCachedTimesheetSnapshot,
   STORAGE_KEYS,
 } from './storage';
@@ -77,6 +80,44 @@ describe('storage helpers', () => {
 
     expect(value).toBeUndefined();
     expect(mockRemove).toHaveBeenCalledWith(STORAGE_KEYS.timesheetSnapshotCache, expect.any(Function));
+  });
+});
+
+describe('status message cache helpers', () => {
+  beforeEach(() => {
+    Object.keys(localState).forEach((key) => delete localState[key]);
+    mockGet.mockClear();
+    mockSet.mockClear();
+    mockRemove.mockClear();
+  });
+
+  it('stores and retrieves a cached status message', async () => {
+    const cache: CachedStatusMessage = {
+      message: '5/21 dagen bijgewerkt.',
+      cachedAt: '2026-08-04T10:00:00.000Z',
+    };
+
+    await setCachedStatusMessage(cache);
+    const value = await getCachedStatusMessage();
+
+    expect(value).toEqual(cache);
+    expect(mockSet).toHaveBeenCalledWith({ [STORAGE_KEYS.statusMessageCache]: cache }, expect.any(Function));
+    expect(mockGet).toHaveBeenCalledWith([STORAGE_KEYS.statusMessageCache], expect.any(Function));
+  });
+
+  it('returns undefined when no cached status message is stored', async () => {
+    const value = await getCachedStatusMessage();
+    expect(value).toBeUndefined();
+  });
+
+  it('clears cached status message', async () => {
+    localState[STORAGE_KEYS.statusMessageCache] = { message: 'test', cachedAt: '2026-08-04T10:00:00.000Z' };
+
+    await clearCachedStatusMessage();
+    const value = await getCachedStatusMessage();
+
+    expect(value).toBeUndefined();
+    expect(mockRemove).toHaveBeenCalledWith(STORAGE_KEYS.statusMessageCache, expect.any(Function));
   });
 });
 

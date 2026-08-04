@@ -2,11 +2,12 @@
  * chrome.storage helper — typed wrappers around chrome.storage.local.
  */
 
-import type { CachedTimesheetSnapshot, WeeklySchedule } from './types';
+import type { CachedStatusMessage, CachedTimesheetSnapshot, WeeklySchedule } from './types';
 
 export const STORAGE_KEYS = {
   timesheetSnapshotCache: 'timesheetSnapshotCache',
   projectSchedules: 'projectSchedules',
+  statusMessageCache: 'statusMessageCache',
 } as const;
 
 export interface CachePeriod {
@@ -87,6 +88,18 @@ export async function deleteSchedule(scheduleId: string): Promise<void> {
   const filtered = existing.filter((schedule) => schedule.id !== scheduleId);
 
   await storageSet(STORAGE_KEYS.projectSchedules, filtered);
+}
+
+export async function getCachedStatusMessage(): Promise<CachedStatusMessage | undefined> {
+  return storageGet<CachedStatusMessage>(STORAGE_KEYS.statusMessageCache);
+}
+
+export async function setCachedStatusMessage(cache: CachedStatusMessage): Promise<void> {
+  await storageSet(STORAGE_KEYS.statusMessageCache, cache);
+}
+
+export async function clearCachedStatusMessage(): Promise<void> {
+  await storageRemove(STORAGE_KEYS.statusMessageCache);
 }
 
 /**
