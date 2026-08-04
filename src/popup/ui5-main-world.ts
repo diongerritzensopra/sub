@@ -35,6 +35,10 @@ export type Ui5SnapshotReadResult = {
 };
 
 export function ui5MainWorldReadSnapshot(): Ui5SnapshotReadResult {
+  const mapSapStatus = (status: string | undefined | null): TimesheetSnapshot['sapStatus'] => {
+    return (status ?? '').trim().toUpperCase() === 'U' ? 'editable' : 'locked';
+  };
+
   type Ui5ProjectsDataModelLike = { getData?: () => SapProjectsModelData };
   type Ui5TimesheetComponentLike = { getModel?: (name?: string) => Ui5ProjectsDataModelLike | undefined };
   type Ui5Core = { byId?: (id: string) => Ui5TimesheetComponentLike | undefined };
@@ -106,6 +110,7 @@ export function ui5MainWorldReadSnapshot(): Ui5SnapshotReadResult {
         year,
         projectCodes,
         currentProjectCode,
+        sapStatus: mapSapStatus(modelData.oTotals.oStatus),
         totals: {
           worked: parseTimeValue(modelData.oTotals?.oTotals?.totalActualWorkHours),
           toBePerformed: parseTimeValue(modelData.oTotals?.oTotals?.hoursToBePerformed),

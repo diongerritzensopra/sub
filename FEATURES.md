@@ -43,6 +43,7 @@ Shared feature roadmap for `sub`.
 - [ ] Chunk 9 - Final polish.
   - Rename `SapProjectsModel` → `SapProjectsModelData` (the interface represents the data payload, not the model itself).
   - Persist the last apply/error status message so it survives popup close/reopen; messages expire after 30 minutes and can be dismissed with an × button.
+  - Detect SAP timesheet lock state via `SapProjectsModelData.oTotals.oStatus` (`"U"` = editable, `"S"` = locked); map to descriptive `TimesheetSnapshot.sapStatus` values (`'editable' | 'locked'`). When locked, disable only the apply flow and show a lock message — local controls (refresh, schedule management) remain usable.
   - Validation feedback, disable apply when SAP page is not ready, and UX cleanup.
 
 ### Caching

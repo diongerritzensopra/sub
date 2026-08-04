@@ -287,6 +287,7 @@ describe('popup', () => {
             
             toBePerformed: 160,
           },
+          sapStatus: 'editable',
         },
         cachedAt: '2026-05-12T10:00:00.000Z',
       };
@@ -318,6 +319,7 @@ describe('popup', () => {
           projectCodes: ['ZMOCK_001.1.1'],
           currentProjectCode: 'ZMOCK_001.1.1',
           totals: { worked: 120, toBePerformed: 160 },
+          sapStatus: 'editable',
         },
         cachedAt: '2026-04-30T10:00:00.000Z',
       };
@@ -348,6 +350,7 @@ describe('popup', () => {
           projectCodes: ['ZMOCK_001.1.1'],
           currentProjectCode: 'ZMOCK_001.1.1',
           totals: { worked: 120, toBePerformed: 160 },
+          sapStatus: 'editable',
         },
         cachedAt: '2026-05-12T10:00:00.000Z',
       };
@@ -422,6 +425,7 @@ describe('popup', () => {
         projectCodes: ['ZMOCK_001.1.1'],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: 120, toBePerformed: 160 },
+        sapStatus: 'editable',
       };
       const storedValues: Record<string, unknown> = {};
       setupScrapeReturning(snapshot, storedValues);
@@ -445,6 +449,7 @@ describe('popup', () => {
         projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: 120, toBePerformed: 160 },
+        sapStatus: 'editable',
       };
       setupScrapeReturning(snapshot);
 
@@ -463,12 +468,14 @@ describe('popup', () => {
         projectCodes: ['ZMOCK_001.1.1'],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: 120, toBePerformed: 160 },
+        sapStatus: 'editable',
       };
       const partialSnapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
         projectCodes: ['ZMOCK_001.1.1'],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: null, toBePerformed: null },
+        sapStatus: 'editable',
       };
        const existingCache: CachedTimesheetSnapshot = {
          snapshot: completeSnapshot,
@@ -496,6 +503,7 @@ describe('popup', () => {
          projectCodes: [],
          currentProjectCode: null,
          totals: { worked: null, toBePerformed: null },
+         sapStatus: 'editable',
        };
        setupScrapeReturning(snapshotNoDate);
 
@@ -524,6 +532,7 @@ describe('popup', () => {
         projectCodes: ['ZMOCK_001.1.1'],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: 120, toBePerformed: 160 },
+        sapStatus: 'editable',
       };
       const cachedData: CachedTimesheetSnapshot = {
         snapshot: cachedSnapshot,
@@ -553,6 +562,7 @@ describe('popup', () => {
         projectCodes: ['ZMOCK_001.1.1'],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: 120, toBePerformed: 160 },
+        sapStatus: 'editable',
       };
       const cachedData: CachedTimesheetSnapshot = {
         snapshot: cachedSnapshot,
@@ -677,6 +687,7 @@ describe('popup', () => {
           
           toBePerformed: 0,
         },
+        sapStatus: 'editable',
       };
 
       renderSnapshot(snapshot);
@@ -696,6 +707,7 @@ describe('popup', () => {
           
           toBePerformed: 0,
         },
+        sapStatus: 'editable',
       };
 
       renderSnapshot(snapshot);
@@ -715,6 +727,7 @@ describe('popup', () => {
           
           toBePerformed: null,
         },
+        sapStatus: 'editable',
       };
 
       renderSnapshot(snapshot);
@@ -736,6 +749,7 @@ describe('popup', () => {
           
           toBePerformed: null,
         },
+        sapStatus: 'editable',
       };
 
       renderSnapshot(snapshot);
@@ -755,6 +769,7 @@ describe('popup', () => {
           
           toBePerformed: 160,
         },
+        sapStatus: 'editable',
       };
 
       renderSnapshot(snapshot);
@@ -775,6 +790,7 @@ describe('popup', () => {
           
           toBePerformed: 0,
         },
+        sapStatus: 'editable',
       };
 
       const summarySection = document.getElementById('summary-section') as HTMLElement;
@@ -797,6 +813,7 @@ describe('popup', () => {
           
           toBePerformed: null,
         },
+        sapStatus: 'editable',
       };
 
       renderSnapshot(snapshot);
@@ -817,6 +834,7 @@ describe('popup', () => {
           
           toBePerformed: 0,
         },
+        sapStatus: 'editable',
       };
 
       renderSnapshot(snapshot, true);
@@ -836,6 +854,7 @@ describe('popup', () => {
           
           toBePerformed: 0,
         },
+        sapStatus: 'editable',
       };
 
       renderSnapshot(snapshot, false);
@@ -904,6 +923,7 @@ describe('popup', () => {
         projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: 120, toBePerformed: 160 },
+        sapStatus: 'editable',
       };
 
       renderSnapshot(snapshot);
@@ -930,6 +950,7 @@ describe('popup', () => {
         projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: 120, toBePerformed: 160 },
+        sapStatus: 'editable',
       };
 
       showScheduleForm(snapshot);
@@ -969,6 +990,7 @@ describe('popup', () => {
         projectCodes: ['ZMOCK_001.1.1'],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: 120, toBePerformed: 160 },
+        sapStatus: 'editable',
       };
 
       showScheduleForm(snapshot);
@@ -1027,6 +1049,7 @@ describe('popup', () => {
          projectCodes: ['ZMOCK_001.1.1'],
          currentProjectCode: 'ZMOCK_001.1.1',
          totals: { worked: 120, toBePerformed: 160 },
+         sapStatus: 'editable',
        };
 
        // Render the schedule list and snapshot
@@ -1060,6 +1083,7 @@ describe('popup', () => {
          projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
          currentProjectCode: 'ZMOCK_001.1.1',
          totals: { worked: 120, toBePerformed: 160 },
+         sapStatus: 'editable',
        };
 
        const scheduleToEdit: WeeklySchedule = {
@@ -1109,6 +1133,7 @@ describe('popup', () => {
          projectCodes: ['ZMOCK_001.1.1'],
          currentProjectCode: 'ZMOCK_001.1.1',
          totals: { worked: 120, toBePerformed: 160 },
+         sapStatus: 'editable',
        };
 
        const scheduleToEdit: WeeklySchedule = {
@@ -1166,6 +1191,7 @@ describe('popup', () => {
          projectCodes: ['ZMOCK_001.1.1'],
          currentProjectCode: 'ZMOCK_001.1.1',
          totals: { worked: 120, toBePerformed: 160 },
+         sapStatus: 'editable',
        };
 
        const scheduleToEdit: WeeklySchedule = {
@@ -1203,6 +1229,15 @@ describe('popup', () => {
       hoursPerWeekday: { monday: 8, tuesday: 8, wednesday: 8, thursday: 8, friday: 8, saturday: 0, sunday: 0 },
     });
 
+    const editableSnapshot: TimesheetSnapshot = {
+      month: 5,
+      year: 2026,
+      projectCodes: ['ZMOCK_001.1.1'],
+      currentProjectCode: 'ZMOCK_001.1.1',
+      totals: { worked: 120, toBePerformed: 160 },
+      sapStatus: 'editable',
+    };
+
     it('renders a delete button per schedule row', async () => {
       const storedValues: Record<string, unknown> = {
         [STORAGE_KEYS.projectSchedules]: [makeSchedule('s1', 'Kantooruren')],
@@ -1211,7 +1246,8 @@ describe('popup', () => {
         callback({ [keys[0]]: storedValues[keys[0]] });
       });
 
-      const { renderSchedules } = await import('./popup');
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      renderSnapshot(editableSnapshot);
       await renderSchedules();
 
       const deleteBtn = document.querySelector('#schedules-list li button.schedule-delete-button') as HTMLButtonElement;
@@ -1227,7 +1263,8 @@ describe('popup', () => {
         callback({ [keys[0]]: storedValues[keys[0]] });
       });
 
-      const { renderSchedules } = await import('./popup');
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      renderSnapshot(editableSnapshot);
       await renderSchedules();
 
       const li = document.querySelector('#schedules-list li') as HTMLElement;
@@ -1249,7 +1286,8 @@ describe('popup', () => {
         callback({ [keys[0]]: storedValues[keys[0]] });
       });
 
-      const { renderSchedules } = await import('./popup');
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      renderSnapshot(editableSnapshot);
       await renderSchedules();
 
       const li = document.querySelector('#schedules-list li') as HTMLElement;
@@ -1280,7 +1318,8 @@ describe('popup', () => {
         callback();
       });
 
-      const { renderSchedules } = await import('./popup');
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      renderSnapshot(editableSnapshot);
       await renderSchedules();
 
       const listItems = document.querySelectorAll('#schedules-list li');
@@ -1308,7 +1347,8 @@ describe('popup', () => {
         callback();
       });
 
-      const { renderSchedules } = await import('./popup');
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      renderSnapshot(editableSnapshot);
       await renderSchedules();
 
       document.querySelector('#schedules-list li button.schedule-delete-button')!.dispatchEvent(new MouseEvent('click'));
@@ -1335,6 +1375,7 @@ describe('popup', () => {
       projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
       currentProjectCode: 'ZMOCK_001.1.1',
       totals: { worked: 120, toBePerformed: 160 },
+      sapStatus: 'editable',
     };
 
     const sapTab = {
@@ -1797,6 +1838,111 @@ describe('popup', () => {
     });
   });
 
+  describe('timesheet lock state', () => {
+    const sapTab = {
+      id: 99,
+      url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/8/2026/project/ZSST',
+      status: 'complete',
+    } as chrome.tabs.Tab;
+
+    const lockedSnapshot: TimesheetSnapshot = {
+      month: 8,
+      year: 2026,
+      projectCodes: ['ZMOCK_001.1.1'],
+      currentProjectCode: 'ZMOCK_001.1.1',
+      totals: { worked: 120, toBePerformed: 160 },
+      sapStatus: 'locked',
+    };
+
+    const editableSnapshot: TimesheetSnapshot = {
+      ...lockedSnapshot,
+      sapStatus: 'editable',
+    };
+
+    it('keeps apply disabled and shows a lock message when sapStatus is locked', async () => {
+      const storedValues: Record<string, unknown> = {
+        [STORAGE_KEYS.projectSchedules]: [
+          {
+            id: 's1',
+            label: 'Kantooruren',
+            projectCode: 'ZMOCK_001.1.1',
+            hoursPerWeekday: { monday: 8, tuesday: 8, wednesday: 8, thursday: 8, friday: 8, saturday: 0, sunday: 0 },
+          },
+        ],
+      };
+
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeRuntimeSendMessage.mockResolvedValue({ success: true, data: { busy: false } });
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: storedValues[keys[0]] });
+      });
+      mockChromeScriptingExecuteScript.mockImplementation(async (injection) => {
+        if (injection.func?.name === 'ui5MainWorldReadSnapshot') {
+          return [{
+            documentId: 'mock-id',
+            frameId: 0,
+            result: { success: true, snapshot: lockedSnapshot },
+          }];
+        }
+        return [{ documentId: 'mock-id', frameId: 0, result: undefined }];
+      });
+
+      await import('./popup');
+      await new Promise((r) => setTimeout(r, 40));
+
+      expect(document.getElementById('status-message')?.textContent).toContain('vergrendeld');
+      expect((document.getElementById('btn-scrape') as HTMLButtonElement).disabled).toBe(false);
+      expect((document.getElementById('btn-add-schedule') as HTMLButtonElement).disabled).toBe(false);
+      expect((document.getElementById('btn-apply-schedules') as HTMLButtonElement).disabled).toBe(true);
+
+      const editButton = document.querySelector('#schedules-list .schedule-edit-button') as HTMLButtonElement;
+      const deleteButton = document.querySelector('#schedules-list .schedule-delete-button') as HTMLButtonElement;
+      expect(editButton?.disabled).toBe(false);
+      expect(deleteButton?.disabled).toBe(false);
+    });
+
+    it('enables apply when sapStatus is editable', async () => {
+      const storedValues: Record<string, unknown> = {
+        [STORAGE_KEYS.projectSchedules]: [
+          {
+            id: 's1',
+            label: 'Kantooruren',
+            projectCode: 'ZMOCK_001.1.1',
+            hoursPerWeekday: { monday: 8, tuesday: 8, wednesday: 8, thursday: 8, friday: 8, saturday: 0, sunday: 0 },
+          },
+        ],
+      };
+
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeRuntimeSendMessage.mockResolvedValue({ success: true, data: { busy: false } });
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: storedValues[keys[0]] });
+      });
+      mockChromeScriptingExecuteScript.mockImplementation(async (injection) => {
+        if (injection.func?.name === 'ui5MainWorldReadSnapshot') {
+          return [{
+            documentId: 'mock-id',
+            frameId: 0,
+            result: { success: true, snapshot: editableSnapshot },
+          }];
+        }
+        return [{ documentId: 'mock-id', frameId: 0, result: undefined }];
+      });
+
+      await import('./popup');
+      await new Promise((r) => setTimeout(r, 40));
+
+      expect((document.getElementById('btn-scrape') as HTMLButtonElement).disabled).toBe(false);
+      expect((document.getElementById('btn-add-schedule') as HTMLButtonElement).disabled).toBe(false);
+      expect((document.getElementById('btn-apply-schedules') as HTMLButtonElement).disabled).toBe(false);
+
+      const editButton = document.querySelector('#schedules-list .schedule-edit-button') as HTMLButtonElement;
+      const deleteButton = document.querySelector('#schedules-list .schedule-delete-button') as HTMLButtonElement;
+      expect(editButton?.disabled).toBe(false);
+      expect(deleteButton?.disabled).toBe(false);
+    });
+  });
+
   describe('status message caching', () => {
     it('setStatus with persist=true saves message to storage', async () => {
       const { setStatus } = await import('./popup');
@@ -1886,6 +2032,7 @@ describe('popup', () => {
                 projectCodes: [],
                 currentProjectCode: null,
                 totals: { worked: null, toBePerformed: null },
+                sapStatus: 'editable',
               },
             },
           }];
@@ -1930,6 +2077,7 @@ describe('popup', () => {
                 projectCodes: [],
                 currentProjectCode: null,
                 totals: { worked: null, toBePerformed: null },
+                sapStatus: 'editable',
               },
             },
           }];
@@ -2010,6 +2158,7 @@ describe('popup', () => {
                 projectCodes: [],
                 currentProjectCode: null,
                 totals: { worked: null, toBePerformed: null },
+                sapStatus: 'editable',
               },
             },
           }];

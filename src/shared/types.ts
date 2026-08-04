@@ -23,6 +23,7 @@ export interface TimesheetSnapshot {
   projectCodes: string[];
   totals: TimesheetTotals;
   currentProjectCode: string | null;
+  sapStatus: 'editable' | 'locked';
 }
 
 /** Cache payload for a scraped timesheet snapshot. */
@@ -128,6 +129,7 @@ export interface SapProjectsModelData {
   oCurrentProject: SapProject | null; // Currently selected project
   oProjects: SapProject[];            // All available projects
   oTotals: {
+    oStatus: string; // "U" editable/submittable, "S" locked
     oTotals: SapTimesheetTotals;
   };
   UserDetail?: SapUserDetail;

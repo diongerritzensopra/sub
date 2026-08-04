@@ -25,6 +25,7 @@ import {
 } from './schedule-apply';
 
 const ROUTE_PERIOD_PATTERN = /[?&]\/(1[0-2]|0?[1-9])\/(20\d{2})(?:[/?&#]|$)/i;
+const LOCKED_TIMESHEET_MESSAGE = 'De timesheet is vergrendeld. Uren boeken en indienen is uitgeschakeld.';
 
 // Getters for DOM elements (allows for flexible testing)
 function getBtnScrape(): HTMLButtonElement {
@@ -87,6 +88,7 @@ let isCachedData = false;
 let snapshotTimestampIso: string | null = null;
 let currentSnapshot: TimesheetSnapshot | null = null;
 let renderedSchedules: WeeklySchedule[] = [];
+let isTimesheetApplyAllowed = false;
 const selectedScheduleIds = new Set<string>();
 
 getBtnScrape().addEventListener('click', () => {
@@ -113,6 +115,7 @@ initBusyStateListener((busy) => {
 });
 
 updateAddScheduleButtonState();
+setTimesheetApplyAllowedState(false);
 
 void bootstrapPopup();
 
@@ -399,11 +402,24 @@ function updateApplySchedulesButtonState(): void {
   button.textContent = hasSelection ? 'Toepassen' : 'Alles toepassen';
 
   const hasPeriod = currentSnapshot?.month !== null && currentSnapshot?.year !== null;
-  button.disabled = renderedSchedules.length === 0 || !hasPeriod;
+  button.disabled = !isTimesheetApplyAllowed || renderedSchedules.length === 0 || !hasPeriod;
+}
+
+function setTimesheetApplyAllowedState(editable: boolean): void {
+  isTimesheetApplyAllowed = editable;
+  updateApplySchedulesButtonState();
+}
+
+function isSapTimesheetEditable(status: TimesheetSnapshot['sapStatus'] | null | undefined): boolean {
+  return status !== 'locked';
 }
 
 async function applySchedulesFromSelection(): Promise<void> {
   try {
+    if (!isTimesheetApplyAllowed) {
+      throw new Error(LOCKED_TIMESHEET_MESSAGE);
+    }
+
     if (!currentSnapshot || currentSnapshot.month === null || currentSnapshot.year === null) {
       throw new Error('Kan niet toepassen zonder geldige periode. Analyseer eerst de timesheet.');
     }
@@ -557,7 +573,7 @@ async function renderCachedSnapshotIfAvailable(): Promise<void> {
 
   isCachedData = true;
   snapshotTimestampIso = cached.cachedAt;
-  renderSnapshot(cached.snapshot, isSnapshotComplete(cached.snapshot));
+  renderSnapshot(cached.snapshot, isSnapshotComplete(cached.snapshot), false);
 }
 
 function openScheduleFormFromLatestSnapshot(): void {
@@ -604,6 +620,7 @@ async function analyseActiveTab(): Promise<void> {
 
     const scrapedSnapshot = await readTimesheetSnapshotViaUi5(activeTab.id);
     const scrapedIsComplete = isSnapshotComplete(scrapedSnapshot);
+    const timesheetIsEditable = isSapTimesheetEditable(scrapedSnapshot.sapStatus);
     snapshotTimestampIso = new Date().toISOString();
     isCachedData = false;
     renderSnapshot(scrapedSnapshot, scrapedIsComplete);
@@ -616,6 +633,11 @@ async function analyseActiveTab(): Promise<void> {
         snapshot: scrapedSnapshot,
         cachedAt: snapshotTimestampIso,
       });
+    }
+
+    if (!timesheetIsEditable) {
+      setStatus(LOCKED_TIMESHEET_MESSAGE);
+      return;
     }
 
     const restoredCachedStatus = await restoreCachedStatusMessage();
@@ -678,8 +700,11 @@ async function getValidCachedSnapshot(tab: chrome.tabs.Tab | undefined): Promise
   return cached;
 }
 
-export function renderSnapshot(snapshot: TimesheetSnapshot, hasAllData: boolean = false): void {
+export function renderSnapshot(snapshot: TimesheetSnapshot, hasAllData: boolean = false, syncEditability: boolean = true): void {
   currentSnapshot = snapshot;
+  if (syncEditability) {
+    setTimesheetApplyAllowedState(isSapTimesheetEditable(snapshot.sapStatus));
+  }
   updateAddScheduleButtonState();
   updateApplySchedulesButtonState();
 

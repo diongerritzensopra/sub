@@ -29,6 +29,7 @@ describe('ui5MainWorldReadSnapshot', () => {
                     oCurrentProject: { WorkPackage: 'ZMOCK_001.1.1' },
                     oProjects: [{ WorkPackage: 'ZMOCK_001.1.1' }],
                     oTotals: {
+                      oStatus: 'U',
                       oTotals: {
                         totalActualWorkHours: '08:00',
                         hoursToBePerformed: '160:00',
@@ -48,6 +49,7 @@ describe('ui5MainWorldReadSnapshot', () => {
     expect(result.success).toBe(true);
     expect(result.snapshot?.month).toBe(7);
     expect(result.snapshot?.year).toBe(2026);
+    expect(result.snapshot?.sapStatus).toBe('editable');
   });
 
   it('returns a stable error when projectsmodel cannot be read', () => {
@@ -120,6 +122,7 @@ describe('ui5MainWorldAutofill', () => {
       },
       oProjects: [],
       oTotals: {
+        oStatus: 'U',
         oTotals: {
           hoursToBePerformed: '00:00',
           totalActualWorkHours: '00:00',
@@ -205,7 +208,7 @@ describe('ui5MainWorldAutofill', () => {
                       UserDetail: { PersonWorkAgreement: '40001234', PersonWorkAgreementExternalID: '00045678', CompanyCode: '1000' },
                       oCurrentProject: null,
                       oProjects: [],
-                      oTotals: { oTotals: { hoursToBePerformed: '00:00', totalActualWorkHours: '00:00', leaveHours: null } },
+                      oTotals: { oStatus: 'U', oTotals: { hoursToBePerformed: '00:00', totalActualWorkHours: '00:00', leaveHours: null } },
                     }),
                   };
                 }
@@ -394,7 +397,7 @@ describe('ui5MainWorldAutofill', () => {
                         PurchaseOrderItemCalculated: '00000',
                       },
                       oProjects: [],
-                      oTotals: { oTotals: { hoursToBePerformed: '00:00', totalActualWorkHours: '00:00', leaveHours: null } },
+                      oTotals: { oStatus: 'U', oTotals: { hoursToBePerformed: '00:00', totalActualWorkHours: '00:00', leaveHours: null } },
                     }),
                   };
                 }
