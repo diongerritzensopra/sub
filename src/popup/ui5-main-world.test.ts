@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SapProjectsModel, SapTimesheetDayEntry } from '../shared/types';
+import type { SapProjectsModelData, SapTimesheetDayEntry } from '../shared/types';
 import { ui5MainWorldAutofill, ui5MainWorldReadSnapshot } from './ui5-main-world';
 
 describe('ui5MainWorldReadSnapshot', () => {
@@ -93,9 +93,9 @@ describe('ui5MainWorldAutofill', () => {
     monthData: SapTimesheetDayEntry[],
     callFunctionSpy: (path: string, params: any) => void,
     refreshTotalsModelsSpy?: () => void,
-    userDetailOverrides?: Partial<SapProjectsModel['UserDetail']>,
+    userDetailOverrides?: Partial<SapProjectsModelData['UserDetail']>,
   ): void => {
-    const projectsModelData: SapProjectsModel = {
+    const projectsModelData: SapProjectsModelData = {
       oMonth: 4,
       oYear: 2026,
       UserDetail: {

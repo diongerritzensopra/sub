@@ -41,6 +41,7 @@ Shared feature roadmap for `sub`.
   - Before applying a schedule, navigate to its project page first; this only proceeds when the target project code is present in the current snapshot `projectCodes` array derived from the SAP `projectsmodel`.
   - Use SAP UI5 `projectsmodel`/`postTimeSheet` access via `chrome.scripting` instead of the old message-based content-script autofill path.
 - [ ] Chunk 9 - Final polish.
+  - Rename `SapProjectsModel` → `SapProjectsModelData` (the interface represents the data payload, not the model itself).
   - Validation feedback, disable apply when SAP page is not ready, and UX cleanup.
 
 ### Caching

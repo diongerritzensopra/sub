@@ -9,7 +9,7 @@
 
 import type {
   SapProject,
-  SapProjectsModel,
+  SapProjectsModelData,
   SapTimesheetDayEntry,
   SapTimesheetRecordedEntry,
   SapUserDetail,
@@ -35,7 +35,7 @@ export type Ui5SnapshotReadResult = {
 };
 
 export function ui5MainWorldReadSnapshot(): Ui5SnapshotReadResult {
-  type Ui5ProjectsDataModelLike = { getData?: () => SapProjectsModel };
+  type Ui5ProjectsDataModelLike = { getData?: () => SapProjectsModelData };
   type Ui5TimesheetComponentLike = { getModel?: (name?: string) => Ui5ProjectsDataModelLike | undefined };
   type Ui5Core = { byId?: (id: string) => Ui5TimesheetComponentLike | undefined };
 
@@ -65,7 +65,7 @@ export function ui5MainWorldReadSnapshot(): Ui5SnapshotReadResult {
 
     return sapCore.byId?.('application-timesheet-my-component---idDetail');
   };
-  const getProjectsModel = (targetWindow: Window): SapProjectsModel | null => {
+  const getProjectsModel = (targetWindow: Window): SapProjectsModelData | null => {
     const sapCore = getUi5Core(targetWindow);
     if (!sapCore?.byId) {
       return null;
@@ -181,7 +181,7 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
     _refreshTotalsModels?: () => void;
   };
 
-  type Ui5ProjectsDataModelLike = { getData?: () => SapProjectsModel };
+  type Ui5ProjectsDataModelLike = { getData?: () => SapProjectsModelData };
   type Ui5TimesheetComponentLike = {
     getModel?: (name?: string) => Ui5ProjectsDataModelLike | undefined;
     getController?: () => TotalsRefreshControllerLike;
@@ -235,7 +235,7 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
     return sapCore.byId?.('application-timesheet-my-component---idDetail');
   };
 
-  const getUi5ProjectsModelData = (targetWindow: Window): SapProjectsModel | null => {
+  const getUi5ProjectsModelData = (targetWindow: Window): SapProjectsModelData | null => {
     const sapCore = getUi5Core(targetWindow);
     if (!sapCore?.byId) {
       return null;

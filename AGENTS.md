@@ -7,7 +7,7 @@ Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for he
 - `src/popup/`: extension UI (`popup.html`, `popup.ts`, `popup.css`) triggers page analysis and renders cached/live snapshot data and saved schedules.
 - `src/content/content-script.ts`: runs on SAP My Timesheet and monitors busy state via polling so the service worker and popup can react to SAP readiness.
 - `src/background/service-worker.ts`: MV3 messaging hub; manages per-tab icon state (no-match / loading / ready) via `busyStateByTabId`, and handles `GET_SAP_BUSY_STATE` queries.
-- `src/shared/types.ts`: shared message and domain types (`HoursEntry`, `TimesheetSnapshot`, `CachedTimesheetSnapshot`, `WeeklySchedule`, `SapTimesheetDayEntry`, `SapProjectsModel`, `MessageRequest`, `MessageResponse`).
+- `src/shared/types.ts`: shared message and domain types (`HoursEntry`, `TimesheetSnapshot`, `CachedTimesheetSnapshot`, `WeeklySchedule`, `SapTimesheetDayEntry`, `SapProjectsModelData`, `MessageRequest`, `MessageResponse`).
 - `src/shared/storage.ts`: typed helpers around `chrome.storage.local` for snapshot cache (`timesheetSnapshotCache`) and schedules (`projectSchedules`).
 - `src/shared/busy-state.ts`: shared busy-state helpers; content script sends `SAP_BUSY_STATE_CHANGED`, service worker tracks it; popup queries via `getSAPBusyStateForTab()`.
 - `src/shared/schedule-expansion.ts`: pure function `expandWeeklyScheduleToMonthEntries(schedule, month, year)` that converts a `WeeklySchedule` into `HoursEntry[]`; fully unit-tested.

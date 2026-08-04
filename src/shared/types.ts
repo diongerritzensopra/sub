@@ -122,7 +122,7 @@ export interface SapProject {
 }
 
 /** SAP projectsmodel getData() result shape. */
-export interface SapProjectsModel {
+export interface SapProjectsModelData {
   oMonth: number;                     // 0–11 (0 = January)
   oYear: number;                      // e.g., 2026
   oCurrentProject: SapProject | null; // Currently selected project
