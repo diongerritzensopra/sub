@@ -10,6 +10,8 @@ import {
   setCachedTimesheetSnapshot,
   clearCachedTimesheetSnapshot,
   getSchedules,
+  saveSchedule,
+  deleteSchedule,
   isCacheStale,
   getCachedStatusMessage,
   setCachedStatusMessage,
@@ -349,8 +351,6 @@ async function handleScheduleFormSubmit(): Promise<void> {
   };
 
   try {
-    const { saveSchedule } = await import('../shared/storage');
-
     const scheduleId = scheduleBeingEdited?.id || crypto.randomUUID?.() || Date.now().toString();
     const isEditing = Boolean(scheduleBeingEdited);
 
@@ -513,7 +513,6 @@ async function applySchedulesFromSelection(): Promise<void> {
 
 async function handleDeleteSchedule(scheduleId: string): Promise<void> {
   try {
-    const { deleteSchedule } = await import('../shared/storage');
     await deleteSchedule(scheduleId);
     await renderSchedules();
   } catch (err) {
