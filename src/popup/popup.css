@@ -236,6 +236,17 @@ h2 {
   background: #096b39;
 }
 
+/* Applying in progress: progress cursor, less faded than normal :disabled */
+#btn-apply-schedules.is-applying {
+  cursor: progress;
+  opacity: 0.75;
+}
+
+/* Locked by SAP: amber background to distinguish from plain "not ready" gray */
+#btn-apply-schedules.is-locked {
+  background: #7d4e00;
+}
+
 .schedule-title {
   font-weight: 600;
 }

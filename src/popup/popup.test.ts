@@ -1693,6 +1693,60 @@ describe('popup', () => {
       expect(document.getElementById('status-message')?.textContent).toContain('SAP bevestiging: ontvangen (1/1)');
     });
 
+    it('shows "Bezig..." label and is-applying class while apply is in progress', async () => {
+      const storedValues: Record<string, unknown> = {
+        [STORAGE_KEYS.projectSchedules]: [makeSchedule('s1', 'Kantooruren', 'ZMOCK_001.1.1')],
+      };
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: storedValues[keys[0]] });
+      });
+
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      await renderSchedules();
+      renderSnapshot(snapshot);
+
+      vi.clearAllMocks();
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeTabsGet.mockResolvedValue({ ...sapTab, status: 'complete' } as chrome.tabs.Tab);
+      mockChromeTabsUpdate.mockImplementation(async (tabId, updateProperties) => ({
+        id: tabId,
+        status: 'complete',
+        url: updateProperties.url,
+      } as chrome.tabs.Tab));
+
+      let resolveAutofill!: () => void;
+      mockChromeScriptingExecuteScript.mockImplementation(async (injection) => {
+        if (injection.func?.name === 'ui5MainWorldAutofill') {
+          return new Promise<chrome.scripting.InjectionResult[]>((resolve) => {
+            resolveAutofill = () => resolve([{
+              documentId: 'mock-id',
+              frameId: 0,
+              result: { appliedDaysCount: 1, failedDates: [], submissionAttempted: true, submissionConfirmed: true },
+            }]);
+          });
+        }
+        return [{ documentId: 'mock-id', frameId: 0, result: undefined }];
+      });
+
+      const applyButton = document.getElementById('btn-apply-schedules') as HTMLButtonElement;
+      applyButton.click();
+
+      // Yield to let the pre-flight async checks complete and the button enter applying state
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(applyButton.textContent).toBe('Bezig...');
+      expect(applyButton.disabled).toBe(true);
+      expect(applyButton.classList.contains('is-applying')).toBe(true);
+      expect(applyButton.classList.contains('is-locked')).toBe(false);
+
+      // Let apply complete and verify state is restored
+      resolveAutofill();
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(applyButton.classList.contains('is-applying')).toBe(false);
+      expect(applyButton.textContent).not.toBe('Bezig...');
+    });
+
     it('reports failed days and SAP confirmation status when autofill is only partially successful', async () => {
       const storedValues: Record<string, unknown> = {
         [STORAGE_KEYS.projectSchedules]: [makeSchedule('s1', 'Kantooruren', 'ZMOCK_001.1.1')],
@@ -1894,6 +1948,7 @@ describe('popup', () => {
       expect((document.getElementById('btn-scrape') as HTMLButtonElement).disabled).toBe(false);
       expect((document.getElementById('btn-add-schedule') as HTMLButtonElement).disabled).toBe(false);
       expect((document.getElementById('btn-apply-schedules') as HTMLButtonElement).disabled).toBe(true);
+      expect((document.getElementById('btn-apply-schedules') as HTMLButtonElement).classList.contains('is-locked')).toBe(true);
 
       const editButton = document.querySelector('#schedules-list .schedule-edit-button') as HTMLButtonElement;
       const deleteButton = document.querySelector('#schedules-list .schedule-delete-button') as HTMLButtonElement;
@@ -1935,6 +1990,7 @@ describe('popup', () => {
       expect((document.getElementById('btn-scrape') as HTMLButtonElement).disabled).toBe(false);
       expect((document.getElementById('btn-add-schedule') as HTMLButtonElement).disabled).toBe(false);
       expect((document.getElementById('btn-apply-schedules') as HTMLButtonElement).disabled).toBe(false);
+      expect((document.getElementById('btn-apply-schedules') as HTMLButtonElement).classList.contains('is-locked')).toBe(false);
 
       const editButton = document.querySelector('#schedules-list .schedule-edit-button') as HTMLButtonElement;
       const deleteButton = document.querySelector('#schedules-list .schedule-delete-button') as HTMLButtonElement;

@@ -400,9 +400,12 @@ function updateApplySchedulesButtonState(): void {
   const button = getApplySchedulesButton();
   const hasSelection = selectedScheduleIds.size > 0;
   button.textContent = hasSelection ? 'Toepassen' : 'Alles toepassen';
+  button.classList.remove('is-applying');
 
+  const isLocked = !isTimesheetApplyAllowed;
   const hasPeriod = currentSnapshot?.month !== null && currentSnapshot?.year !== null;
-  button.disabled = !isTimesheetApplyAllowed || renderedSchedules.length === 0 || !hasPeriod;
+  button.disabled = isLocked || renderedSchedules.length === 0 || !hasPeriod;
+  button.classList.toggle('is-locked', isLocked);
 }
 
 function setTimesheetApplyAllowedState(editable: boolean): void {
@@ -451,6 +454,9 @@ async function applySchedulesFromSelection(): Promise<void> {
 
     const applyButton = getApplySchedulesButton();
     applyButton.disabled = true;
+    applyButton.textContent = 'Bezig...';
+    applyButton.classList.add('is-applying');
+    applyButton.classList.remove('is-locked');
 
     let totalDaysCount = 0;
     let appliedDaysCount = 0;
