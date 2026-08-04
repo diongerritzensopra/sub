@@ -6,10 +6,10 @@ Shared feature roadmap for `sub`.
 
 ### Project schedules
 #### Feature description
-- [ ] Allow users to configure a weekly schedule per project code.
+- [x] Allow users to configure a weekly schedule per project code.
   - Per weekday (Mon-Sun), user can define planned hours.
   - Schedule is stored and reusable.
-- [ ] Allow users to apply a saved project schedule to the currently opened month.
+- [x] Allow users to apply a saved project schedule to the currently opened month.
   - Filling planned hours should target the whole month.
   - Action should work from the extension flow without manual day-by-day entry.
 
@@ -40,11 +40,11 @@ Shared feature roadmap for `sub`.
   - Allow selecting individual schedules; when one or more are selected, the button changes to "Apply" and applies only selected schedules.
   - Before applying a schedule, navigate to its project page first; this only proceeds when the target project code is present in the current snapshot `projectCodes` array derived from the SAP `projectsmodel`.
   - Use SAP UI5 `projectsmodel`/`postTimeSheet` access via `chrome.scripting` instead of the old message-based content-script autofill path.
-- [ ] Chunk 9 - Final polish.
+- [x] Chunk 9 - Final polish.
   - Rename `SapProjectsModel` → `SapProjectsModelData` (the interface represents the data payload, not the model itself).
   - Persist the last apply/error status message so it survives popup close/reopen; messages expire after 30 minutes and can be dismissed with an × button.
   - Detect SAP timesheet lock state via `SapProjectsModelData.oTotals.oStatus` (`"U"` = editable, `"S"` = locked); map to descriptive `TimesheetSnapshot.sapStatus` values (`'editable' | 'locked'`). When locked, disable only the apply flow and show a lock message — local controls (refresh, schedule management) remain usable.
-  - Validation feedback, disable apply when SAP page is not ready, and UX cleanup.
+  - Tightened apply UX and state handling: persistent status restore behavior, lock-aware apply-only gating, and clearer apply button states (`is-locked` vs `is-applying` / `Bezig...`).
 
 ### Caching
 #### Feature description

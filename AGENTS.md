@@ -59,5 +59,4 @@ Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for he
 - Track planned/completed product features in `FEATURES.md`.
 
 ## Active TODO Surface
-- Final polish (Chunk 9): validation feedback, disable apply when SAP page is not ready, UX cleanup.
 - i18n: Dutch and English UI text, language selector in popup, persisted language preference.
