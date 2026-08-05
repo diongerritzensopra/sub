@@ -2,6 +2,15 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 const mockSendMessage = vi.fn();
 
+async function flushAsyncWork(rounds: number = 2): Promise<void> {
+  for (let i = 0; i < rounds; i += 1) {
+    await Promise.resolve();
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+  }
+}
+
 globalThis.chrome = {
   runtime: {
     onMessage: { addListener: vi.fn() },
@@ -176,7 +185,7 @@ describe('content script bootstrap', () => {
 
   it('does not start busy-state polling in the jsdom test environment', async () => {
     await import('./content-script');
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flushAsyncWork();
 
     expect(mockSendMessage).not.toHaveBeenCalled();
   });
