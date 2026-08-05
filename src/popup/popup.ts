@@ -27,6 +27,13 @@ import {
 } from './schedule-apply';
 import { getPopupDomRefs } from './popup-dom';
 import {
+  STATUS_MESSAGE_MAX_AGE_MS,
+  getSchedulesToApply,
+  isSapTimesheetEditable,
+  isSnapshotComplete,
+  resolveValidationPeriod,
+} from './popup-model';
+import {
   renderSnapshot as renderSnapshotCore,
   renderSchedules as renderSchedulesCore,
   showScheduleForm as showScheduleFormCore,
@@ -35,10 +42,8 @@ import {
   updateApplySchedulesButtonState,
   setScrapeButtonState,
   renderStatusMessage,
-  formatHours,
 } from './popup-render';
 
-const ROUTE_PERIOD_PATTERN = /[?&]\/(1[0-2]|0?[1-9])\/(20\d{2})(?:[/?&#]|$)/i;
 const LOCKED_TIMESHEET_MESSAGE = 'De timesheet is vergrendeld. Uren boeken en indienen is uitgeschakeld.';
 
 // Popup state
@@ -196,14 +201,6 @@ function openScheduleFormForEdit(schedule: WeeklySchedule): void {
   showScheduleFormCore(dom, currentSnapshot, schedule);
 }
 
-function getSchedulesToApply(): WeeklySchedule[] {
-  if (selectedScheduleIds.size === 0) {
-    return renderedSchedules;
-  }
-
-  return renderedSchedules.filter((schedule) => selectedScheduleIds.has(schedule.id));
-}
-
 function setTimesheetApplyAllowedState(editable: boolean): void {
   isTimesheetApplyAllowed = editable;
   updateApplySchedulesButtonState(
@@ -213,10 +210,6 @@ function setTimesheetApplyAllowedState(editable: boolean): void {
     renderedSchedules.length,
     currentSnapshot?.month !== null && currentSnapshot?.year !== null,
   );
-}
-
-function isSapTimesheetEditable(status: TimesheetSnapshot['sapStatus'] | null | undefined): boolean {
-  return status !== 'locked';
 }
 
 async function applySchedulesFromSelection(): Promise<void> {
@@ -232,7 +225,7 @@ async function applySchedulesFromSelection(): Promise<void> {
     const month = currentSnapshot.month;
     const year = currentSnapshot.year;
 
-    const schedulesToApply = getSchedulesToApply();
+    const schedulesToApply = getSchedulesToApply(renderedSchedules, selectedScheduleIds);
     if (schedulesToApply.length === 0) {
       throw new Error('Geen schema\'s beschikbaar om toe te passen.');
     }
@@ -453,32 +446,6 @@ export function isTimesheetTab(tab: chrome.tabs.Tab | undefined): boolean {
   return (tab?.url ?? '').includes(SAP_TIMESHEET_URL_PATTERN);
 }
 
-export function extractPeriodFromTimesheetUrl(url: string | undefined): { month: number; year: number } | null {
-  if (!url) {
-    return null;
-  }
-
-  const match = url.match(ROUTE_PERIOD_PATTERN);
-  if (!match) {
-    return null;
-  }
-
-  return {
-    month: Number.parseInt(match[1], 10),
-    year: Number.parseInt(match[2], 10),
-  };
-}
-
-function resolveValidationPeriod(tab: chrome.tabs.Tab | undefined): { month: number; year: number } {
-  const routePeriod = extractPeriodFromTimesheetUrl(tab?.url);
-  if (routePeriod) {
-    return routePeriod;
-  }
-
-  const now = new Date();
-  return { month: now.getMonth() + 1, year: now.getFullYear() };
-}
-
 async function getValidCachedSnapshot(tab: chrome.tabs.Tab | undefined): Promise<CachedTimesheetSnapshot | undefined> {
   const cached = await getCachedTimesheetSnapshot();
   if (!cached) {
@@ -492,8 +459,6 @@ async function getValidCachedSnapshot(tab: chrome.tabs.Tab | undefined): Promise
 
   return cached;
 }
-
-// ...existing code...
 
 export function setStatus(message: string, persist: boolean = false): void {
   renderStatusMessage(dom, message, persist && message.length > 0);
@@ -509,8 +474,6 @@ export function setStatus(message: string, persist: boolean = false): void {
 function dismissStatus(): void {
   setStatus('', true);
 }
-
-const STATUS_MESSAGE_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
 
 async function restoreCachedStatusMessage(): Promise<boolean> {
   const cached = await getCachedStatusMessage();
@@ -533,15 +496,11 @@ async function restoreCachedStatusMessage(): Promise<boolean> {
   return true;
 }
 
-function isSnapshotComplete(snapshot: TimesheetSnapshot): boolean {
-  return snapshot.totals.worked !== null
-    && snapshot.totals.toBePerformed !== null;
-}
-
 // Re-export render functions for backward-compatibility with tests
 export { formatHours } from './popup-render';
 export { getPopupDomRefs } from './popup-dom';
 export type { PopupDomRefs } from './popup-dom';
+export { extractPeriodFromTimesheetUrl, isSnapshotComplete, isSapTimesheetEditable } from './popup-model';
 
 /**
  * Test-compatible wrapper for showScheduleForm (old API).
