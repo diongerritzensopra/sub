@@ -25,67 +25,24 @@ import {
   addFailedDatesForProject,
   buildApplyStatusMessage,
 } from './schedule-apply';
+import { getPopupDomRefs } from './popup-dom';
+import {
+  renderSnapshot as renderSnapshotCore,
+  renderSchedules as renderSchedulesCore,
+  showScheduleForm as showScheduleFormCore,
+  hideScheduleForm as hideScheduleFormCore,
+  updateAddScheduleButtonState,
+  updateApplySchedulesButtonState,
+  setScrapeButtonState,
+  renderStatusMessage,
+  formatHours,
+} from './popup-render';
 
 const ROUTE_PERIOD_PATTERN = /[?&]\/(1[0-2]|0?[1-9])\/(20\d{2})(?:[/?&#]|$)/i;
 const LOCKED_TIMESHEET_MESSAGE = 'De timesheet is vergrendeld. Uren boeken en indienen is uitgeschakeld.';
 
-// Getters for DOM elements (allows for flexible testing)
-function getBtnScrape(): HTMLButtonElement {
-  return document.getElementById('btn-scrape') as HTMLButtonElement;
-}
-
-function getStatusMessage(): HTMLParagraphElement {
-  return document.getElementById('status-message') as HTMLParagraphElement;
-}
-
-function getStatusDismissButton(): HTMLButtonElement {
-  return document.getElementById('btn-status-dismiss') as HTMLButtonElement;
-}
-
-function getSummarySection(): HTMLElement {
-  return document.getElementById('summary-section') as HTMLElement;
-}
-
-function getPeriodValue(): HTMLSpanElement {
-  return document.getElementById('period-value') as HTMLSpanElement;
-}
-
-function getProjectCodesValue(): HTMLSpanElement {
-  return document.getElementById('project-codes-value') as HTMLSpanElement;
-}
-
-function getWorkedHoursValue(): HTMLSpanElement {
-  return document.getElementById('worked-hours-value') as HTMLSpanElement;
-}
-
-function getToBePerformedHoursValue(): HTMLSpanElement {
-  return document.getElementById('to-be-performed-hours-value') as HTMLSpanElement;
-}
-
-function getScrapeStatus(): HTMLSpanElement {
-  return document.getElementById('scrape-status') as HTMLSpanElement;
-}
-
-function getDataOriginIndicator(): HTMLParagraphElement {
-  return document.getElementById('data-origin-indicator') as HTMLParagraphElement;
-}
-
-function getSchedulesList(): HTMLUListElement {
-  return document.getElementById('schedules-list') as HTMLUListElement;
-}
-
-function getSchedulesEmpty(): HTMLParagraphElement {
-  return document.getElementById('schedules-empty') as HTMLParagraphElement;
-}
-
-function getAddScheduleButton(): HTMLButtonElement {
-  return document.getElementById('btn-add-schedule') as HTMLButtonElement;
-}
-
-function getApplySchedulesButton(): HTMLButtonElement {
-  return document.getElementById('btn-apply-schedules') as HTMLButtonElement;
-}
-
+// Popup state
+const dom = getPopupDomRefs(document);
 let isCachedData = false;
 let snapshotTimestampIso: string | null = null;
 let currentSnapshot: TimesheetSnapshot | null = null;
@@ -93,20 +50,31 @@ let renderedSchedules: WeeklySchedule[] = [];
 let isTimesheetApplyAllowed = false;
 const selectedScheduleIds = new Set<string>();
 
-getBtnScrape().addEventListener('click', () => {
+// Event listeners
+dom.btnScrape.addEventListener('click', () => {
   void analyseActiveTab();
 });
 
-getStatusDismissButton().addEventListener('click', () => {
+dom.statusDismissButton.addEventListener('click', () => {
   dismissStatus();
 });
 
-getAddScheduleButton().addEventListener('click', () => {
+dom.addScheduleButton.addEventListener('click', () => {
   openScheduleFormFromLatestSnapshot();
 });
 
-getApplySchedulesButton().addEventListener('click', () => {
+dom.applySchedulesButton.addEventListener('click', () => {
   void applySchedulesFromSelection();
+});
+
+// Form submission
+dom.scheduleForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  void handleScheduleFormSubmit();
+});
+
+dom.scheduleFormCancel.addEventListener('click', () => {
+  hideScheduleFormCore(dom);
 });
 
 // Initialize busy-state listener and auto-analyze on ready
@@ -116,18 +84,18 @@ initBusyStateListener((busy) => {
   }
 });
 
-updateAddScheduleButtonState();
+updateAddScheduleButtonState(dom, false);
 setTimesheetApplyAllowedState(false);
 
 void bootstrapPopup();
 
 async function bootstrapPopup(): Promise<void> {
-  await renderSchedules();
+  await reloadSchedulesDisplay();
   await renderCachedSnapshotIfAvailable();
   await analyseActiveTab();
 }
 
-export async function renderSchedules(): Promise<void> {
+async function reloadSchedulesDisplay(): Promise<void> {
   const schedules = await getSchedules();
   renderedSchedules = schedules;
   const availableIds = new Set(schedules.map((schedule) => schedule.id));
@@ -137,193 +105,39 @@ export async function renderSchedules(): Promise<void> {
     }
   });
 
-  const list = getSchedulesList();
-  const empty = getSchedulesEmpty();
+  renderSchedulesCore(
+    dom,
+    schedules,
+    selectedScheduleIds,
+    (scheduleId) => {
+      if (selectedScheduleIds.has(scheduleId)) {
+        selectedScheduleIds.delete(scheduleId);
+      } else {
+        selectedScheduleIds.add(scheduleId);
+      }
+      updateApplySchedulesButtonState(
+        dom,
+        !isTimesheetApplyAllowed,
+        selectedScheduleIds.size > 0,
+        renderedSchedules.length,
+        currentSnapshot?.month !== null && currentSnapshot?.year !== null,
+      );
+    },
+    openScheduleFormForEdit,
+    handleDeleteSchedule,
+  );
 
-  list.innerHTML = '';
-  if (schedules.length === 0) {
-    empty.hidden = false;
-    list.hidden = true;
-    updateApplySchedulesButtonState();
-    return;
-  }
-
-  const fragment = document.createDocumentFragment();
-  schedules.forEach((schedule) => {
-    fragment.appendChild(renderScheduleListItem(schedule));
-  });
-
-  list.appendChild(fragment);
-  empty.hidden = true;
-  list.hidden = false;
-  updateApplySchedulesButtonState();
+  updateApplySchedulesButtonState(
+    dom,
+    !isTimesheetApplyAllowed,
+    selectedScheduleIds.size > 0,
+    renderedSchedules.length,
+    currentSnapshot?.month !== null && currentSnapshot?.year !== null,
+  );
 }
 
-function renderScheduleListItem(schedule: WeeklySchedule): HTMLLIElement {
-  const item = document.createElement('li');
-  item.className = 'schedule-item';
-  if (selectedScheduleIds.has(schedule.id)) {
-    item.classList.add('schedule-item--selected');
-  }
-
-  const toggleSelection = (): void => {
-    if (selectedScheduleIds.has(schedule.id)) {
-      selectedScheduleIds.delete(schedule.id);
-      item.classList.remove('schedule-item--selected');
-      content.setAttribute('aria-checked', 'false');
-    } else {
-      selectedScheduleIds.add(schedule.id);
-      item.classList.add('schedule-item--selected');
-      content.setAttribute('aria-checked', 'true');
-    }
-    updateApplySchedulesButtonState();
-  };
-
-  item.addEventListener('click', (event) => {
-    if ((event.target as HTMLElement).closest('button')) {
-      return;
-    }
-    toggleSelection();
-  });
-
-  const content = document.createElement('div');
-  content.className = 'schedule-content';
-  content.setAttribute('role', 'checkbox');
-  content.setAttribute('aria-checked', selectedScheduleIds.has(schedule.id) ? 'true' : 'false');
-  content.setAttribute('aria-label', `Selecteren: ${schedule.label} — ${schedule.projectCode}`);
-  content.tabIndex = 0;
-  content.addEventListener('keydown', (event) => {
-    if (event.key === ' ' || event.key === 'Enter') {
-      event.preventDefault();
-      toggleSelection();
-    }
-  });
-
-  const title = document.createElement('div');
-  title.className = 'schedule-title';
-  title.textContent = schedule.label;
-
-  const meta = document.createElement('div');
-  meta.className = 'schedule-meta';
-  meta.textContent = `Project: ${schedule.projectCode}`;
-
-  const actions = document.createElement('div');
-  actions.className = 'schedule-actions';
-
-  const editButton = document.createElement('button');
-  editButton.type = 'button';
-  editButton.className = 'schedule-edit-button';
-  editButton.textContent = '✏️';
-  editButton.title = 'Schema bewerken';
-  editButton.setAttribute('aria-label', `Bewerk schema ${schedule.label}`);
-  editButton.addEventListener('click', () => {
-    openScheduleFormForEdit(schedule);
-  });
-
-  const deleteButton = document.createElement('button');
-  deleteButton.type = 'button';
-  deleteButton.className = 'schedule-delete-button';
-  deleteButton.textContent = '🗑️';
-  deleteButton.title = 'Schema verwijderen';
-  deleteButton.setAttribute('aria-label', `Verwijder schema ${schedule.label}`);
-
-  // Inline confirmation UI (hidden initially)
-  const confirmRow = document.createElement('div');
-  confirmRow.className = 'schedule-confirm-delete';
-  confirmRow.hidden = true;
-
-  const confirmLabel = document.createElement('span');
-  confirmLabel.className = 'schedule-confirm-label';
-  confirmLabel.textContent = 'Verwijderen?';
-
-  const confirmYes = document.createElement('button');
-  confirmYes.type = 'button';
-  confirmYes.className = 'schedule-confirm-yes';
-  confirmYes.textContent = '✔️';
-  confirmYes.title = 'Ja, verwijderen';
-  confirmYes.addEventListener('click', () => {
-    void handleDeleteSchedule(schedule.id);
-  });
-
-  const confirmNo = document.createElement('button');
-  confirmNo.type = 'button';
-  confirmNo.className = 'schedule-confirm-no';
-  confirmNo.textContent = '❌';
-  confirmNo.title = 'Annuleren';
-  confirmNo.addEventListener('click', () => {
-    confirmRow.hidden = true;
-    actions.hidden = false;
-  });
-
-  deleteButton.addEventListener('click', () => {
-    actions.hidden = true;
-    confirmRow.hidden = false;
-  });
-
-  confirmRow.appendChild(confirmLabel);
-  confirmRow.appendChild(confirmYes);
-  confirmRow.appendChild(confirmNo);
-
-  actions.appendChild(editButton);
-  actions.appendChild(deleteButton);
-
-  content.appendChild(title);
-  content.appendChild(meta);
-  item.appendChild(content);
-  item.appendChild(actions);
-  item.appendChild(confirmRow);
-
-  return item;
-}
-
-// Form state and DOM getters
+// Form state
 let scheduleBeingEdited: WeeklySchedule | null = null;
-
-function getScheduleFormSection(): HTMLElement {
-  return document.getElementById('schedule-form-section') as HTMLElement;
-}
-
-function getScheduleForm(): HTMLFormElement {
-  return document.getElementById('schedule-form') as HTMLFormElement;
-}
-
-function getScheduleFormTitle(): HTMLElement {
-  return document.getElementById('schedule-form-title') as HTMLElement;
-}
-
-function getScheduleLabelInput(): HTMLInputElement {
-  return document.getElementById('schedule-label') as HTMLInputElement;
-}
-
-function getScheduleProjectSelect(): HTMLSelectElement {
-  return document.getElementById('schedule-project') as HTMLSelectElement;
-}
-
-function getScheduleFormCancel(): HTMLButtonElement {
-  return document.getElementById('schedule-form-cancel') as HTMLButtonElement;
-}
-
-function getHoursInputs(): Record<string, HTMLInputElement> {
-  return {
-    monday: document.getElementById('hours-monday') as HTMLInputElement,
-    tuesday: document.getElementById('hours-tuesday') as HTMLInputElement,
-    wednesday: document.getElementById('hours-wednesday') as HTMLInputElement,
-    thursday: document.getElementById('hours-thursday') as HTMLInputElement,
-    friday: document.getElementById('hours-friday') as HTMLInputElement,
-    saturday: document.getElementById('hours-saturday') as HTMLInputElement,
-    sunday: document.getElementById('hours-sunday') as HTMLInputElement,
-  };
-}
-
-// Form event setup
-getScheduleForm().addEventListener('submit', (e) => {
-  e.preventDefault();
-  void handleScheduleFormSubmit();
-});
-
-getScheduleFormCancel().addEventListener('click', () => {
-  hideScheduleForm();
-});
 
 async function handleScheduleFormSubmit(): Promise<void> {
   if (!currentSnapshot) {
@@ -331,15 +145,15 @@ async function handleScheduleFormSubmit(): Promise<void> {
     return;
   }
 
-  const label = getScheduleLabelInput().value.trim();
-  const projectCode = getScheduleProjectSelect().value;
+  const label = dom.scheduleLabelInput.value.trim();
+  const projectCode = dom.scheduleProjectSelect.value;
 
   if (!label || !projectCode) {
     setStatus('Vul alstublieft alle vereiste velden in.');
     return;
   }
 
-  const hoursInputs = getHoursInputs();
+  const hoursInputs = dom.hoursInputs;
   const hoursPerWeekday = {
     monday: Number(hoursInputs.monday.value) || 0,
     tuesday: Number(hoursInputs.tuesday.value) || 0,
@@ -362,8 +176,8 @@ async function handleScheduleFormSubmit(): Promise<void> {
     };
 
     await saveSchedule(schedule);
-    await renderSchedules();
-    hideScheduleForm();
+    await reloadSchedulesDisplay();
+    hideScheduleFormCore(dom);
     const action = isEditing ? 'bijgewerkt' : 'opgeslagen';
     setStatus(`Schema ${action}`);
     setTimeout(() => setStatus(''), 2000);
@@ -372,20 +186,14 @@ async function handleScheduleFormSubmit(): Promise<void> {
   }
 }
 
-function hideScheduleForm(): void {
-  const form = getScheduleForm();
-  form.reset();
-  getScheduleFormSection().hidden = true;
-  scheduleBeingEdited = null;
-}
-
 function openScheduleFormForEdit(schedule: WeeklySchedule): void {
   if (!currentSnapshot) {
     setStatus('Analyseer eerst de huidige timesheet voordat je een schema bewerkt.');
     return;
   }
 
-  showScheduleForm(currentSnapshot, schedule);
+  scheduleBeingEdited = schedule;
+  showScheduleFormCore(dom, currentSnapshot, schedule);
 }
 
 function getSchedulesToApply(): WeeklySchedule[] {
@@ -396,21 +204,15 @@ function getSchedulesToApply(): WeeklySchedule[] {
   return renderedSchedules.filter((schedule) => selectedScheduleIds.has(schedule.id));
 }
 
-function updateApplySchedulesButtonState(): void {
-  const button = getApplySchedulesButton();
-  const hasSelection = selectedScheduleIds.size > 0;
-  button.textContent = hasSelection ? 'Toepassen' : 'Alles toepassen';
-  button.classList.remove('is-applying');
-
-  const isLocked = !isTimesheetApplyAllowed;
-  const hasPeriod = currentSnapshot?.month !== null && currentSnapshot?.year !== null;
-  button.disabled = isLocked || renderedSchedules.length === 0 || !hasPeriod;
-  button.classList.toggle('is-locked', isLocked);
-}
-
 function setTimesheetApplyAllowedState(editable: boolean): void {
   isTimesheetApplyAllowed = editable;
-  updateApplySchedulesButtonState();
+  updateApplySchedulesButtonState(
+    dom,
+    !editable,
+    selectedScheduleIds.size > 0,
+    renderedSchedules.length,
+    currentSnapshot?.month !== null && currentSnapshot?.year !== null,
+  );
 }
 
 function isSapTimesheetEditable(status: TimesheetSnapshot['sapStatus'] | null | undefined): boolean {
@@ -452,11 +254,14 @@ async function applySchedulesFromSelection(): Promise<void> {
       throw new Error('Het actieve tabblad is geen SAP My Timesheet pagina.');
     }
 
-    const applyButton = getApplySchedulesButton();
-    applyButton.disabled = true;
-    applyButton.textContent = 'Bezig...';
-    applyButton.classList.add('is-applying');
-    applyButton.classList.remove('is-locked');
+    updateApplySchedulesButtonState(
+      dom,
+      !isTimesheetApplyAllowed,
+      selectedScheduleIds.size > 0,
+      renderedSchedules.length,
+      currentSnapshot?.month !== null && currentSnapshot?.year !== null,
+      true, // isApplying
+    );
 
     let totalDaysCount = 0;
     let appliedDaysCount = 0;
@@ -507,66 +312,32 @@ async function applySchedulesFromSelection(): Promise<void> {
   } catch (error) {
     setStatus(`Fout: ${(error as Error).message}`, true);
   } finally {
-    updateApplySchedulesButtonState();
+    updateApplySchedulesButtonState(
+      dom,
+      !isTimesheetApplyAllowed,
+      selectedScheduleIds.size > 0,
+      renderedSchedules.length,
+      currentSnapshot?.month !== null && currentSnapshot?.year !== null,
+    );
   }
 }
 
 async function handleDeleteSchedule(scheduleId: string): Promise<void> {
   try {
     await deleteSchedule(scheduleId);
-    await renderSchedules();
+    await reloadSchedulesDisplay();
   } catch (err) {
     setStatus(`Fout bij verwijderen: ${(err as Error).message}`);
   }
 }
 
-export function showScheduleForm(snapshot: TimesheetSnapshot | null, scheduleToEdit?: WeeklySchedule | null): void {
-  if (snapshot === null) {
-    hideScheduleForm();
+function openScheduleFormFromLatestSnapshot(): void {
+  if (!currentSnapshot) {
+    setStatus('Analyseer eerst de huidige timesheet voordat je een schema toevoegt.');
     return;
   }
 
-  currentSnapshot = snapshot;
-  scheduleBeingEdited = scheduleToEdit || null;
-  const section = getScheduleFormSection();
-  const projectSelect = getScheduleProjectSelect();
-  const formTitle = getScheduleFormTitle();
-  const submitBtn = getScheduleForm().querySelector('button[type="submit"]') as HTMLButtonElement;
-
-  projectSelect.innerHTML = '<option value="">-- Selecteer project --</option>';
-  if (snapshot?.projectCodes) {
-    snapshot.projectCodes.forEach((code) => {
-      const option = document.createElement('option');
-      option.value = code;
-      option.textContent = code;
-      projectSelect.appendChild(option);
-    });
-  }
-
-  getScheduleLabelInput().value = '';
-  const hoursInputs = getHoursInputs();
-  Object.values(hoursInputs).forEach((input) => {
-    input.value = '0';
-  });
-
-  const isEditMode = Boolean(scheduleToEdit);
-  if (isEditMode && scheduleToEdit) {
-    formTitle.textContent = 'Schema bewerken';
-    submitBtn.textContent = 'Bijwerken';
-    getScheduleLabelInput().value = scheduleToEdit.label;
-    projectSelect.value = scheduleToEdit.projectCode;
-    Object.entries(scheduleToEdit.hoursPerWeekday).forEach(([day, hours]) => {
-      if (day in hoursInputs) {
-        hoursInputs[day].value = String(hours);
-      }
-    });
-  } else {
-    formTitle.textContent = 'Nieuw schema';
-    submitBtn.textContent = 'Opslaan';
-  }
-
-  section.hidden = false;
-  getScheduleLabelInput().focus();
+  showScheduleFormCore(dom, currentSnapshot);
 }
 
 async function renderCachedSnapshotIfAvailable(): Promise<void> {
@@ -581,22 +352,39 @@ async function renderCachedSnapshotIfAvailable(): Promise<void> {
   renderSnapshot(cached.snapshot, isSnapshotComplete(cached.snapshot), false);
 }
 
-function openScheduleFormFromLatestSnapshot(): void {
-  if (!currentSnapshot) {
-    setStatus('Analyseer eerst de huidige timesheet voordat je een schema toevoegt.');
-    return;
+/**
+ * Test-compatible wrapper for renderSnapshot.
+ * Takes just a snapshot and optional flags (old API), internally uses dom refs.
+ */
+export function renderSnapshot(
+  snapshot: TimesheetSnapshot,
+  hasAllData: boolean = false,
+  syncEditability: boolean = true,
+): void {
+  currentSnapshot = snapshot;
+  if (syncEditability) {
+    setTimesheetApplyAllowedState(isSapTimesheetEditable(snapshot.sapStatus));
   }
+  updateAddScheduleButtonState(dom, currentSnapshot !== null);
+  updateApplySchedulesButtonState(
+    dom,
+    !isTimesheetApplyAllowed,
+    selectedScheduleIds.size > 0,
+    renderedSchedules.length,
+    currentSnapshot?.month !== null && currentSnapshot?.year !== null,
+  );
 
-  showScheduleForm(currentSnapshot);
+  renderSnapshotCore(
+    dom,
+    snapshot,
+    hasAllData,
+    isCachedData,
+    snapshotTimestampIso,
+  );
 }
 
 async function analyseActiveTab(): Promise<void> {
-  const scrapeButton = getBtnScrape() as HTMLButtonElement | null;
-  if (!scrapeButton) {
-    return;
-  }
-
-  scrapeButton.disabled = true;
+  setScrapeButtonState(dom, true);
 
   try {
     const activeTab = await getActiveTab();
@@ -652,7 +440,7 @@ async function analyseActiveTab(): Promise<void> {
   } catch (err) {
     setStatus(`Fout: ${(err as Error).message}`);
   } finally {
-    scrapeButton.disabled = false;
+    setScrapeButtonState(dom, false);
   }
 }
 
@@ -705,98 +493,16 @@ async function getValidCachedSnapshot(tab: chrome.tabs.Tab | undefined): Promise
   return cached;
 }
 
-export function renderSnapshot(snapshot: TimesheetSnapshot, hasAllData: boolean = false, syncEditability: boolean = true): void {
-  currentSnapshot = snapshot;
-  if (syncEditability) {
-    setTimesheetApplyAllowedState(isSapTimesheetEditable(snapshot.sapStatus));
-  }
-  updateAddScheduleButtonState();
-  updateApplySchedulesButtonState();
-
-  getPeriodValue().textContent = snapshot.month && snapshot.year ? `${snapshot.month}/${snapshot.year}` : '-';
-  getProjectCodesValue().textContent = snapshot.projectCodes.length > 0 ? snapshot.projectCodes.join(', ') : '-';
-  getWorkedHoursValue().textContent = formatHours(snapshot.totals.worked);
-  getToBePerformedHoursValue().textContent = formatHours(snapshot.totals.toBePerformed);
-
-  const scrapeStatus = getScrapeStatus();
-  scrapeStatus.classList.add('subtle-indicator');
-  if (hasAllData) {
-    scrapeStatus.hidden = true;
-    scrapeStatus.textContent = '';
-    scrapeStatus.classList.remove('warning');
-  } else {
-    scrapeStatus.hidden = false;
-    scrapeStatus.textContent = 'Onvolledig';
-    scrapeStatus.classList.add('warning');
-  }
-
-  const summarySection = getSummarySection();
-  const dataOriginIndicator = getDataOriginIndicator();
-  if (isCachedData) {
-    summarySection.classList.add('cached-data');
-    dataOriginIndicator.classList.add('cached');
-    dataOriginIndicator.classList.remove('fresh');
-  } else {
-    summarySection.classList.remove('cached-data');
-    dataOriginIndicator.classList.add('fresh');
-    dataOriginIndicator.classList.remove('cached');
-  }
-
-  dataOriginIndicator.textContent = isCachedData
-    ? `Cache gebruikt${formatTimestampSuffix(snapshotTimestampIso)}`
-    : `Vers bijgewerkt${formatTimestampSuffix(snapshotTimestampIso)}`;
-  dataOriginIndicator.hidden = false;
-
-  summarySection.hidden = false;
-}
-
-function updateAddScheduleButtonState(): void {
-  const button = getAddScheduleButton();
-  button.disabled = currentSnapshot === null;
-}
-
-function formatTimestampSuffix(timestampIso: string | null): string {
-  if (!timestampIso) {
-    return '';
-  }
-
-  const date = new Date(timestampIso);
-  if (Number.isNaN(date.getTime())) {
-    return '';
-  }
-
-  const formatted = new Intl.DateTimeFormat('nl-NL', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
-  return ` (${formatted})`;
-}
-
-export function formatHours(value: number | null): string {
-  if (value === null) {
-    return '-';
-  }
-
-  return `${value.toString().replace('.', ',')} u`;
-}
+// ...existing code...
 
 export function setStatus(message: string, persist: boolean = false): void {
-  getStatusMessage().textContent = message;
-  const dismissButton = getStatusDismissButton();
+  renderStatusMessage(dom, message, persist && message.length > 0);
   if (!message) {
-    dismissButton.hidden = true;
     if (persist) {
       void clearCachedStatusMessage();
     }
   } else if (persist) {
-    dismissButton.hidden = false;
     void setCachedStatusMessage({ message, cachedAt: new Date().toISOString() });
-  } else {
-    // Transient message: hide the dismiss button so it doesn't linger
-    dismissButton.hidden = true;
   }
 }
 
@@ -823,8 +529,7 @@ async function restoreCachedStatusMessage(): Promise<boolean> {
     return false;
   }
 
-  getStatusMessage().textContent = cached.message;
-  getStatusDismissButton().hidden = false;
+  renderStatusMessage(dom, cached.message, true);
   return true;
 }
 
@@ -833,3 +538,27 @@ function isSnapshotComplete(snapshot: TimesheetSnapshot): boolean {
     && snapshot.totals.toBePerformed !== null;
 }
 
+// Re-export render functions for backward-compatibility with tests
+export { formatHours } from './popup-render';
+export { getPopupDomRefs } from './popup-dom';
+export type { PopupDomRefs } from './popup-dom';
+
+/**
+ * Test-compatible wrapper for showScheduleForm (old API).
+ * Uses the internal dom refs and snapshot/schedule state.
+ */
+export function showScheduleForm(snapshot: TimesheetSnapshot | null, scheduleToEdit?: WeeklySchedule | null): void {
+  currentSnapshot = snapshot;
+  if (scheduleToEdit) {
+    scheduleBeingEdited = scheduleToEdit;
+  }
+  showScheduleFormCore(dom, snapshot, scheduleToEdit);
+}
+
+/**
+ * Test-compatible wrapper for renderSchedules (old API).
+ * Uses internal dom refs and schedules from storage.
+ */
+export async function renderSchedules(): Promise<void> {
+  await reloadSchedulesDisplay();
+}
