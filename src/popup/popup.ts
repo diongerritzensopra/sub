@@ -1,5 +1,5 @@
 /**
- * Popup script — UI interactions for SAP My Timesheet hour booking.
+ * Popup script — composition root for SAP My Timesheet hour booking.
  */
 
 import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
@@ -17,17 +17,17 @@ import {
   setCachedStatusMessage,
 } from './popup-gateway';
 import {
-  analyseActiveTab as analyseActiveTabAction,
-  applySchedulesFromSelection as applySchedulesFromSelectionAction,
-  handleScheduleFormSubmit as handleScheduleFormSubmitAction,
-  reloadSchedulesDisplay as reloadSchedulesDisplayAction,
-  renderCachedSnapshotIfAvailable as renderCachedSnapshotIfAvailableAction,
+  analyseActiveTab,
+  applySchedulesFromSelection,
+  handleScheduleFormSubmit,
+  reloadSchedulesDisplay,
+  renderCachedSnapshotIfAvailable,
   type PopupActionsContext,
 } from './popup-actions';
 import {
   renderSnapshot as renderSnapshotCore,
   showScheduleForm as showScheduleFormCore,
-  hideScheduleForm as hideScheduleFormCore,
+  hideScheduleForm,
   updateAddScheduleButtonState,
   updateApplySchedulesButtonState,
   renderStatusMessage,
@@ -36,51 +36,6 @@ import {
 // Popup state
 const dom = getPopupDomRefs(document);
 const state = createInitialPopupState();
-
-// Event listeners
-dom.btnScrape.addEventListener('click', () => {
-  void analyseActiveTab();
-});
-
-dom.statusDismissButton.addEventListener('click', () => {
-  dismissStatus();
-});
-
-dom.addScheduleButton.addEventListener('click', () => {
-  openScheduleFormFromLatestSnapshot();
-});
-
-dom.applySchedulesButton.addEventListener('click', () => {
-  void applySchedulesFromSelection();
-});
-
-// Form submission
-dom.scheduleForm.addEventListener('submit', (e) => {
-  e.preventDefault();
-  void handleScheduleFormSubmit();
-});
-
-dom.scheduleFormCancel.addEventListener('click', () => {
-  hideScheduleFormCore(dom);
-});
-
-// Initialize busy-state listener and auto-analyze on ready
-initBusyStateListener((busy) => {
-  if (!busy) {
-    void analyseActiveTab();
-  }
-});
-
-updateAddScheduleButtonState(dom, false);
-setTimesheetApplyAllowedState(false);
-
-void bootstrapPopup();
-
-async function bootstrapPopup(): Promise<void> {
-  await reloadSchedulesDisplay();
-  await renderCachedSnapshotIfAvailable();
-  await analyseActiveTab();
-}
 
 function createActionsContext(): PopupActionsContext {
   return {
@@ -94,13 +49,48 @@ function createActionsContext(): PopupActionsContext {
   };
 }
 
-async function reloadSchedulesDisplay(): Promise<void> {
-  await reloadSchedulesDisplayAction(createActionsContext());
-}
+// Event listeners
+dom.btnScrape.addEventListener('click', () => {
+  void analyseActiveTab(createActionsContext());
+});
 
-async function handleScheduleFormSubmit(): Promise<void> {
-  await handleScheduleFormSubmitAction(createActionsContext());
-}
+dom.statusDismissButton.addEventListener('click', () => {
+  setStatus('', true);
+});
+
+dom.addScheduleButton.addEventListener('click', () => {
+  openScheduleFormFromLatestSnapshot();
+});
+
+dom.applySchedulesButton.addEventListener('click', () => {
+  void applySchedulesFromSelection(createActionsContext());
+});
+
+// Form submission
+dom.scheduleForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  void handleScheduleFormSubmit(createActionsContext());
+});
+
+dom.scheduleFormCancel.addEventListener('click', () => {
+  hideScheduleForm(dom);
+});
+
+// Initialize busy-state listener and auto-analyze on ready
+initBusyStateListener((busy) => {
+  if (!busy) {
+    void analyseActiveTab(createActionsContext());
+  }
+});
+
+updateAddScheduleButtonState(dom, false);
+setTimesheetApplyAllowedState(false);
+
+void (async () => {
+  await reloadSchedulesDisplay(createActionsContext());
+  await renderCachedSnapshotIfAvailable(createActionsContext());
+  await analyseActiveTab(createActionsContext());
+})();
 
 function openScheduleFormForEdit(schedule: WeeklySchedule): void {
   if (!state.currentSnapshot) {
@@ -123,10 +113,6 @@ function setTimesheetApplyAllowedState(editable: boolean): void {
   );
 }
 
-async function applySchedulesFromSelection(): Promise<void> {
-  await applySchedulesFromSelectionAction(createActionsContext());
-}
-
 function openScheduleFormFromLatestSnapshot(): void {
   if (!state.currentSnapshot) {
     setStatus('Analyseer eerst de huidige timesheet voordat je een schema toevoegt.');
@@ -135,10 +121,6 @@ function openScheduleFormFromLatestSnapshot(): void {
 
   state.scheduleBeingEdited = null;
   showScheduleFormCore(dom, state.currentSnapshot);
-}
-
-async function renderCachedSnapshotIfAvailable(): Promise<void> {
-  await renderCachedSnapshotIfAvailableAction(createActionsContext());
 }
 
 /**
@@ -172,10 +154,6 @@ export function renderSnapshot(
   );
 }
 
-async function analyseActiveTab(): Promise<void> {
-  await analyseActiveTabAction(createActionsContext());
-}
-
 export function isTimesheetTab(tab: chrome.tabs.Tab | undefined): boolean {
   return (tab?.url ?? '').includes(SAP_TIMESHEET_URL_PATTERN);
 }
@@ -189,10 +167,6 @@ export function setStatus(message: string, persist: boolean = false): void {
   } else if (persist) {
     void setCachedStatusMessage({ message, cachedAt: new Date().toISOString() });
   }
-}
-
-function dismissStatus(): void {
-  setStatus('', true);
 }
 
 async function restoreCachedStatusMessage(): Promise<boolean> {
@@ -216,7 +190,7 @@ async function restoreCachedStatusMessage(): Promise<boolean> {
   return true;
 }
 
-// Re-export render functions for backward-compatibility with tests
+// Re-export functions for backward-compatibility with tests
 export { formatHours } from './popup-render';
 export { getPopupDomRefs } from './popup-dom';
 export type { PopupDomRefs } from './popup-dom';
@@ -225,7 +199,6 @@ export { getActiveTab } from './popup-gateway';
 
 /**
  * Test-compatible wrapper for showScheduleForm (old API).
- * Uses the internal dom refs and snapshot/schedule state.
  */
 export function showScheduleForm(snapshot: TimesheetSnapshot | null, scheduleToEdit?: WeeklySchedule | null): void {
   state.currentSnapshot = snapshot;
@@ -235,8 +208,7 @@ export function showScheduleForm(snapshot: TimesheetSnapshot | null, scheduleToE
 
 /**
  * Test-compatible wrapper for renderSchedules (old API).
- * Uses internal dom refs and schedules from storage.
  */
 export async function renderSchedules(): Promise<void> {
-  await reloadSchedulesDisplay();
+  await reloadSchedulesDisplay(createActionsContext());
 }
