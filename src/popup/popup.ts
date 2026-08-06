@@ -2,23 +2,10 @@
  * Popup script — UI interactions for SAP My Timesheet hour booking.
  */
 
-import type { CachedTimesheetSnapshot, TimesheetSnapshot, WeeklySchedule } from '../shared/types';
+import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
-import { getSAPBusyStateForTab, initBusyStateListener } from '../shared/busy-state';
-import {
-  getCachedTimesheetSnapshot,
-  setCachedTimesheetSnapshot,
-  clearCachedTimesheetSnapshot,
-  getSchedules,
-  saveSchedule,
-  deleteSchedule,
-  isCacheStale,
-  getCachedStatusMessage,
-  setCachedStatusMessage,
-  clearCachedStatusMessage,
-} from '../shared/storage';
+import { initBusyStateListener } from '../shared/busy-state';
 import { expandWeeklyScheduleToMonthEntries } from '../shared/schedule-expansion';
-import { readTimesheetSnapshotViaUi5 } from './ui5-scripting';
 import {
   navigateToProject,
   autofillScheduleEntries,
@@ -31,8 +18,20 @@ import {
   getSchedulesToApply,
   isSapTimesheetEditable,
   isSnapshotComplete,
-  resolveValidationPeriod,
 } from './popup-model';
+import {
+  clearCachedStatusMessage,
+  deleteSchedule,
+  getActiveTab,
+  getCachedStatusMessage,
+  getSAPBusyStateForTab,
+  getSchedules,
+  getValidCachedSnapshot,
+  readTimesheetSnapshotViaUi5,
+  saveSchedule,
+  setCachedStatusMessage,
+  setCachedTimesheetSnapshot,
+} from './popup-gateway';
 import {
   renderSnapshot as renderSnapshotCore,
   renderSchedules as renderSchedulesCore,
@@ -437,27 +436,8 @@ async function analyseActiveTab(): Promise<void> {
   }
 }
 
-export async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  return tab;
-}
-
 export function isTimesheetTab(tab: chrome.tabs.Tab | undefined): boolean {
   return (tab?.url ?? '').includes(SAP_TIMESHEET_URL_PATTERN);
-}
-
-async function getValidCachedSnapshot(tab: chrome.tabs.Tab | undefined): Promise<CachedTimesheetSnapshot | undefined> {
-  const cached = await getCachedTimesheetSnapshot();
-  if (!cached) {
-    return undefined;
-  }
-
-  if (isCacheStale(cached, resolveValidationPeriod(tab))) {
-    await clearCachedTimesheetSnapshot();
-    return undefined;
-  }
-
-  return cached;
 }
 
 export function setStatus(message: string, persist: boolean = false): void {
@@ -501,6 +481,7 @@ export { formatHours } from './popup-render';
 export { getPopupDomRefs } from './popup-dom';
 export type { PopupDomRefs } from './popup-dom';
 export { extractPeriodFromTimesheetUrl, isSnapshotComplete, isSapTimesheetEditable } from './popup-model';
+export { getActiveTab } from './popup-gateway';
 
 /**
  * Test-compatible wrapper for showScheduleForm (old API).
