@@ -18,10 +18,6 @@ export function initBusyStateListener(onBusyStateChange?: (busy: boolean, tabId?
   });
 }
 
-export function isSAPPageBusy(): boolean {
-  return isSAPBusy;
-}
-
 export async function getSAPBusyStateForTab(tabId: number): Promise<boolean> {
   try {
     const response = await chrome.runtime.sendMessage<MessageRequest, MessageResponse>({

@@ -1,141 +1,192 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+
+const mockSendMessage = vi.fn();
+
+async function flushAsyncWork(rounds: number = 2): Promise<void> {
+  for (let i = 0; i < rounds; i += 1) {
+    await Promise.resolve();
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+  }
+}
 
 globalThis.chrome = {
   runtime: {
-    onMessage: {
-      addListener: vi.fn(),
-    },
-    sendMessage: vi.fn(),
+    onMessage: { addListener: vi.fn() },
+    sendMessage: mockSendMessage,
   },
 } as unknown as typeof chrome;
 
-const { scrapeTimesheetSnapshot } = await import('./content-script');
+// Top-level import gives us a stable module reference for the unit tests below.
+// The bootstrap test re-imports via vi.resetModules() to test side-effect isolation.
+const { isTimesheetReady, startBusyStateMonitor } = await import('./content-script');
 
-describe('scrapeTimesheetSnapshot', () => {
-  it('extracts month/year from iframe route with no project segment', () => {
-    document.body.innerHTML = `
-      <iframe
-        data-sap-ushell-active="true"
-        src="https://example.test/cp.portal/ui5appruntime.html#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/4/2026"
-      ></iframe>
-    `;
-
-    const snapshot = scrapeTimesheetSnapshot(document);
-
-    expect(snapshot.month).toBe(4);
-    expect(snapshot.year).toBe(2026);
-    expect(snapshot.projectCodes).toEqual([]);
+describe('isTimesheetReady', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
   });
 
-  it('extracts month/year from iframe route with project segment', () => {
-    document.body.innerHTML = `
-      <iframe
-        data-sap-ushell-active="true"
-        src="https://example.test/cp.portal/ui5appruntime.html#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/4/2026/project/ZSST"
-      ></iframe>
-    `;
-
-    const snapshot = scrapeTimesheetSnapshot(document);
-
-    expect(snapshot.month).toBe(4);
-    expect(snapshot.year).toBe(2026);
-    // Route is no longer a source of project codes; navigation tree is authoritative
-    expect(snapshot.projectCodes).toEqual([]);
+  it('returns false when no timesheet iframe is present in the page', () => {
+    expect(isTimesheetReady()).toBe(false);
   });
 
-  it.each([
-    {
-      name: 'uses `iframe[src*="ui5appruntime.html"]` when active-shell marker is missing',
-      html: `
-        <iframe id="sap-shell-frame" src="https://example.test/legacy#/1/2020"></iframe>
-        <iframe src="https://example.test/cp.portal/ui5appruntime.html#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/9/2026"></iframe>
-      `,
-      month: 9,
-      year: 2026,
-    },
-    {
-      name: 'uses `iframe[src*="#timesheet-my"]` when ui5 runtime selector is missing',
-      html: `
-        <iframe src="https://example.test/legacy#/2/2021"></iframe>
-        <iframe src="https://example.test/app#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/10/2027"></iframe>
-      `,
-      month: 10,
-      year: 2027,
-    },
-    {
-      name: 'falls back to first iframe when no preferred selector matches',
-      html: `
-        <iframe src="https://example.test/fallback-first#/11/2028/project/ZSST"></iframe>
-        <iframe src="https://example.test/fallback-second#/12/2030/project/OTHER"></iframe>
-      `,
-      month: 11,
-      year: 2028,
-    },
-  ])('extracts month/year via iframe fallback selectors: $name', ({ html, month, year }) => {
-    document.body.innerHTML = html;
+  it('returns false when a matching iframe is present but has no busy indicator', () => {
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('data-sap-ushell-active', 'true');
+    document.body.appendChild(iframe);
 
-    const snapshot = scrapeTimesheetSnapshot(document);
-
-    expect(snapshot.month).toBe(month);
-    expect(snapshot.year).toBe(year);
+    expect(isTimesheetReady()).toBe(false);
   });
 
-  it('extracts hours totals from visible page labels', () => {
-    document.body.innerHTML = `
-      <div>Hours worked</div><div>134:30</div>
-      <div>Hours absent</div><div>8:00</div>
-      <div>Hours to be performed</div><div>160:00</div>
-    `;
+  it('returns false when the busy indicator element is visible', () => {
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('data-sap-ushell-active', 'true');
+    document.body.appendChild(iframe);
 
-    const snapshot = scrapeTimesheetSnapshot(document);
+    const indicator = iframe.contentDocument!.createElement('div');
+    indicator.id = 'sapUiBusyIndicator';
+    iframe.contentDocument!.body.appendChild(indicator);
 
-    expect(snapshot.totals.worked).toBe(134.5);
-    expect(snapshot.totals.absent).toBe(8);
-    expect(snapshot.totals.toBePerformed).toBe(160);
+    expect(isTimesheetReady()).toBe(false);
   });
 
-  it('extracts calendar period, project codes, and HH:MM totals from SAP selectors', () => {
-    document.body.innerHTML = `
-      <button id="application-timesheet-my-component---idMaster--idSimpleCalendarHeader--Head-B1">April</button>
-      <button id="application-timesheet-my-component---idMaster--idSimpleCalendarHeader--Head-B2">2026</button>
+  it('returns true when the busy indicator is hidden via inline display:none', () => {
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('data-sap-ushell-active', 'true');
+    document.body.appendChild(iframe);
 
-      <ul id="application-timesheet-my-component---idMaster--idNavigationProjectCodes-subtree">
-        <li><a title="C0007012.1.1 - Politie DPC - Signalen">Project A</a></li>
-        <li><a title="ZTEST_42 - Internal">Project B</a></li>
-      </ul>
+    const indicator = iframe.contentDocument!.createElement('div');
+    indicator.id = 'sapUiBusyIndicator';
+    indicator.style.display = 'none';
+    iframe.contentDocument!.body.appendChild(indicator);
 
-      <div class="sapUiRGLContainer">
-        <h5 class="sapUiFormTitle">Total of the month</h5>
-        <div class="sapUiFormElementLbl">Hours to be performed</div>
-        <div>160:00</div>
-        <div class="sapUiFormElementLbl">Number of hours worked</div>
-        <div>18:00</div>
-        <div class="sapUiFormElementLbl">Number of hours absent</div>
-        <div>151:12</div>
-      </div>
-    `;
-
-    const snapshot = scrapeTimesheetSnapshot(document);
-
-    expect(snapshot.month).toBe(4);
-    expect(snapshot.year).toBe(2026);
-    expect(snapshot.projectCodes).toEqual(['C0007012.1.1', 'ZTEST_42']);
-    expect(snapshot.totals.toBePerformed).toBe(160);
-    expect(snapshot.totals.worked).toBe(18);
-    expect(snapshot.totals.absent).toBeCloseTo(151.2, 5);
+    expect(isTimesheetReady()).toBe(true);
   });
 
-  it('returns null totals when labels are missing', () => {
-    document.body.innerHTML = '<div>No totals available</div>';
+  it('returns true when the busy indicator is hidden via inline visibility:hidden', () => {
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('data-sap-ushell-active', 'true');
+    document.body.appendChild(iframe);
 
-    const snapshot = scrapeTimesheetSnapshot(document);
+    const indicator = iframe.contentDocument!.createElement('div');
+    indicator.id = 'sapUiBusyIndicator';
+    indicator.style.visibility = 'hidden';
+    iframe.contentDocument!.body.appendChild(indicator);
 
-    expect(snapshot.totals.worked).toBeNull();
-    expect(snapshot.totals.absent).toBeNull();
-    expect(snapshot.totals.toBePerformed).toBeNull();
+    expect(isTimesheetReady()).toBe(true);
+  });
+
+  it('prefers iframe[data-sap-ushell-active] over a generic iframe', () => {
+    // Generic iframe first in DOM, preferred selector second
+    const generic = document.createElement('iframe');
+    document.body.appendChild(generic);
+
+    const preferred = document.createElement('iframe');
+    preferred.setAttribute('data-sap-ushell-active', 'true');
+    document.body.appendChild(preferred);
+
+    // Only the preferred iframe has the hidden indicator — proves it was selected
+    const indicator = preferred.contentDocument!.createElement('div');
+    indicator.id = 'sapUiBusyIndicator';
+    indicator.style.display = 'none';
+    preferred.contentDocument!.body.appendChild(indicator);
+
+    expect(isTimesheetReady()).toBe(true);
   });
 });
 
+describe('startBusyStateMonitor', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mockSendMessage.mockClear();
+    document.body.innerHTML = '';
+  });
 
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    document.body.innerHTML = '';
+  });
 
+  it('immediately sends SAP_BUSY_STATE_CHANGED with the current busy state on start', () => {
+    startBusyStateMonitor();
 
+    // No iframe in DOM → not ready → busy: true
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    expect(mockSendMessage).toHaveBeenCalledWith({
+      type: 'SAP_BUSY_STATE_CHANGED',
+      payload: { busy: true },
+    });
+  });
+
+  it('does not re-send when the busy state is unchanged on subsequent polls', () => {
+    startBusyStateMonitor();
+    mockSendMessage.mockClear();
+
+    vi.advanceTimersByTime(250 * 3);
+
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it('sends again when the state transitions from busy to ready on a poll', () => {
+    startBusyStateMonitor(); // initial → busy: true
+    mockSendMessage.mockClear();
+
+    // Simulate SAP becoming ready: add iframe with hidden busy indicator
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('data-sap-ushell-active', 'true');
+    document.body.appendChild(iframe);
+    const indicator = iframe.contentDocument!.createElement('div');
+    indicator.id = 'sapUiBusyIndicator';
+    indicator.style.display = 'none';
+    iframe.contentDocument!.body.appendChild(indicator);
+
+    vi.advanceTimersByTime(250);
+
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    expect(mockSendMessage).toHaveBeenCalledWith({
+      type: 'SAP_BUSY_STATE_CHANGED',
+      payload: { busy: false },
+    });
+  });
+
+  it('sends again when the state transitions from ready to busy on a poll', () => {
+    // Start with SAP already ready
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('data-sap-ushell-active', 'true');
+    document.body.appendChild(iframe);
+    const indicator = iframe.contentDocument!.createElement('div');
+    indicator.id = 'sapUiBusyIndicator';
+    indicator.style.display = 'none';
+    iframe.contentDocument!.body.appendChild(indicator);
+
+    startBusyStateMonitor(); // initial → busy: false
+    mockSendMessage.mockClear();
+
+    // Simulate SAP going busy again: remove the hidden indicator
+    indicator.style.display = '';
+
+    vi.advanceTimersByTime(250);
+
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    expect(mockSendMessage).toHaveBeenCalledWith({
+      type: 'SAP_BUSY_STATE_CHANGED',
+      payload: { busy: true },
+    });
+  });
+});
+
+describe('content script bootstrap', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  it('does not start busy-state polling in the jsdom test environment', async () => {
+    await import('./content-script');
+    await flushAsyncWork();
+
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+});

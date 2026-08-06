@@ -1,274 +1,214 @@
 /**
- * Popup script — handles UI interactions for scraping hours from SAP My Timesheet.
+ * Popup script — composition root for SAP My Timesheet hour booking.
  */
 
-import type { CachedTimesheetSnapshot, MessageRequest, MessageResponse, TimesheetSnapshot } from '../shared/types';
+import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
-import { getSAPBusyStateForTab, initBusyStateListener } from '../shared/busy-state';
-import { getCachedTimesheetSnapshot, setCachedTimesheetSnapshot, clearCachedTimesheetSnapshot, isCacheStale } from '../shared/storage';
+import { initBusyStateListener } from '../shared/busy-state';
+import { getPopupDomRefs } from './popup-dom';
+import {
+  STATUS_MESSAGE_MAX_AGE_MS,
+  createInitialPopupState,
+  isSapTimesheetEditable,
+} from './popup-model';
+import {
+  clearCachedStatusMessage,
+  getCachedStatusMessage,
+  setCachedStatusMessage,
+} from './popup-gateway';
+import {
+  analyseActiveTab,
+  applySchedulesFromSelection,
+  handleScheduleFormSubmit,
+  reloadSchedulesDisplay,
+  renderCachedSnapshotIfAvailable,
+  type PopupActionsContext,
+} from './popup-actions';
+import {
+  renderSnapshot as renderSnapshotCore,
+  showScheduleForm as showScheduleFormCore,
+  hideScheduleForm,
+  updateAddScheduleButtonState,
+  updateApplySchedulesButtonState,
+  renderStatusMessage,
+} from './popup-render';
 
-const ROUTE_PERIOD_PATTERN = /[?&]\/(1[0-2]|0?[1-9])\/(20\d{2})(?:[/?&#]|$)/i;
+// Popup state
+const dom = getPopupDomRefs(document);
+const state = createInitialPopupState();
 
-// Getters for DOM elements (allows for flexible testing)
-function getBtnScrape(): HTMLButtonElement {
-  return document.getElementById('btn-scrape') as HTMLButtonElement;
+function createActionsContext(): PopupActionsContext {
+  return {
+    dom,
+    state,
+    setStatus,
+    renderSnapshot,
+    openScheduleFormForEdit,
+    setTimesheetApplyAllowedState,
+    restoreCachedStatusMessage,
+  };
 }
 
-function getStatusMessage(): HTMLParagraphElement {
-  return document.getElementById('status-message') as HTMLParagraphElement;
-}
+// Event listeners
+dom.btnScrape.addEventListener('click', () => {
+  void analyseActiveTab(createActionsContext());
+});
 
-function getSummarySection(): HTMLElement {
-  return document.getElementById('summary-section') as HTMLElement;
-}
+dom.statusDismissButton.addEventListener('click', () => {
+  setStatus('', true);
+});
 
-function getPeriodValue(): HTMLSpanElement {
-  return document.getElementById('period-value') as HTMLSpanElement;
-}
+dom.addScheduleButton.addEventListener('click', () => {
+  openScheduleFormFromLatestSnapshot();
+});
 
-function getProjectCodesValue(): HTMLSpanElement {
-  return document.getElementById('project-codes-value') as HTMLSpanElement;
-}
+dom.applySchedulesButton.addEventListener('click', () => {
+  void applySchedulesFromSelection(createActionsContext());
+});
 
-function getWorkedHoursValue(): HTMLSpanElement {
-  return document.getElementById('worked-hours-value') as HTMLSpanElement;
-}
+// Form submission
+dom.scheduleForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  void handleScheduleFormSubmit(createActionsContext());
+});
 
-function getAbsentHoursValue(): HTMLSpanElement {
-  return document.getElementById('absent-hours-value') as HTMLSpanElement;
-}
-
-function getToBePerformedHoursValue(): HTMLSpanElement {
-  return document.getElementById('to-be-performed-hours-value') as HTMLSpanElement;
-}
-
-function getScrapeStatus(): HTMLSpanElement {
-  return document.getElementById('scrape-status') as HTMLSpanElement;
-}
-
-function getDataOriginIndicator(): HTMLParagraphElement {
-  return document.getElementById('data-origin-indicator') as HTMLParagraphElement;
-}
-
-let isCachedData = false;
-let snapshotTimestampIso: string | null = null;
-
-getBtnScrape().addEventListener('click', () => {
-  void analyseActiveTab();
+dom.scheduleFormCancel.addEventListener('click', () => {
+  hideScheduleForm(dom);
 });
 
 // Initialize busy-state listener and auto-analyze on ready
 initBusyStateListener((busy) => {
   if (!busy) {
-    // SAP page is ready, automatically scrape
-    void analyseActiveTab();
+    void analyseActiveTab(createActionsContext());
   }
 });
 
-void bootstrapPopup();
+updateAddScheduleButtonState(dom, false);
+setTimesheetApplyAllowedState(false);
 
-async function bootstrapPopup(): Promise<void> {
-  await renderCachedSnapshotIfAvailable();
-  await analyseActiveTab();
-}
+void (async () => {
+  await reloadSchedulesDisplay(createActionsContext());
+  await renderCachedSnapshotIfAvailable(createActionsContext());
+  await analyseActiveTab(createActionsContext());
+})();
 
-async function renderCachedSnapshotIfAvailable(): Promise<void> {
-  const activeTab = await getActiveTab();
-  const cached = await getValidCachedSnapshot(activeTab);
-  if (!cached) {
+function openScheduleFormForEdit(schedule: WeeklySchedule): void {
+  if (!state.currentSnapshot) {
+    setStatus('Analyseer eerst de huidige timesheet voordat je een schema bewerkt.');
     return;
   }
 
-  isCachedData = true;
-  snapshotTimestampIso = cached.cachedAt;
-  renderSnapshot(cached.snapshot, isSnapshotComplete(cached.snapshot));
+  state.scheduleBeingEdited = schedule;
+  showScheduleFormCore(dom, state.currentSnapshot, schedule);
 }
 
-async function analyseActiveTab(): Promise<void> {
-  getBtnScrape().disabled = true;
+function setTimesheetApplyAllowedState(editable: boolean): void {
+  state.isTimesheetApplyAllowed = editable;
+  updateApplySchedulesButtonState(
+    dom,
+    !editable,
+    state.selectedScheduleIds.size > 0,
+    state.renderedSchedules.length,
+    state.currentSnapshot?.month !== null && state.currentSnapshot?.year !== null,
+  );
+}
 
-  try {
-    const activeTab = await getActiveTab();
-    if (!activeTab?.id) {
-      throw new Error('Geen actief tabblad gevonden.');
-    }
-
-    if (!isTimesheetTab(activeTab)) {
-      throw new Error('Het actieve tabblad is geen SAP My Timesheet pagina.');
-    }
-
-    const cachedSnapshot = await getValidCachedSnapshot(activeTab);
-    const hasCachedData = cachedSnapshot !== undefined;
-    if (!hasCachedData) {
-      setStatus('Pagina analyseren...');
-    }
-
-    const isPageLoading = activeTab.status === 'loading' || await getSAPBusyStateForTab(activeTab.id);
-    if (isPageLoading) {
-      // If we have cached data, keep showing it while page loads; otherwise show error
-      if (!hasCachedData) {
-        throw new Error('De pagina laadt nog. Probeer het over een moment opnieuw.');
-      }
-      setStatus('Pagina laadt nog, gegevens kunnen verouderd zijn...');
-      return;
-    }
-
-    const response = await chrome.tabs.sendMessage<MessageRequest, MessageResponse>(activeTab.id, {
-      type: 'SCRAPE_TIMESHEET_SUMMARY',
-    });
-
-    if (!response.success) {
-      throw new Error(response.error ?? 'Onbekende fout.');
-    }
-
-    const scrapedSnapshot = response.data as TimesheetSnapshot;
-    const scrapedIsComplete = isSnapshotComplete(scrapedSnapshot);
-    snapshotTimestampIso = new Date().toISOString();
-    isCachedData = false; // Mark as fresh data
-    renderSnapshot(scrapedSnapshot, scrapedIsComplete);
-
-    // Write-through: persist fresh snapshot to cache only when it improves on
-    // what is already cached (don't downgrade complete → partial)
-    const cachedIsComplete = cachedSnapshot ? isSnapshotComplete(cachedSnapshot.snapshot) : false;
-    if (!cachedIsComplete || scrapedIsComplete) {
-      await setCachedTimesheetSnapshot({
-        snapshot: scrapedSnapshot,
-        cachedAt: snapshotTimestampIso,
-      });
-    }
-
-    setStatus('');
-  } catch (err) {
-    setStatus(`Fout: ${(err as Error).message}`);
-  } finally {
-    getBtnScrape().disabled = false;
+function openScheduleFormFromLatestSnapshot(): void {
+  if (!state.currentSnapshot) {
+    setStatus('Analyseer eerst de huidige timesheet voordat je een schema toevoegt.');
+    return;
   }
+
+  state.scheduleBeingEdited = null;
+  showScheduleFormCore(dom, state.currentSnapshot);
 }
 
-export async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  return tab;
+/**
+ * Test-compatible wrapper for renderSnapshot.
+ * Takes just a snapshot and optional flags (old API), internally uses dom refs.
+ */
+export function renderSnapshot(
+  snapshot: TimesheetSnapshot,
+  hasAllData: boolean = false,
+  syncEditability: boolean = true,
+): void {
+  state.currentSnapshot = snapshot;
+  if (syncEditability) {
+    setTimesheetApplyAllowedState(isSapTimesheetEditable(snapshot.sapStatus));
+  }
+  updateAddScheduleButtonState(dom, state.currentSnapshot !== null);
+  updateApplySchedulesButtonState(
+    dom,
+    !state.isTimesheetApplyAllowed,
+    state.selectedScheduleIds.size > 0,
+    state.renderedSchedules.length,
+    state.currentSnapshot?.month !== null && state.currentSnapshot?.year !== null,
+  );
+
+  renderSnapshotCore(
+    dom,
+    snapshot,
+    hasAllData,
+    state.isCachedData,
+    state.snapshotTimestampIso,
+  );
 }
 
 export function isTimesheetTab(tab: chrome.tabs.Tab | undefined): boolean {
   return (tab?.url ?? '').includes(SAP_TIMESHEET_URL_PATTERN);
 }
 
-export function extractPeriodFromTimesheetUrl(url: string | undefined): { month: number; year: number } | null {
-  if (!url) {
-    return null;
+export function setStatus(message: string, persist: boolean = false): void {
+  renderStatusMessage(dom, message, persist && message.length > 0);
+  if (!message) {
+    if (persist) {
+      void clearCachedStatusMessage();
+    }
+  } else if (persist) {
+    void setCachedStatusMessage({ message, cachedAt: new Date().toISOString() });
   }
-
-  const match = url.match(ROUTE_PERIOD_PATTERN);
-  if (!match) {
-    return null;
-  }
-
-  return {
-    month: Number.parseInt(match[1], 10),
-    year: Number.parseInt(match[2], 10),
-  };
 }
 
-function resolveValidationPeriod(tab: chrome.tabs.Tab | undefined): { month: number; year: number } {
-  const routePeriod = extractPeriodFromTimesheetUrl(tab?.url);
-  if (routePeriod) {
-    return routePeriod;
-  }
-
-  const now = new Date();
-  return { month: now.getMonth() + 1, year: now.getFullYear() };
-}
-
-async function getValidCachedSnapshot(tab: chrome.tabs.Tab | undefined): Promise<CachedTimesheetSnapshot | undefined> {
-  const cached = await getCachedTimesheetSnapshot();
+async function restoreCachedStatusMessage(): Promise<boolean> {
+  const cached = await getCachedStatusMessage();
   if (!cached) {
-    return undefined;
+    return false;
   }
 
-  if (isCacheStale(cached, resolveValidationPeriod(tab))) {
-    await clearCachedTimesheetSnapshot();
-    return undefined;
+  const cachedAt = new Date(cached.cachedAt);
+  if (Number.isNaN(cachedAt.getTime())) {
+    await clearCachedStatusMessage();
+    return false;
   }
 
-  return cached;
+  if (Date.now() - cachedAt.getTime() > STATUS_MESSAGE_MAX_AGE_MS) {
+    await clearCachedStatusMessage();
+    return false;
+  }
+
+  renderStatusMessage(dom, cached.message, true);
+  return true;
 }
 
-export function renderSnapshot(snapshot: TimesheetSnapshot, hasAllData: boolean = false): void {
-  getPeriodValue().textContent = snapshot.month && snapshot.year ? `${snapshot.month}/${snapshot.year}` : '-';
-  getProjectCodesValue().textContent = snapshot.projectCodes.length > 0 ? snapshot.projectCodes.join(', ') : '-';
-  getWorkedHoursValue().textContent = formatHours(snapshot.totals.worked);
-  getAbsentHoursValue().textContent = formatHours(snapshot.totals.absent);
-  getToBePerformedHoursValue().textContent = formatHours(snapshot.totals.toBePerformed);
+// Re-export functions for backward-compatibility with tests
+export { formatHours } from './popup-render';
+export { getPopupDomRefs } from './popup-dom';
+export type { PopupDomRefs } from './popup-dom';
+export { extractPeriodFromTimesheetUrl, isSnapshotComplete, isSapTimesheetEditable } from './popup-model';
+export { getActiveTab } from './popup-gateway';
 
-  const scrapeStatus = getScrapeStatus();
-  scrapeStatus.classList.add('subtle-indicator');
-  if (hasAllData) {
-    scrapeStatus.hidden = true;
-    scrapeStatus.textContent = '';
-    scrapeStatus.classList.remove('warning');
-  } else {
-    scrapeStatus.hidden = false;
-    scrapeStatus.textContent = 'Onvolledig';
-    scrapeStatus.classList.add('warning');
-  }
-
-  // Add visual indicator for cached data
-  const summarySection = getSummarySection();
-  const dataOriginIndicator = getDataOriginIndicator();
-  if (isCachedData) {
-    summarySection.classList.add('cached-data');
-    dataOriginIndicator.classList.add('cached');
-    dataOriginIndicator.classList.remove('fresh');
-  } else {
-    summarySection.classList.remove('cached-data');
-    dataOriginIndicator.classList.add('fresh');
-    dataOriginIndicator.classList.remove('cached');
-  }
-
-  dataOriginIndicator.textContent = isCachedData
-    ? `Cache gebruikt${formatTimestampSuffix(snapshotTimestampIso)}`
-    : `Vers bijgewerkt${formatTimestampSuffix(snapshotTimestampIso)}`;
-  dataOriginIndicator.hidden = false;
-
-  summarySection.hidden = false;
+/**
+ * Test-compatible wrapper for showScheduleForm (old API).
+ */
+export function showScheduleForm(snapshot: TimesheetSnapshot | null, scheduleToEdit?: WeeklySchedule | null): void {
+  state.currentSnapshot = snapshot;
+  state.scheduleBeingEdited = scheduleToEdit ?? null;
+  showScheduleFormCore(dom, snapshot, scheduleToEdit);
 }
 
-function formatTimestampSuffix(timestampIso: string | null): string {
-  if (!timestampIso) {
-    return '';
-  }
-
-  const date = new Date(timestampIso);
-  if (Number.isNaN(date.getTime())) {
-    return '';
-  }
-
-  const formatted = new Intl.DateTimeFormat('nl-NL', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
-  return ` (${formatted})`;
+/**
+ * Test-compatible wrapper for renderSchedules (old API).
+ */
+export async function renderSchedules(): Promise<void> {
+  await reloadSchedulesDisplay(createActionsContext());
 }
-
-export function formatHours(value: number | null): string {
-  if (value === null) {
-    return '-';
-  }
-
-  return `${value.toString().replace('.', ',')} u`;
-}
-
-export function setStatus(message: string): void {
-  getStatusMessage().textContent = message;
-}
-
-function isSnapshotComplete(snapshot: TimesheetSnapshot): boolean {
-  return snapshot.totals.worked !== null
-    && snapshot.totals.absent !== null
-    && snapshot.totals.toBePerformed !== null;
-}
-

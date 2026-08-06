@@ -4,11 +4,16 @@
 Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for helping with hour booking in SAP My Timesheet. Built with TypeScript + Vite + `@crxjs/vite-plugin`.
 
 ## Architecture (Current)
-- `src/popup/`: extension UI (`popup.html`, `popup.ts`, `popup.css`) triggers page analysis.
-- `src/content/content-script.ts`: runs on SAP My Timesheet and contains DOM scrape/autofill logic.
-- `src/background/service-worker.ts`: minimal MV3 lifecycle entry point.
-- `src/shared/types.ts`: shared message and domain types (`HoursEntry`, `MessageRequest`, `MessageResponse`).
-- `src/shared/storage.ts`: typed helpers around `chrome.storage.local`.
+- `src/popup/`: extension UI (`popup.html`, `popup.ts`, `popup.css`) triggers page analysis and renders cached/live snapshot data and saved schedules.
+- `src/content/content-script.ts`: runs on SAP My Timesheet and monitors busy state via polling so the service worker and popup can react to SAP readiness.
+- `src/background/service-worker.ts`: MV3 messaging hub; manages per-tab icon state (no-match / loading / ready) via `busyStateByTabId`, and handles `GET_SAP_BUSY_STATE` queries.
+- `src/shared/types.ts`: shared message and domain types (`HoursEntry`, `TimesheetSnapshot`, `CachedTimesheetSnapshot`, `WeeklySchedule`, `SapTimesheetDayEntry`, `SapProjectsModelData`, `MessageRequest`, `MessageResponse`).
+- `src/shared/storage.ts`: typed helpers around `chrome.storage.local` for snapshot cache (`timesheetSnapshotCache`) and schedules (`projectSchedules`).
+- `src/shared/busy-state.ts`: shared busy-state helpers; content script sends `SAP_BUSY_STATE_CHANGED`, service worker tracks it; popup queries via `getSAPBusyStateForTab()`.
+- `src/shared/schedule-expansion.ts`: pure function `expandWeeklyScheduleToMonthEntries(schedule, month, year)` that converts a `WeeklySchedule` into `HoursEntry[]`; fully unit-tested.
+- `src/popup/ui5-main-world.ts`: self-contained SAP UI5 main-world functions for snapshot reading and timesheet autofill via the SAP `projectsmodel` and `postTimeSheet` API.
+- `src/popup/ui5-scripting.ts`: `chrome.scripting.executeScript` wrappers that invoke the `ui5-main-world` functions in the active SAP tab.
+- `src/popup/schedule-apply.ts`: popup-side project navigation, per-schedule apply orchestration, and apply status message composition.
 
 ## Project Boundaries
 - The extension runs locally in the browser as a standard MV3 extension.
@@ -39,7 +44,12 @@ Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for he
 
 ## Conventions to Follow
 - Add new message kinds to `MessageType` before using them in popup/content scripts.
-- Keep DOM selectors in `content-script.ts` SAP-specific and evidence-based (no generic placeholders once known).
+- Keep DOM selectors in `content-script.ts` SAP-specific and evidence-based; the current content script only inspects the timesheet iframe and busy indicator.
+- SAP UI renders inside an `<iframe>`; popup-driven snapshot reading and autofill run in the SAP page's `MAIN` world through `chrome.scripting.executeScript` wrappers.
+- Keep UI5 injected code in `src/popup/ui5-main-world.ts` self-contained: runtime imports are unavailable once the function is serialized into the SAP page context.
+- The popup apply flow uses SAP `projectsmodel` data and `postTimeSheet`; prefer extending that path over reintroducing message-based content-script autofill.
+- `SapTimesheetDayEntry.AvailabilityInHours` is in **minutes** despite its name (e.g., `480` = 8 hours).
+- User-facing error messages shown by popup/UI5 apply flows remain in Dutch.
 - Keep popup text and manifest metadata branded as `sub`.
 - Keep tests next to source as `*.test.ts` (Vitest + jsdom via `vite.config.ts`).
 
@@ -49,5 +59,4 @@ Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for he
 - Track planned/completed product features in `FEATURES.md`.
 
 ## Active TODO Surface
-- Map real SAP My Timesheet selectors in `src/content/content-script.ts` for scraping and autofill.
-- Add/adjust tests when selector logic becomes concrete.
+- i18n: Dutch and English UI text, language selector in popup, persisted language preference.

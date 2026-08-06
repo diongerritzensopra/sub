@@ -1,113 +1,103 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { CachedTimesheetSnapshot, TimesheetSnapshot } from '../shared/types';
+import { describe, it, expect, beforeEach } from 'vitest';
+import type { CachedTimesheetSnapshot, TimesheetSnapshot, WeeklySchedule } from '../shared/types';
+import {
+  flushAsyncWork,
+  mockChromeRuntimeSendMessage,
+  mockChromeScriptingExecuteScript,
+  mockChromeStorageLocalGet,
+  mockChromeStorageLocalRemove,
+  mockChromeStorageLocalSet,
+  mockChromeTabsQuery,
+  resetPopupTestEnvironment,
+} from './popup.test-helpers';
 
-// Mock chrome API before any imports
-const mockChromeTabsQuery = vi.fn<
-  (queryInfo: chrome.tabs.QueryInfo) => Promise<chrome.tabs.Tab[]>
->();
-const mockChromeRuntimeSendMessage = vi.fn<
-  (message: any, options?: chrome.runtime.MessageOptions) => Promise<any>
->();
-const mockChromeTabsSendMessage = vi.fn<
-  (tabId: number, message: any) => Promise<any>
->();
-const mockChromeStorageLocalGet = vi.fn<
-  (keys: string[], callback: (result: Record<string, unknown>) => void) => void
->();
-const mockChromeStorageLocalSet = vi.fn<
-  (values: Record<string, unknown>, callback: () => void) => void
->();
-const mockChromeStorageLocalRemove = vi.fn<
-  (key: string, callback: () => void) => void
->();
-globalThis.chrome = {
-  tabs: {
-    query: mockChromeTabsQuery,
-    get: vi.fn(),
-    sendMessage: mockChromeTabsSendMessage,
-    onUpdated: { addListener: vi.fn() },
-    onActivated: { addListener: vi.fn() },
-  },
-  runtime: {
-    sendMessage: mockChromeRuntimeSendMessage,
-    onMessage: { addListener: vi.fn() },
-    lastError: null,
-  },
-  storage: {
-    local: {
-      get: mockChromeStorageLocalGet,
-      set: mockChromeStorageLocalSet,
-      remove: mockChromeStorageLocalRemove,
-    },
-  },
-  action: {
-    setIcon: vi.fn(),
-  },
-} as unknown as typeof chrome;
-
-// Setup jsdom environment with required elements before importing popup.ts
 beforeEach(() => {
-  document.body.innerHTML = `
-    <div id="app">
-      <header>
-        <div class="header-content">
-          <h1>sub</h1>
-          <button id="btn-scrape" type="button">🔄</button>
-        </div>
-      </header>
-      <main>
-        <section id="status-section">
-          <p id="status-message">Klik op het vernieuwingspictogram om te beginnen.</p>
-        </section>
-        <section id="summary-section" hidden>
-          <h2>Timesheet overzicht</h2>
-          <ul id="summary-list">
-            <li><strong>Periode:</strong> <span id="period-value">-</span></li>
-            <li><strong>Projectcodes:</strong> <span id="project-codes-value">-</span></li>
-            <li><strong>Uren gewerkt:</strong> <span id="worked-hours-value">-</span></li>
-            <li><strong>Uren afwezig:</strong> <span id="absent-hours-value">-</span></li>
-            <li><strong>Uren uit te voeren:</strong> <span id="to-be-performed-hours-value">-</span></li>
-          </ul>
-          <p id="scrape-status" class="subtle-indicator" hidden></p>
-          <p id="data-origin-indicator" class="subtle-indicator" hidden></p>
-        </section>
-      </main>
-    </div>
-  `;
-
-  // Reset mock
-  vi.resetModules();
-  vi.clearAllMocks();
-  mockChromeTabsQuery.mockResolvedValue([]);
-  mockChromeTabsSendMessage.mockResolvedValue({ success: false, error: 'not mocked' });
-  mockChromeRuntimeSendMessage.mockResolvedValue({
-    success: true,
-    data: { busy: false },
-  });
-  mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
-    callback({ [keys[0]]: undefined });
-  });
-  mockChromeStorageLocalSet.mockImplementation((_values, callback) => {
-    callback();
-  });
-  mockChromeStorageLocalRemove.mockImplementation((_key, callback) => {
-    callback();
-  });
+  resetPopupTestEnvironment();
 });
 
-describe('popup', () => {
+describe('popup core', () => {
+  describe('schedule list', () => {
+    it('shows empty state when no schedules are stored', async () => {
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({ [keys[0]]: undefined });
+      });
+
+      await import('./popup');
+      await flushAsyncWork();
+
+      expect(document.getElementById('schedules-empty')?.hidden).toBe(false);
+      expect(document.getElementById('schedules-list')?.hidden).toBe(true);
+    });
+
+    it('renders saved schedules in read-only list', async () => {
+      const schedules: WeeklySchedule[] = [
+        {
+          id: 'schedule-1',
+          label: 'Kantooruren',
+          projectCode: 'ZMOCK_001.1.1',
+          hoursPerWeekday: {
+            monday: 8,
+            tuesday: 8,
+            wednesday: 8,
+            thursday: 8,
+            friday: 8,
+            saturday: 0,
+            sunday: 0,
+          },
+        },
+        {
+          id: 'schedule-2',
+          label: 'Deeltijd',
+          projectCode: 'ZTEST_42',
+          hoursPerWeekday: {
+            monday: 4,
+            tuesday: 4,
+            wednesday: 4,
+            thursday: 4,
+            friday: 4,
+            saturday: 0,
+            sunday: 0,
+          },
+        },
+      ];
+
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        const key = keys[0];
+        if (key === 'projectSchedules') {
+          callback({ [key]: schedules });
+          return;
+        }
+        callback({ [key]: undefined });
+      });
+
+      await import('./popup');
+      await flushAsyncWork();
+
+      const list = document.getElementById('schedules-list') as HTMLUListElement;
+      expect(document.getElementById('schedules-empty')?.hidden).toBe(true);
+      expect(list.hidden).toBe(false);
+      expect(list.querySelectorAll('li')).toHaveLength(2);
+      expect(list.textContent).toContain('Kantooruren');
+      expect(list.textContent).toContain('Project: ZMOCK_001.1.1');
+      expect(list.textContent).toContain('Deeltijd');
+      expect(list.textContent).toContain('Project: ZTEST_42');
+    });
+  });
+
   describe('cache bootstrap', () => {
     it('renders cached snapshot when it matches period from route query parameter', async () => {
       const cached: CachedTimesheetSnapshot = {
         snapshot: {
           month: 5,
           year: 2026,
-          projectCodes: ['C0007012.1.1'],
+          projectCodes: ['ZMOCK_001.1.1'],
+          currentProjectCode: 'ZMOCK_001.1.1',
           totals: {
             worked: 120,
-            absent: 8,
+
             toBePerformed: 160,
           },
+          sapStatus: 'editable',
         },
         cachedAt: '2026-05-12T10:00:00.000Z',
       };
@@ -121,10 +111,10 @@ describe('popup', () => {
       });
 
       await import('./popup');
-      await Promise.resolve();
+      await flushAsyncWork();
 
       expect(document.getElementById('period-value')?.textContent).toBe('5/2026');
-      expect(document.getElementById('project-codes-value')?.textContent).toBe('C0007012.1.1');
+      expect(document.getElementById('project-codes-value')?.textContent).toBe('ZMOCK_001.1.1');
       expect(document.getElementById('worked-hours-value')?.textContent).toBe('120 u');
       expect(document.getElementById('summary-section')?.hasAttribute('hidden')).toBe(false);
       expect(document.getElementById('data-origin-indicator')?.textContent).toContain('Cache gebruikt');
@@ -136,8 +126,10 @@ describe('popup', () => {
         snapshot: {
           month: 4,
           year: 2026,
-          projectCodes: ['C0007012.1.1'],
-          totals: { worked: 120, absent: 8, toBePerformed: 160 },
+          projectCodes: ['ZMOCK_001.1.1'],
+          currentProjectCode: 'ZMOCK_001.1.1',
+          totals: { worked: 120, toBePerformed: 160 },
+          sapStatus: 'editable',
         },
         cachedAt: '2026-04-30T10:00:00.000Z',
       };
@@ -151,7 +143,7 @@ describe('popup', () => {
       });
 
       await import('./popup');
-      await Promise.resolve();
+      await flushAsyncWork();
 
       // Summary section should remain hidden — stale data should not be displayed
       expect(document.getElementById('summary-section')?.hidden).toBe(true);
@@ -165,8 +157,10 @@ describe('popup', () => {
         snapshot: {
           month: now.getMonth() + 1,
           year: now.getFullYear(),
-          projectCodes: ['C0007012.1.1'],
-          totals: { worked: 120, absent: 8, toBePerformed: 160 },
+          projectCodes: ['ZMOCK_001.1.1'],
+          currentProjectCode: 'ZMOCK_001.1.1',
+          totals: { worked: 120, toBePerformed: 160 },
+          sapStatus: 'editable',
         },
         cachedAt: '2026-05-12T10:00:00.000Z',
       };
@@ -180,7 +174,7 @@ describe('popup', () => {
       });
 
       await import('./popup');
-      await Promise.resolve();
+      await flushAsyncWork();
 
       expect(document.getElementById('period-value')?.textContent).toBe(`${currentCache.snapshot.month}/${currentCache.snapshot.year}`);
       expect(mockChromeStorageLocalRemove).not.toHaveBeenCalled();
@@ -190,14 +184,42 @@ describe('popup', () => {
   describe('cache write-through', () => {
     const sapTab = {
       id: 99,
-      url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my',
+      url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/5/2026/project/ZSST',
       status: 'complete',
     } as chrome.tabs.Tab;
 
     function setupScrapeReturning(snapshot: TimesheetSnapshot, storedValues: Record<string, unknown> = {}) {
       mockChromeTabsQuery.mockResolvedValue([sapTab]);
       mockChromeRuntimeSendMessage.mockResolvedValue({ success: true, data: { busy: false } });
-      mockChromeTabsSendMessage.mockResolvedValue({ success: true, data: snapshot });
+      mockChromeScriptingExecuteScript.mockImplementation(async (injection) => {
+        const funcName = injection.func?.name;
+        if (funcName === 'ui5MainWorldReadSnapshot') {
+          return [{
+            documentId: 'mock-id',
+            frameId: 0,
+            result: {
+              success: true,
+              snapshot,
+            },
+          }];
+        }
+        if (funcName === 'ui5MainWorldAutofill') {
+          return [{
+            documentId: 'mock-id',
+            frameId: 0,
+            result: {
+              appliedDaysCount: 1,
+              failedDates: [],
+            },
+          }];
+        }
+
+        return [{
+          documentId: 'mock-id',
+          frameId: 0,
+          result: undefined,
+        }];
+      });
       mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
         callback({ [keys[0]]: storedValues[keys[0]] });
       });
@@ -210,14 +232,16 @@ describe('popup', () => {
     it('saves snapshot to cache after successful scrape', async () => {
       const snapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['C0007012.1.1'],
-        totals: { worked: 120, absent: 8, toBePerformed: 160 },
+        projectCodes: ['ZMOCK_001.1.1'],
+        currentProjectCode: 'ZMOCK_001.1.1',
+        totals: { worked: 120, toBePerformed: 160 },
+        sapStatus: 'editable',
       };
       const storedValues: Record<string, unknown> = {};
       setupScrapeReturning(snapshot, storedValues);
 
       await import('./popup');
-      await new Promise((r) => setTimeout(r, 0));
+      await flushAsyncWork();
 
        expect(mockChromeStorageLocalSet).toHaveBeenCalledWith(
          expect.objectContaining({
@@ -229,16 +253,39 @@ describe('popup', () => {
        expect(document.getElementById('data-origin-indicator')?.classList.contains('fresh')).toBe(true);
     });
 
+    it('renders summary values from the UI5 main-world snapshot reader', async () => {
+      const snapshot: TimesheetSnapshot = {
+        month: 5, year: 2026,
+        projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
+        currentProjectCode: 'ZMOCK_001.1.1',
+        totals: { worked: 120, toBePerformed: 160 },
+        sapStatus: 'editable',
+      };
+      setupScrapeReturning(snapshot);
+
+      await import('./popup');
+      await flushAsyncWork();
+
+      expect(document.getElementById('period-value')?.textContent).toBe('5/2026');
+      expect(document.getElementById('project-codes-value')?.textContent).toBe('ZMOCK_001.1.1, ZTEST_42');
+      expect(document.getElementById('worked-hours-value')?.textContent).toBe('120 u');
+      expect(document.getElementById('to-be-performed-hours-value')?.textContent).toBe('160 u');
+    });
+
     it('does not overwrite a complete cache with a partial fresh snapshot', async () => {
       const completeSnapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['C0007012.1.1'],
-        totals: { worked: 120, absent: 8, toBePerformed: 160 },
+        projectCodes: ['ZMOCK_001.1.1'],
+        currentProjectCode: 'ZMOCK_001.1.1',
+        totals: { worked: 120, toBePerformed: 160 },
+        sapStatus: 'editable',
       };
       const partialSnapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['C0007012.1.1'],
-        totals: { worked: null, absent: null, toBePerformed: null },
+        projectCodes: ['ZMOCK_001.1.1'],
+        currentProjectCode: 'ZMOCK_001.1.1',
+        totals: { worked: null, toBePerformed: null },
+        sapStatus: 'editable',
       };
        const existingCache: CachedTimesheetSnapshot = {
          snapshot: completeSnapshot,
@@ -249,7 +296,7 @@ describe('popup', () => {
       setupScrapeReturning(partialSnapshot, storedValues);
 
       await import('./popup');
-      await new Promise((r) => setTimeout(r, 0));
+      await flushAsyncWork();
 
       // set should not have been called with partial data
       expect(mockChromeStorageLocalSet).not.toHaveBeenCalledWith(
@@ -264,12 +311,14 @@ describe('popup', () => {
        const snapshotNoDate: TimesheetSnapshot = {
          month: null, year: null,
          projectCodes: [],
-         totals: { worked: null, absent: null, toBePerformed: null },
+         currentProjectCode: null,
+         totals: { worked: null, toBePerformed: null },
+         sapStatus: 'editable',
        };
        setupScrapeReturning(snapshotNoDate);
 
        await import('./popup');
-       await new Promise((r) => setTimeout(r, 0));
+       await flushAsyncWork();
 
        expect(mockChromeStorageLocalSet).toHaveBeenCalledWith(
          expect.objectContaining({
@@ -283,15 +332,17 @@ describe('popup', () => {
   describe('busy/loading UX behavior', () => {
     const sapTab = {
       id: 99,
-      url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my',
+      url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/5/2026/project/ZSST',
       status: 'complete',
     } as chrome.tabs.Tab;
 
     it('shows cached data and gentle loading message when SAP page is loading', async () => {
       const cachedSnapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['C0007012.1.1'],
-        totals: { worked: 120, absent: 8, toBePerformed: 160 },
+        projectCodes: ['ZMOCK_001.1.1'],
+        currentProjectCode: 'ZMOCK_001.1.1',
+        totals: { worked: 120, toBePerformed: 160 },
+        sapStatus: 'editable',
       };
       const cachedData: CachedTimesheetSnapshot = {
         snapshot: cachedSnapshot,
@@ -305,11 +356,11 @@ describe('popup', () => {
       });
 
       await import('./popup');
-      await new Promise((r) => setTimeout(r, 0));
+      await flushAsyncWork();
 
       // Cached data should still be visible
       expect(document.getElementById('period-value')?.textContent).toBe('5/2026');
-      expect(document.getElementById('project-codes-value')?.textContent).toBe('C0007012.1.1');
+      expect(document.getElementById('project-codes-value')?.textContent).toBe('ZMOCK_001.1.1');
       expect(document.getElementById('worked-hours-value')?.textContent).toBe('120 u');
       // Status message should be gentle, not an error
       expect(document.getElementById('status-message')?.textContent).toContain('Pagina laadt nog');
@@ -318,8 +369,10 @@ describe('popup', () => {
     it('returns early with cached data visible when tab status is loading', async () => {
       const cachedSnapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['C0007012.1.1'],
-        totals: { worked: 120, absent: 8, toBePerformed: 160 },
+        projectCodes: ['ZMOCK_001.1.1'],
+        currentProjectCode: 'ZMOCK_001.1.1',
+        totals: { worked: 120, toBePerformed: 160 },
+        sapStatus: 'editable',
       };
       const cachedData: CachedTimesheetSnapshot = {
         snapshot: cachedSnapshot,
@@ -333,7 +386,7 @@ describe('popup', () => {
       });
 
       await import('./popup');
-      await new Promise((r) => setTimeout(r, 0));
+      await flushAsyncWork();
 
       // Cached data should still be visible
       expect(document.getElementById('period-value')?.textContent).toBe('5/2026');
@@ -351,7 +404,7 @@ describe('popup', () => {
       });
 
       await import('./popup');
-      await new Promise((r) => setTimeout(r, 0));
+      await flushAsyncWork();
 
       // Should show error
       expect(document.getElementById('status-message')?.textContent).toContain('Fout:');
@@ -407,206 +460,6 @@ describe('popup', () => {
     });
   });
 
-  describe('formatHours', () => {
-    it('formats number with decimal separator as comma', async () => {
-      const { formatHours } = await import('./popup');
-
-      expect(formatHours(7.5)).toBe('7,5 u');
-    });
-
-    it('formats whole numbers without decimal', async () => {
-      const { formatHours } = await import('./popup');
-
-      expect(formatHours(8)).toBe('8 u');
-    });
-
-    it('returns "-" when value is null', async () => {
-      const { formatHours } = await import('./popup');
-
-      expect(formatHours(null)).toBe('-');
-    });
-
-    it('handles large numbers', async () => {
-      const { formatHours } = await import('./popup');
-
-      expect(formatHours(160.5)).toBe('160,5 u');
-    });
-  });
-
-  describe('renderSnapshot', () => {
-    it('displays month and year when both are provided', async () => {
-      const { renderSnapshot } = await import('./popup');
-      const snapshot: TimesheetSnapshot = {
-        month: 4,
-        year: 2026,
-        projectCodes: [],
-        totals: {
-          worked: 0,
-          absent: 0,
-          toBePerformed: 0,
-        },
-      };
-
-      renderSnapshot(snapshot);
-
-      expect(document.getElementById('period-value')?.textContent).toBe('4/2026');
-    });
-
-    it('displays "-" when month or year is null', async () => {
-      const { renderSnapshot } = await import('./popup');
-      const snapshot: TimesheetSnapshot = {
-        month: null,
-        year: null,
-        projectCodes: [],
-        totals: {
-          worked: 0,
-          absent: 0,
-          toBePerformed: 0,
-        },
-      };
-
-      renderSnapshot(snapshot);
-
-      expect(document.getElementById('period-value')?.textContent).toBe('-');
-    });
-
-    it('displays project codes joined by comma', async () => {
-      const { renderSnapshot } = await import('./popup');
-      const snapshot: TimesheetSnapshot = {
-        month: 4,
-        year: 2026,
-        projectCodes: ['C0007012.1.1', 'ZTEST_42'],
-        totals: {
-          worked: null,
-          absent: null,
-          toBePerformed: null,
-        },
-      };
-
-      renderSnapshot(snapshot);
-
-      expect(document.getElementById('project-codes-value')?.textContent).toBe(
-        'C0007012.1.1, ZTEST_42'
-      );
-    });
-
-    it('displays "-" when project codes array is empty', async () => {
-      const { renderSnapshot } = await import('./popup');
-      const snapshot: TimesheetSnapshot = {
-        month: 4,
-        year: 2026,
-        projectCodes: [],
-        totals: {
-          worked: null,
-          absent: null,
-          toBePerformed: null,
-        },
-      };
-
-      renderSnapshot(snapshot);
-
-      expect(document.getElementById('project-codes-value')?.textContent).toBe('-');
-    });
-
-    it('displays formatted hours for all totals', async () => {
-      const { renderSnapshot } = await import('./popup');
-      const snapshot: TimesheetSnapshot = {
-        month: 4,
-        year: 2026,
-        projectCodes: [],
-        totals: {
-          worked: 134.5,
-          absent: 8,
-          toBePerformed: 160,
-        },
-      };
-
-      renderSnapshot(snapshot);
-
-      expect(document.getElementById('worked-hours-value')?.textContent).toBe('134,5 u');
-      expect(document.getElementById('absent-hours-value')?.textContent).toBe('8 u');
-      expect(document.getElementById('to-be-performed-hours-value')?.textContent).toBe('160 u');
-    });
-
-    it('unhides summary section after rendering', async () => {
-      const { renderSnapshot } = await import('./popup');
-      const snapshot: TimesheetSnapshot = {
-        month: 4,
-        year: 2026,
-        projectCodes: [],
-        totals: {
-          worked: 0,
-          absent: 0,
-          toBePerformed: 0,
-        },
-      };
-
-      const summarySection = document.getElementById('summary-section') as HTMLElement;
-      expect(summarySection.hidden).toBe(true);
-
-      renderSnapshot(snapshot);
-
-      expect(summarySection.hidden).toBe(false);
-    });
-
-    it('displays null totals as "-"', async () => {
-      const { renderSnapshot } = await import('./popup');
-      const snapshot: TimesheetSnapshot = {
-        month: 4,
-        year: 2026,
-        projectCodes: [],
-        totals: {
-          worked: null,
-          absent: null,
-          toBePerformed: null,
-        },
-      };
-
-      renderSnapshot(snapshot);
-
-      expect(document.getElementById('worked-hours-value')?.textContent).toBe('-');
-      expect(document.getElementById('absent-hours-value')?.textContent).toBe('-');
-      expect(document.getElementById('to-be-performed-hours-value')?.textContent).toBe('-');
-    });
-
-    it('hides scrape status indicator when all data is present', async () => {
-      const { renderSnapshot } = await import('./popup');
-      const snapshot: TimesheetSnapshot = {
-        month: 4,
-        year: 2026,
-        projectCodes: [],
-        totals: {
-          worked: 160,
-          absent: 0,
-          toBePerformed: 0,
-        },
-      };
-
-      renderSnapshot(snapshot, true);
-
-      expect(document.getElementById('scrape-status')?.hidden).toBe(true);
-    });
-
-    it('shows subtle warning status indicator when data is incomplete', async () => {
-      const { renderSnapshot } = await import('./popup');
-      const snapshot: TimesheetSnapshot = {
-        month: 4,
-        year: 2026,
-        projectCodes: [],
-        totals: {
-          worked: 160,
-          absent: null,
-          toBePerformed: 0,
-        },
-      };
-
-      renderSnapshot(snapshot, false);
-
-      expect(document.getElementById('scrape-status')?.hidden).toBe(false);
-      expect(document.getElementById('scrape-status')?.textContent).toBe('Onvolledig');
-      expect(document.getElementById('scrape-status')?.classList.contains('warning')).toBe(true);
-    });
-  });
 
   describe('setStatus', () => {
     it('updates status message text', async () => {
@@ -650,8 +503,4 @@ describe('popup', () => {
       expect(tab).toBeUndefined();
     });
   });
-});
-
-
-
-
+ });

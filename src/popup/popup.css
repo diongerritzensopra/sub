@@ -44,6 +44,33 @@ main {
   gap: 12px;
 }
 
+#status-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+#status-message {
+  flex: 1;
+  white-space: pre-line;
+  line-height: 1.4;
+}
+
+#btn-status-dismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+#btn-status-dismiss:hover {
+  color: #333;
+}
+
 h2 {
   font-size: 13px;
   font-weight: 600;
@@ -51,6 +78,12 @@ h2 {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 6px;
+}
+
+#app :focus-visible {
+  outline: 2px solid #1c65bf;
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .subtle-indicator {
@@ -98,16 +131,202 @@ h2 {
   font-size: 13px;
 }
 
+#schedules-empty {
+  font-size: 12px;
+  color: #666;
+}
+
+#schedules-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#schedules-list li {
+  background: #f5f5f5;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.schedule-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+  border-radius: 4px;
+  transition: outline-color 0.1s;
+}
+
+.schedule-item--selected {
+  outline-color: #1c65bf;
+}
+
+.schedule-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.schedule-edit-button,
+.schedule-delete-button,
+.schedule-confirm-yes,
+.schedule-confirm-no {
+  background: transparent;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  padding: 4px 4px;
+  line-height: 1;
+  font-size: 14px;
+}
+
+.schedule-edit-button:hover:not(:disabled),
+.schedule-confirm-no:hover:not(:disabled) {
+  background: #ececec;
+}
+
+.schedule-delete-button:hover:not(:disabled),
+.schedule-confirm-yes:hover:not(:disabled) {
+  background: #fdecea;
+  border-color: #e57373;
+}
+
+.schedule-actions,
+.schedule-confirm-delete {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.schedule-actions[hidden],
+.schedule-confirm-delete[hidden] {
+  display: none;
+}
+
+.schedule-confirm-label {
+  font-size: 11px;
+  color: #555;
+  white-space: nowrap;
+}
+
+
+#btn-add-schedule {
+  background: #1c65bf;
+  color: #fff;
+  margin: 4px 0;
+  width: 100%;
+}
+
+#btn-add-schedule:hover:not(:disabled) {
+  background: #17539d;
+}
+
+#btn-apply-schedules {
+  background: #0b8043;
+  color: #fff;
+  margin: 0 0 10px;
+  width: 100%;
+}
+
+#btn-apply-schedules:hover:not(:disabled) {
+  background: #096b39;
+}
+
+/* Applying in progress: progress cursor, less faded than normal :disabled */
+#btn-apply-schedules.is-applying {
+  cursor: progress;
+  opacity: 0.75;
+}
+
+/* Locked by SAP: amber background to distinguish from plain "not ready" gray */
+#btn-apply-schedules.is-locked {
+  background: #7d4e00;
+}
+
+.schedule-title {
+  font-weight: 600;
+}
+
+.schedule-meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #666;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.form-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+}
+
+.form-group input,
+.form-group select {
+  padding: 6px 8px;
+  font-size: 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: inherit;
+}
+
+
+.weekday-hours {
+  border: none;
+  padding: 0;
+  margin: 0 0 12px 0;
+}
+
+.weekday-hours legend {
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  padding: 0 0 8px 0;
+}
+
+.weekday-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.weekday-input {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.weekday-input label {
+  font-size: 11px;
+  color: #666;
+}
+
+.weekday-input input {
+  padding: 4px 6px;
+  font-size: 11px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 /* Visual indication for cached (stale) data */
 #summary-section.cached-data #summary-list li {
   opacity: 0.65;
-}
-
-footer {
-  padding: 12px 16px;
-  display: flex;
-  gap: 8px;
-  border-top: 1px solid #eee;
 }
 
 button {
