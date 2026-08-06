@@ -7,6 +7,27 @@ import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 export const ROUTE_PERIOD_PATTERN = /[?&]\/(1[0-2]|0?[1-9])\/(20\d{2})(?:[/?&#]|$)/i;
 export const STATUS_MESSAGE_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
 
+export type PopupState = {
+  isCachedData: boolean;
+  snapshotTimestampIso: string | null;
+  currentSnapshot: TimesheetSnapshot | null;
+  renderedSchedules: WeeklySchedule[];
+  isTimesheetApplyAllowed: boolean;
+  selectedScheduleIds: Set<string>;
+  scheduleBeingEdited: WeeklySchedule | null;
+};
+
+export function createInitialPopupState(): PopupState {
+  return {
+    isCachedData: false,
+    snapshotTimestampIso: null,
+    currentSnapshot: null,
+    renderedSchedules: [],
+    isTimesheetApplyAllowed: false,
+    selectedScheduleIds: new Set<string>(),
+    scheduleBeingEdited: null,
+  };
+}
 
 export function isSapTimesheetEditable(status: TimesheetSnapshot['sapStatus'] | null | undefined): boolean {
   return status !== 'locked';
@@ -53,5 +74,3 @@ export function getSchedulesToApply(
 
   return renderedSchedules.filter((schedule) => selectedScheduleIds.has(schedule.id));
 }
-
-
