@@ -140,36 +140,42 @@ export async function handleScheduleFormSubmit(ctx: PopupActionsContext): Promis
 }
 
 export async function applySchedulesFromSelection(ctx: PopupActionsContext): Promise<void> {
+  if (!ctx.state.isTimesheetApplyAllowed) {
+    ctx.setStatus(`Fout: ${LOCKED_TIMESHEET_MESSAGE}`, true);
+    return;
+  }
+
+  if (!ctx.state.currentSnapshot || ctx.state.currentSnapshot.month === null || ctx.state.currentSnapshot.year === null) {
+    ctx.setStatus('Fout: Kan niet toepassen zonder geldige periode. Analyseer eerst de timesheet.', true);
+    return;
+  }
+
+  const month = ctx.state.currentSnapshot.month;
+  const year = ctx.state.currentSnapshot.year;
+
+  const schedulesToApply = getSchedulesToApply(ctx.state.renderedSchedules, ctx.state.selectedScheduleIds);
+  if (schedulesToApply.length === 0) {
+    ctx.setStatus('Fout: Geen schema\'s beschikbaar om toe te passen.', true);
+    return;
+  }
+
+  for (const schedule of schedulesToApply) {
+    if (!ctx.state.currentSnapshot.projectCodes.includes(schedule.projectCode)) {
+      ctx.setStatus(`Fout: Project ${schedule.projectCode} is niet beschikbaar in het SAP navigatiemenu.`, true);
+      return;
+    }
+  }
+
   try {
-    if (!ctx.state.isTimesheetApplyAllowed) {
-      throw new Error(LOCKED_TIMESHEET_MESSAGE);
-    }
-
-    if (!ctx.state.currentSnapshot || ctx.state.currentSnapshot.month === null || ctx.state.currentSnapshot.year === null) {
-      throw new Error('Kan niet toepassen zonder geldige periode. Analyseer eerst de timesheet.');
-    }
-
-    const month = ctx.state.currentSnapshot.month;
-    const year = ctx.state.currentSnapshot.year;
-
-    const schedulesToApply = getSchedulesToApply(ctx.state.renderedSchedules, ctx.state.selectedScheduleIds);
-    if (schedulesToApply.length === 0) {
-      throw new Error('Geen schema\'s beschikbaar om toe te passen.');
-    }
-
-    for (const schedule of schedulesToApply) {
-      if (!ctx.state.currentSnapshot.projectCodes.includes(schedule.projectCode)) {
-        throw new Error(`Project ${schedule.projectCode} is niet beschikbaar in het SAP navigatiemenu.`);
-      }
-    }
-
     const activeTab = await getActiveTab();
     if (!activeTab?.id) {
-      throw new Error('Geen actief tabblad gevonden.');
+      ctx.setStatus('Fout: Geen actief tabblad gevonden.', true);
+      return;
     }
 
     if (!isTimesheetTab(activeTab)) {
-      throw new Error('Het actieve tabblad is geen SAP My Timesheet pagina.');
+      ctx.setStatus('Fout: Het actieve tabblad is geen SAP My Timesheet pagina.', true);
+      return;
     }
 
     syncApplySchedulesButtonState(ctx, true);
@@ -236,6 +242,60 @@ export async function handleDeleteSchedule(ctx: PopupActionsContext, scheduleId:
   }
 }
 
+async function runAnalyseActiveTab(ctx: PopupActionsContext): Promise<void> {
+  const activeTab = await getActiveTab();
+  if (!activeTab?.id) {
+    ctx.setStatus('Fout: Geen actief tabblad gevonden.');
+    return;
+  }
+
+  if (!isTimesheetTab(activeTab)) {
+    ctx.setStatus('Fout: Het actieve tabblad is geen SAP My Timesheet pagina.');
+    return;
+  }
+
+  const cachedSnapshot = await getValidCachedSnapshot(activeTab);
+  const hasCachedData = cachedSnapshot !== undefined;
+  if (!hasCachedData) {
+    ctx.setStatus('Pagina analyseren...');
+  }
+
+  const isPageLoading = activeTab.status === 'loading' || await getSAPBusyStateForTab(activeTab.id);
+  if (isPageLoading) {
+    if (!hasCachedData) {
+      ctx.setStatus('Fout: De pagina laadt nog. Probeer het over een moment opnieuw.');
+      return;
+    }
+    ctx.setStatus('Pagina laadt nog, gegevens kunnen verouderd zijn...');
+    return;
+  }
+
+  const scrapedSnapshot = await readTimesheetSnapshotViaUi5(activeTab.id);
+  const scrapedIsComplete = isSnapshotComplete(scrapedSnapshot);
+  const timesheetIsEditable = isSapTimesheetEditable(scrapedSnapshot.sapStatus);
+  ctx.state.snapshotTimestampIso = new Date().toISOString();
+  ctx.state.isCachedData = false;
+  ctx.renderSnapshot(scrapedSnapshot, scrapedIsComplete);
+
+  const cachedIsComplete = cachedSnapshot ? isSnapshotComplete(cachedSnapshot.snapshot) : false;
+  if (!cachedIsComplete || scrapedIsComplete) {
+    await setCachedTimesheetSnapshot({
+      snapshot: scrapedSnapshot,
+      cachedAt: ctx.state.snapshotTimestampIso,
+    });
+  }
+
+  if (!timesheetIsEditable) {
+    ctx.setStatus(LOCKED_TIMESHEET_MESSAGE);
+    return;
+  }
+
+  const restoredCachedStatus = await ctx.restoreCachedStatusMessage();
+  if (!restoredCachedStatus) {
+    ctx.setStatus('');
+  }
+}
+
 export async function renderCachedSnapshotIfAvailable(ctx: PopupActionsContext): Promise<void> {
   const activeTab = await getActiveTab();
   const cached = await getValidCachedSnapshot(activeTab);
@@ -252,54 +312,7 @@ export async function analyseActiveTab(ctx: PopupActionsContext): Promise<void> 
   setScrapeButtonState(ctx.dom, true);
 
   try {
-    const activeTab = await getActiveTab();
-    if (!activeTab?.id) {
-      throw new Error('Geen actief tabblad gevonden.');
-    }
-
-    if (!isTimesheetTab(activeTab)) {
-      throw new Error('Het actieve tabblad is geen SAP My Timesheet pagina.');
-    }
-
-    const cachedSnapshot = await getValidCachedSnapshot(activeTab);
-    const hasCachedData = cachedSnapshot !== undefined;
-    if (!hasCachedData) {
-      ctx.setStatus('Pagina analyseren...');
-    }
-
-    const isPageLoading = activeTab.status === 'loading' || await getSAPBusyStateForTab(activeTab.id);
-    if (isPageLoading) {
-      if (!hasCachedData) {
-        throw new Error('De pagina laadt nog. Probeer het over een moment opnieuw.');
-      }
-      ctx.setStatus('Pagina laadt nog, gegevens kunnen verouderd zijn...');
-      return;
-    }
-
-    const scrapedSnapshot = await readTimesheetSnapshotViaUi5(activeTab.id);
-    const scrapedIsComplete = isSnapshotComplete(scrapedSnapshot);
-    const timesheetIsEditable = isSapTimesheetEditable(scrapedSnapshot.sapStatus);
-    ctx.state.snapshotTimestampIso = new Date().toISOString();
-    ctx.state.isCachedData = false;
-    ctx.renderSnapshot(scrapedSnapshot, scrapedIsComplete);
-
-    const cachedIsComplete = cachedSnapshot ? isSnapshotComplete(cachedSnapshot.snapshot) : false;
-    if (!cachedIsComplete || scrapedIsComplete) {
-      await setCachedTimesheetSnapshot({
-        snapshot: scrapedSnapshot,
-        cachedAt: ctx.state.snapshotTimestampIso,
-      });
-    }
-
-    if (!timesheetIsEditable) {
-      ctx.setStatus(LOCKED_TIMESHEET_MESSAGE);
-      return;
-    }
-
-    const restoredCachedStatus = await ctx.restoreCachedStatusMessage();
-    if (!restoredCachedStatus) {
-      ctx.setStatus('');
-    }
+    await runAnalyseActiveTab(ctx);
   } catch (err) {
     ctx.setStatus(`Fout: ${(err as Error).message}`);
   } finally {
