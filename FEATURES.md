@@ -24,7 +24,7 @@ Shared feature roadmap for `sub`.
     6. Writes the new version to `manifest.json`, `package.json`, and `package-lock.json`.
     7. Commits the three changed files with message `[release] v<version>` and creates a `v<version>` git tag on that commit.
     8. Zips `dist/` to `sub-extension-v<version>.zip`.
-- [ ] Chunk 2 - npm script wiring.
+- [x] Chunk 2 - npm script wiring.
   - Add a `"release"` script to `package.json` that invokes `node scripts/release.mjs`.
   - Existing `"package"` script remains unchanged for re-packaging without a version bump.
 - [ ] Chunk 3 - AGENTS.md / README documentation.
