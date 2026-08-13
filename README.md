@@ -27,6 +27,31 @@ npm run build
 npm test
 ```
 
+## Release workflow
+- `npm run release` runs the release automation for `sub`.
+- Before doing anything, the release script requires:
+  - a clean git working tree,
+  - the `main` branch to be checked out,
+  - no existing version tag on the current commit.
+- The script runs unit tests and a production build before updating version files.
+- On success it updates `manifest.json`, `package.json`, and `package-lock.json`, creates a `[release] v<version>` commit, tags that commit as `v<version>`, and produces a distributable zip.
+
+Examples:
+
+```bash
+# Default minor bump
+npm run release
+
+# Patch bump
+npm run release -- --patch
+
+# Major bump
+npm run release -- --major
+
+# Explicit version
+npm run release -- 1.2.3
+```
+
 ## Manual testing in Chrome
 1. Open `chrome://extensions`
 2. Enable **Developer mode**
