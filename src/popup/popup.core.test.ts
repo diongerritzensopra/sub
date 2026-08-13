@@ -15,6 +15,12 @@ beforeEach(() => {
   resetPopupTestEnvironment();
 });
 
+function recentCacheTimestamp(daysAgo: number = 1): string {
+  const date = new Date();
+  date.setDate(date.getDate() - daysAgo);
+  return date.toISOString();
+}
+
 describe('popup core', () => {
   describe('schedule list', () => {
     it('shows empty state when no schedules are stored', async () => {
@@ -99,7 +105,7 @@ describe('popup core', () => {
           },
           sapStatus: 'editable',
         },
-        cachedAt: '2026-05-12T10:00:00.000Z',
+        cachedAt: recentCacheTimestamp(),
       };
       mockChromeTabsQuery.mockResolvedValue([{
         id: 99,
@@ -162,7 +168,7 @@ describe('popup core', () => {
           totals: { worked: 120, toBePerformed: 160 },
           sapStatus: 'editable',
         },
-        cachedAt: '2026-05-12T10:00:00.000Z',
+        cachedAt: recentCacheTimestamp(),
       };
       mockChromeTabsQuery.mockResolvedValue([{
         id: 99,
@@ -289,7 +295,7 @@ describe('popup core', () => {
       };
        const existingCache: CachedTimesheetSnapshot = {
          snapshot: completeSnapshot,
-         cachedAt: '2026-05-12T10:00:00.000Z',
+         cachedAt: recentCacheTimestamp(),
        };
       // Cache already has complete data; fresh scrape returns partial
       const storedValues: Record<string, unknown> = { timesheetSnapshotCache: existingCache };
@@ -346,7 +352,7 @@ describe('popup core', () => {
       };
       const cachedData: CachedTimesheetSnapshot = {
         snapshot: cachedSnapshot,
-        cachedAt: '2026-05-12T10:00:00.000Z',
+        cachedAt: recentCacheTimestamp(),
       };
 
       mockChromeTabsQuery.mockResolvedValue([sapTab]);
@@ -376,7 +382,7 @@ describe('popup core', () => {
       };
       const cachedData: CachedTimesheetSnapshot = {
         snapshot: cachedSnapshot,
-        cachedAt: '2026-05-12T10:00:00.000Z',
+        cachedAt: recentCacheTimestamp(),
       };
       const loadingTab = { ...sapTab, status: 'loading' } as chrome.tabs.Tab;
 

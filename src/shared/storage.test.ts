@@ -60,6 +60,7 @@ describe('storage helpers', () => {
           worked: 120,
           toBePerformed: 160,
         },
+        sapStatus: 'editable',
       },
       cachedAt: '2026-05-12T10:00:00.000Z',
     };
@@ -211,9 +212,22 @@ describe('schedule storage helpers', () => {
 });
 
 describe('isCacheStale', () => {
-  function makeCache(month: number | null, year: number | null, cachedAt: string = '2026-05-12T10:00:00.000Z'): CachedTimesheetSnapshot {
+  function makeRecentCacheTimestamp(daysAgo: number = 1): string {
+    const date = new Date();
+    date.setDate(date.getDate() - daysAgo);
+    return date.toISOString();
+  }
+
+  function makeCache(month: number | null, year: number | null, cachedAt: string = makeRecentCacheTimestamp()): CachedTimesheetSnapshot {
     return {
-      snapshot: { month, year, projectCodes: [], currentProjectCode: null, totals: { worked: null, toBePerformed: null } },
+      snapshot: {
+        month,
+        year,
+        projectCodes: [],
+        currentProjectCode: null,
+        totals: { worked: null, toBePerformed: null },
+        sapStatus: 'editable',
+      },
       cachedAt,
     };
   }
