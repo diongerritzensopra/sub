@@ -4,33 +4,6 @@ Shared feature roadmap for `sub`.
 
 ## Planned
 
-### Versioning, packaging and distribution
-#### Feature description
-- [ ] Bump the extension version and produce a distributable zip with a single command.
-  - `manifest.json` remains the single source of truth for the version; `package.json` and `package-lock.json` are kept in sync automatically.
-  - Default bump is minor (resets patch to 0). Optional `--patch` flag bumps patch only; optional `--major` flag bumps major and resets minor and patch to 0.
-  - A specific version can be supplied as an argument (e.g. `npm run release -- 1.2.3`).
-  - Pre-flight git checks must pass before any versioning or building takes place: working tree must be clean, the `main` branch must be checked out, and the current commit must not already carry a version tag.
-  - After writing the new version, `manifest.json` and `package(-lock).json` are committed with a `[release] v<version>` commit message and a `v<version>` git tag is created on that commit. The build artifact (zip) is not included in the commit.
-
-#### Implementation chunks
-- [ ] Chunk 1 - Release script.
-  - Add `scripts/release.mjs` that:
-    1. Runs pre-flight git checks (clean working tree, `main` branch checked out, no existing version tag on `HEAD`); aborts with a clear error if any check fails.
-    2. Resolves the new version from the current `manifest.json` version using the supplied flag (`--patch`, `--major`) or a literal semver argument; defaults to minor bump.
-    3. Validates any literal version argument against semver `x.y.z` format.
-    4. Runs the unit tests (`vitest run`); aborts if any test fails.
-    5. Runs `vite build`; aborts if the build fails.
-    6. Writes the new version to `manifest.json`, `package.json`, and `package-lock.json`.
-    7. Commits the three changed files with message `[release] v<version>` and creates a `v<version>` git tag on that commit.
-    8. Zips `dist/` to `sub-extension-v<version>.zip`.
-- [ ] Chunk 2 - npm script wiring.
-  - Add a `"release"` script to `package.json` that invokes `node scripts/release.mjs`.
-  - Existing `"package"` script remains unchanged for re-packaging without a version bump.
-- [ ] Chunk 3 - AGENTS.md / README documentation.
-  - Add `release` to the Developer Workflow table in `AGENTS.md`.
-  - Add usage examples to `README.md` (default minor bump, `--patch`, `--major`, and explicit version).
-
 ### Popup unit test refactoring
 #### Feature description
 - [ ] Refactor the popup unit tests so that each popup module (`popup-actions.ts`, `popup-dom.ts`, `popup-gateway.ts`, `popup-model.ts`, `popup-render.ts`) has its own dedicated unit test file.
@@ -200,6 +173,33 @@ Shared feature roadmap for `sub`.
 
 
 ## Completed
+
+### Versioning, packaging and distribution
+#### Feature description
+- [x] Bump the extension version and produce a distributable zip with a single command.
+  - `manifest.json` remains the single source of truth for the version; `package.json` and `package-lock.json` are kept in sync automatically.
+  - Default bump is minor (resets patch to 0). Optional `--patch` flag bumps patch only; optional `--major` flag bumps major and resets minor and patch to 0.
+  - A specific version can be supplied as an argument (e.g. `npm run release -- 1.2.3`).
+  - Pre-flight git checks must pass before any versioning or building takes place: working tree must be clean, the `main` branch must be checked out, and the current commit must not already carry a version tag.
+  - After writing the new version, `manifest.json` and `package(-lock).json` are committed with a `[release] v<version>` commit message and a `v<version>` git tag is created on that commit. The build artifact (zip) is not included in the commit.
+
+#### Implementation chunks
+- [x] Chunk 1 - Release script.
+  - Add `scripts/release.mjs` that:
+    1. Runs pre-flight git checks (clean working tree, `main` branch checked out, no existing version tag on `HEAD`); aborts with a clear error if any check fails.
+    2. Resolves the new version from the current `manifest.json` version using the supplied flag (`--patch`, `--major`) or a literal semver argument; defaults to minor bump.
+    3. Validates any literal version argument against semver `x.y.z` format.
+    4. Runs the unit tests (`vitest run`); aborts if any test fails.
+    5. Runs `vite build`; aborts if the build fails.
+    6. Writes the new version to `manifest.json`, `package.json`, and `package-lock.json`.
+    7. Commits the three changed files with message `[release] v<version>` and creates a `v<version>` git tag on that commit.
+    8. Zips `dist/` to `sub-extension-v<version>.zip`.
+- [x] Chunk 2 - npm script wiring.
+  - Add a `"release"` script to `package.json` that invokes `node scripts/release.mjs`.
+  - Existing `"package"` script remains unchanged for re-packaging without a version bump.
+- [x] Chunk 3 - AGENTS.md / README documentation.
+  - Add `release` to the Developer Workflow table in `AGENTS.md`.
+  - Add usage examples to `README.md` (default minor bump, `--patch`, `--major`, and explicit version).
 
 ### Project schedules
 #### Feature description

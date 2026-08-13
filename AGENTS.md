@@ -35,6 +35,7 @@ Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for he
 | Test | `npm test` |
 | Test (watch) | `npm run test:watch` |
 | Coverage | `npm run test:coverage` |
+| Release | `npm run release` |
 | Package zip | `npm run package` |
 
 ## Agent Execution Rules
