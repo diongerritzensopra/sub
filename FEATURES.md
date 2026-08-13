@@ -14,7 +14,7 @@ Shared feature roadmap for `sub`.
   - After writing the new version, `manifest.json` and `package(-lock).json` are committed with a `[release] v<version>` commit message and a `v<version>` git tag is created on that commit. The build artifact (zip) is not included in the commit.
 
 #### Implementation chunks
-- [ ] Chunk 1 - Release script.
+- [x] Chunk 1 - Release script.
   - Add `scripts/release.mjs` that:
     1. Runs pre-flight git checks (clean working tree, `main` branch checked out, no existing version tag on `HEAD`); aborts with a clear error if any check fails.
     2. Resolves the new version from the current `manifest.json` version using the supplied flag (`--patch`, `--major`) or a literal semver argument; defaults to minor bump.
