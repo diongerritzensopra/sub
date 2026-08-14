@@ -3,7 +3,7 @@
  */
 
 /** SAP My Timesheet canonical URL pattern used for matching and validation. */
-export const SAP_TIMESHEET_URL_PATTERN = 'p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site';
+export const SAP_TIMESHEET_URL_PATTERN = 'p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my';
 
 /** A single booked or to-be-booked hours entry. */
 export interface HoursEntry {

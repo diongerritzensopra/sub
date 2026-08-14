@@ -429,6 +429,26 @@ describe('popup core', () => {
       expect(isTimesheetTab(tab)).toBe(true);
     });
 
+    it('returns true when SAP timesheet URL includes the app hint query parameter', async () => {
+      const { isTimesheetTab } = await import('./popup');
+      const tab = {
+        url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet',
+        id: 1,
+      } as chrome.tabs.Tab;
+
+      expect(isTimesheetTab(tab)).toBe(true);
+    });
+
+    it('returns false for SAP launchpad landing page hash route', async () => {
+      const { isTimesheetTab } = await import('./popup');
+      const tab = {
+        url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#Shell-home',
+        id: 1,
+      } as chrome.tabs.Tab;
+
+      expect(isTimesheetTab(tab)).toBe(false);
+    });
+
     it('returns false when tab URL does not include pattern', async () => {
       const { isTimesheetTab } = await import('./popup');
       const tab = {
