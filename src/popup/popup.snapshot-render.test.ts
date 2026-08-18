@@ -72,7 +72,7 @@ describe('popup snapshot rendering', () => {
       expect(document.getElementById('period-value')?.textContent).toBe('-');
     });
 
-    it('displays project codes joined by comma', async () => {
+    it('displays project names with codes joined by comma', async () => {
       const { renderSnapshot } = await import('./popup');
       const snapshot: TimesheetSnapshot = {
         month: 4,
@@ -91,10 +91,10 @@ describe('popup snapshot rendering', () => {
 
       renderSnapshot(snapshot);
 
-      expect(document.getElementById('projects-value')?.textContent).toBe('ZMOCK_001.1.1, ZTEST_42');
+      expect(document.getElementById('projects-value')?.textContent).toBe('Mockproject [ZMOCK_001.1.1], Testproject 42 [ZTEST_42]');
     });
 
-    it('displays "-" when project codes array is empty', async () => {
+    it('displays "-" when projects array is empty', async () => {
       const { renderSnapshot } = await import('./popup');
       const snapshot: TimesheetSnapshot = {
         month: 4,

@@ -10,8 +10,13 @@ function formatScheduleProjectOptionLabel(name: string, code: string): string {
   return trimmedName ? `${trimmedName} [${code}]` : code;
 }
 
+function formatProjectWithCode(name: string, code: string): string {
+  const trimmedName = name.trim() || 'Onbekend project';
+  return `${trimmedName} [${code}]`;
+}
+
 /**
- * Render the snapshot summary (period, project codes, hours totals, data origin).
+ * Render the snapshot summary (period, projects, hours totals, data origin).
  * @param dom DOM references
  * @param snapshot Current snapshot to display
  * @param hasAllData Whether snapshot is complete (affects "incomplete" warning)
@@ -28,7 +33,7 @@ export function renderSnapshot(
   dom.periodValue.textContent = snapshot.month && snapshot.year ? `${snapshot.month}/${snapshot.year}` : '-';
   dom.projectsValue.textContent =
     snapshot.projects.length > 0
-        ? snapshot.projects.map((project) => project.code).join(', ')
+        ? snapshot.projects.map((project) => formatProjectWithCode(project.name, project.code)).join(', ')
         : '-';
   dom.workedHoursValue.textContent = formatHours(snapshot.totals.worked);
   dom.toBePerformedHoursValue.textContent = formatHours(snapshot.totals.toBePerformed);
@@ -70,6 +75,7 @@ export function renderSnapshot(
  * @param dom DOM references
  * @param schedules Schedules to display
  * @param selectedIds Set of selected schedule IDs (for checkbox state)
+ * @param projectNameByCode Map of project codes to names (for display)
  * @param onToggleSelection Callback when user toggles schedule selection
  * @param onEditClick Callback when user clicks edit button
  * @param onDeleteConfirm Callback when user confirms delete
@@ -78,6 +84,7 @@ export function renderSchedules(
   dom: PopupDomRefs,
   schedules: WeeklySchedule[],
   selectedIds: Set<string>,
+  projectNameByCode: Map<string, string>,
   onToggleSelection: (scheduleId: string) => void,
   onEditClick: (schedule: WeeklySchedule) => void,
   onDeleteConfirm: (scheduleId: string) => void,
@@ -98,6 +105,7 @@ export function renderSchedules(
       renderScheduleListItem(
         schedule,
         selectedIds,
+        projectNameByCode,
         onToggleSelection,
         onEditClick,
         onDeleteConfirm,
@@ -116,6 +124,7 @@ export function renderSchedules(
 function renderScheduleListItem(
   schedule: WeeklySchedule,
   selectedIds: Set<string>,
+  projectNameByCode: Map<string, string>,
   onToggleSelection: (scheduleId: string) => void,
   onEditClick: (schedule: WeeklySchedule) => void,
   onDeleteConfirm: (scheduleId: string) => void,
@@ -145,10 +154,11 @@ function renderScheduleListItem(
   });
 
   const content = document.createElement('div');
+  const projectDisplayLabel = formatProjectWithCode(projectNameByCode.get(schedule.projectCode) ?? '', schedule.projectCode);
   content.className = 'schedule-content';
   content.setAttribute('role', 'checkbox');
   content.setAttribute('aria-checked', selectedIds.has(schedule.id) ? 'true' : 'false');
-  content.setAttribute('aria-label', `Selecteren: ${schedule.label} — ${schedule.projectCode}`);
+  content.setAttribute('aria-label', `Selecteren: ${schedule.label} — Project ${projectDisplayLabel}`);
   content.tabIndex = 0;
   content.addEventListener('keydown', (event) => {
     if (event.key === ' ' || event.key === 'Enter') {
@@ -163,7 +173,7 @@ function renderScheduleListItem(
 
   const meta = document.createElement('div');
   meta.className = 'schedule-meta';
-  meta.textContent = `Project: ${schedule.projectCode}`;
+  meta.textContent = `Project: ${projectDisplayLabel}`;
 
   const actions = document.createElement('div');
   actions.className = 'schedule-actions';
