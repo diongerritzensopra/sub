@@ -83,6 +83,16 @@ export function startBusyStateMonitor(): void {
   window.addEventListener('beforeunload', () => {
     window.clearInterval(intervalId);
   });
+
+  // When SAP performs a soft navigation the service worker eagerly sets busy=true,
+  // but the busy indicator may never appear (fast/cached transition), so the content
+  // script's change-detection never fires a correcting SAP_BUSY_STATE_CHANGED message.
+  // SAP updates the top-level URL hash during navigation, so hashchange fires on the
+  // root window. Resetting lastBusyState here forces an unconditional emit on the next
+  // poll tick, which corrects the service worker's stale busy=true state.
+  window.addEventListener('hashchange', () => {
+    lastBusyState = null;
+  });
 }
 
 // Skip monitor in jsdom tests to avoid unnecessary timers in test runtime.
@@ -93,4 +103,3 @@ if (!(typeof navigator !== 'undefined' && navigator.userAgent.includes('jsdom'))
     startBusyStateMonitor();
   }
 }
-

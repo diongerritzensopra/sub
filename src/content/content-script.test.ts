@@ -151,6 +151,33 @@ describe('startBusyStateMonitor', () => {
     });
   });
 
+  it('re-emits current state after hashchange event when state has not changed (soft-nav fix)', () => {
+    // Start with SAP already ready so initial emit is busy: false
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('data-sap-ushell-active', 'true');
+    document.body.appendChild(iframe);
+    const indicator = iframe.contentDocument!.createElement('div');
+    indicator.id = 'sapUiBusyIndicator';
+    indicator.style.display = 'none';
+    iframe.contentDocument!.body.appendChild(indicator);
+
+    startBusyStateMonitor(); // initial → busy: false
+    mockSendMessage.mockClear();
+
+    // Simulate soft navigation: service worker sets busy=true (triggered by the same
+    // hash change), but the busy indicator never appears (fast/cached navigation), so
+    // the content-script state stays ready (false). Without this fix, no message would
+    // be sent and the service worker would remain stuck at busy=true.
+    window.dispatchEvent(new Event('hashchange'));
+    vi.advanceTimersByTime(250);
+
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    expect(mockSendMessage).toHaveBeenCalledWith({
+      type: 'SAP_BUSY_STATE_CHANGED',
+      payload: { busy: false },
+    });
+  });
+
   it('sends again when the state transitions from ready to busy on a poll', () => {
     // Start with SAP already ready
     const iframe = document.createElement('iframe');
