@@ -97,20 +97,24 @@ describe('isTimesheetReady', () => {
 });
 
 describe('startBusyStateMonitor', () => {
+  let stopMonitor: () => void = () => {};
+
   beforeEach(() => {
     vi.useFakeTimers();
     mockSendMessage.mockClear();
     document.body.innerHTML = '';
+    stopMonitor = () => {};
   });
 
   afterEach(() => {
+    stopMonitor();
     vi.clearAllTimers();
     vi.useRealTimers();
     document.body.innerHTML = '';
   });
 
   it('immediately sends SAP_BUSY_STATE_CHANGED with the current busy state on start', () => {
-    startBusyStateMonitor();
+    stopMonitor = startBusyStateMonitor();
 
     // No iframe in DOM → not ready → busy: true
     expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -121,16 +125,18 @@ describe('startBusyStateMonitor', () => {
   });
 
   it('does not re-send when the busy state is unchanged on subsequent polls', () => {
-    startBusyStateMonitor();
+    stopMonitor = startBusyStateMonitor();
     mockSendMessage.mockClear();
 
+    // The retry interval calls trySetupObserver (not emitBusyStateIfChanged directly),
+    // so advancing time without changing the DOM should not produce any messages.
     vi.advanceTimersByTime(250 * 3);
 
     expect(mockSendMessage).not.toHaveBeenCalled();
   });
 
   it('sends again when the state transitions from busy to ready on a poll', () => {
-    startBusyStateMonitor(); // initial → busy: true
+    stopMonitor = startBusyStateMonitor(); // initial → busy: true; retry interval started
     mockSendMessage.mockClear();
 
     // Simulate SAP becoming ready: add iframe with hidden busy indicator
@@ -142,6 +148,7 @@ describe('startBusyStateMonitor', () => {
     indicator.style.display = 'none';
     iframe.contentDocument!.body.appendChild(indicator);
 
+    // Retry interval fires → trySetupObserver succeeds → observer attached → emits busy: false
     vi.advanceTimersByTime(250);
 
     expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -161,15 +168,14 @@ describe('startBusyStateMonitor', () => {
     indicator.style.display = 'none';
     iframe.contentDocument!.body.appendChild(indicator);
 
-    startBusyStateMonitor(); // initial → busy: false
+    stopMonitor = startBusyStateMonitor(); // initial → busy: false; observer attached
     mockSendMessage.mockClear();
 
     // Simulate soft navigation: service worker sets busy=true (triggered by the same
     // hash change), but the busy indicator never appears (fast/cached navigation), so
-    // the content-script state stays ready (false). Without this fix, no message would
-    // be sent and the service worker would remain stuck at busy=true.
+    // the content-script state stays ready (false). ensureObserverSetup resets
+    // lastBusyState and emits synchronously, correcting the service worker.
     window.dispatchEvent(new Event('hashchange'));
-    vi.advanceTimersByTime(250);
 
     expect(mockSendMessage).toHaveBeenCalledTimes(1);
     expect(mockSendMessage).toHaveBeenCalledWith({
@@ -178,7 +184,7 @@ describe('startBusyStateMonitor', () => {
     });
   });
 
-  it('sends again when the state transitions from ready to busy on a poll', () => {
+  it('sends again when the state transitions from ready to busy via MutationObserver', async () => {
     // Start with SAP already ready
     const iframe = document.createElement('iframe');
     iframe.setAttribute('data-sap-ushell-active', 'true');
@@ -188,13 +194,16 @@ describe('startBusyStateMonitor', () => {
     indicator.style.display = 'none';
     iframe.contentDocument!.body.appendChild(indicator);
 
-    startBusyStateMonitor(); // initial → busy: false
+    stopMonitor = startBusyStateMonitor(); // initial → busy: false; observer attached
     mockSendMessage.mockClear();
 
-    // Simulate SAP going busy again: remove the hidden indicator
+    // Simulate SAP going busy: make the indicator visible.
+    // The MutationObserver fires as a microtask when the style attribute changes.
     indicator.style.display = '';
-
-    vi.advanceTimersByTime(250);
+    // flushAsyncWork() cannot be used here: it calls setTimeout internally, which is
+    // frozen by vi.useFakeTimers(). A single microtask flush is enough because
+    // MutationObserver callbacks are queued as microtasks.
+    await Promise.resolve();
 
     expect(mockSendMessage).toHaveBeenCalledTimes(1);
     expect(mockSendMessage).toHaveBeenCalledWith({

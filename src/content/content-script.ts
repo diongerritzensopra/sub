@@ -65,8 +65,10 @@ export function isTimesheetReady(): boolean {
   return isHiddenByStyle || isHiddenInline;
 }
 
-export function startBusyStateMonitor(): void {
+export function startBusyStateMonitor(): () => void {
   let lastBusyState: boolean | null = null;
+  let busyObserver: MutationObserver | null = null;
+  let setupIntervalId: ReturnType<typeof window.setInterval> | null = null;
 
   const emitBusyStateIfChanged = (): void => {
     const busy = !isTimesheetReady();
@@ -77,22 +79,72 @@ export function startBusyStateMonitor(): void {
     notifyBusyState(busy);
   };
 
-  emitBusyStateIfChanged();
+  // Tries to attach a MutationObserver to the SAP busy indicator inside the iframe.
+  // On success the observer will call emitBusyStateIfChanged whenever the indicator's
+  // inline style changes, and the pending setup interval (if any) is cleared.
+  // Returns true when the observer was successfully attached, false otherwise.
+  const trySetupObserver = (): boolean => {
+    const frame = resolveTimesheetFrame(document);
+    let iframeDoc: Document;
+    try {
+      if (!frame?.contentDocument) return false;
+      iframeDoc = frame.contentDocument;
+      void iframeDoc.body;
+    } catch {
+      return false;
+    }
 
-  const intervalId = window.setInterval(emitBusyStateIfChanged, BUSY_STATE_POLL_INTERVAL_MS);
-  window.addEventListener('beforeunload', () => {
-    window.clearInterval(intervalId);
-  });
+    if (iframeDoc.readyState !== 'complete') return false;
 
-  // When SAP performs a soft navigation the service worker eagerly sets busy=true,
-  // but the busy indicator may never appear (fast/cached transition), so the content
-  // script's change-detection never fires a correcting SAP_BUSY_STATE_CHANGED message.
-  // SAP updates the top-level URL hash during navigation, so hashchange fires on the
-  // root window. Resetting lastBusyState here forces an unconditional emit on the next
-  // poll tick, which corrects the service worker's stale busy=true state.
-  window.addEventListener('hashchange', () => {
+    const indicator = iframeDoc.querySelector<HTMLElement>(SAP_BUSY_INDICATOR_SELECTOR);
+    if (!indicator) return false;
+
+    busyObserver?.disconnect();
+    busyObserver = new MutationObserver(emitBusyStateIfChanged);
+    busyObserver.observe(indicator, { attributes: true, attributeFilter: ['style'] });
+
+    if (setupIntervalId !== null) {
+      window.clearInterval(setupIntervalId);
+      setupIntervalId = null;
+    }
+
+    emitBusyStateIfChanged();
+    return true;
+  };
+
+  // Calls trySetupObserver; if the iframe is not yet ready, emits the current state
+  // immediately and starts a retry interval that keeps trying until setup succeeds.
+  const ensureObserverSetup = (): void => {
+    if (trySetupObserver()) return;
+    emitBusyStateIfChanged();
+    if (setupIntervalId === null) {
+      setupIntervalId = window.setInterval(trySetupObserver, BUSY_STATE_POLL_INTERVAL_MS);
+    }
+  };
+
+  ensureObserverSetup();
+
+  // After SAP hash navigation the service worker eagerly sets busy=true.
+  // The hashchange handler resets lastBusyState and then calls ensureObserverSetup,
+  // which immediately emits the real current state, correcting the service worker
+  // even when the busy indicator never appears (fast/cached navigation where the
+  // indicator is already hidden throughout).
+  const onHashChange = (): void => {
     lastBusyState = null;
-  });
+    ensureObserverSetup();
+  };
+
+  window.addEventListener('hashchange', onHashChange);
+
+  const cleanup = (): void => {
+    busyObserver?.disconnect();
+    if (setupIntervalId !== null) window.clearInterval(setupIntervalId);
+    window.removeEventListener('hashchange', onHashChange);
+  };
+
+  window.addEventListener('beforeunload', cleanup);
+  // Returned for unit tests only — production callers use the beforeunload listener above.
+  return cleanup;
 }
 
 // Skip monitor in jsdom tests to avoid unnecessary timers in test runtime.
