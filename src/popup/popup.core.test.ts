@@ -96,7 +96,7 @@ describe('popup core', () => {
         snapshot: {
           month: 5,
           year: 2026,
-          projectCodes: ['ZMOCK_001.1.1'],
+          projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
           currentProjectCode: 'ZMOCK_001.1.1',
           totals: {
             worked: 120,
@@ -120,7 +120,7 @@ describe('popup core', () => {
       await flushAsyncWork();
 
       expect(document.getElementById('period-value')?.textContent).toBe('5/2026');
-      expect(document.getElementById('project-codes-value')?.textContent).toBe('ZMOCK_001.1.1');
+      expect(document.getElementById('projects-value')?.textContent).toBe('ZMOCK_001.1.1');
       expect(document.getElementById('worked-hours-value')?.textContent).toBe('120 u');
       expect(document.getElementById('summary-section')?.hasAttribute('hidden')).toBe(false);
       expect(document.getElementById('data-origin-indicator')?.textContent).toContain('Cache gebruikt');
@@ -132,7 +132,7 @@ describe('popup core', () => {
         snapshot: {
           month: 4,
           year: 2026,
-          projectCodes: ['ZMOCK_001.1.1'],
+          projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
           currentProjectCode: 'ZMOCK_001.1.1',
           totals: { worked: 120, toBePerformed: 160 },
           sapStatus: 'editable',
@@ -163,7 +163,7 @@ describe('popup core', () => {
         snapshot: {
           month: now.getMonth() + 1,
           year: now.getFullYear(),
-          projectCodes: ['ZMOCK_001.1.1'],
+          projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
           currentProjectCode: 'ZMOCK_001.1.1',
           totals: { worked: 120, toBePerformed: 160 },
           sapStatus: 'editable',
@@ -238,7 +238,7 @@ describe('popup core', () => {
     it('saves snapshot to cache after successful scrape', async () => {
       const snapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['ZMOCK_001.1.1'],
+        projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: 120, toBePerformed: 160 },
         sapStatus: 'editable',
@@ -262,7 +262,10 @@ describe('popup core', () => {
     it('renders summary values from the UI5 main-world snapshot reader', async () => {
       const snapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
+        projects: [
+          { code: 'ZMOCK_001.1.1', name: 'Mockproject' },
+          { code: 'ZTEST_42', name: 'Testproject 42' },
+        ],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: 120, toBePerformed: 160 },
         sapStatus: 'editable',
@@ -273,7 +276,7 @@ describe('popup core', () => {
       await flushAsyncWork();
 
       expect(document.getElementById('period-value')?.textContent).toBe('5/2026');
-      expect(document.getElementById('project-codes-value')?.textContent).toBe('ZMOCK_001.1.1, ZTEST_42');
+      expect(document.getElementById('projects-value')?.textContent).toBe('ZMOCK_001.1.1, ZTEST_42');
       expect(document.getElementById('worked-hours-value')?.textContent).toBe('120 u');
       expect(document.getElementById('to-be-performed-hours-value')?.textContent).toBe('160 u');
     });
@@ -281,14 +284,14 @@ describe('popup core', () => {
     it('does not overwrite a complete cache with a partial fresh snapshot', async () => {
       const completeSnapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['ZMOCK_001.1.1'],
+        projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: 120, toBePerformed: 160 },
         sapStatus: 'editable',
       };
       const partialSnapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['ZMOCK_001.1.1'],
+        projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: null, toBePerformed: null },
         sapStatus: 'editable',
@@ -316,7 +319,7 @@ describe('popup core', () => {
     it('caches snapshot even when it has no month or year', async () => {
        const snapshotNoDate: TimesheetSnapshot = {
          month: null, year: null,
-         projectCodes: [],
+         projects: [],
          currentProjectCode: null,
          totals: { worked: null, toBePerformed: null },
          sapStatus: 'editable',
@@ -345,7 +348,7 @@ describe('popup core', () => {
     it('shows cached data and gentle loading message when SAP page is loading', async () => {
       const cachedSnapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['ZMOCK_001.1.1'],
+        projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: 120, toBePerformed: 160 },
         sapStatus: 'editable',
@@ -366,7 +369,7 @@ describe('popup core', () => {
 
       // Cached data should still be visible
       expect(document.getElementById('period-value')?.textContent).toBe('5/2026');
-      expect(document.getElementById('project-codes-value')?.textContent).toBe('ZMOCK_001.1.1');
+      expect(document.getElementById('projects-value')?.textContent).toBe('ZMOCK_001.1.1');
       expect(document.getElementById('worked-hours-value')?.textContent).toBe('120 u');
       // Status message should be gentle, not an error
       expect(document.getElementById('status-message')?.textContent).toContain('Pagina laadt nog');
@@ -375,7 +378,7 @@ describe('popup core', () => {
     it('returns early with cached data visible when tab status is loading', async () => {
       const cachedSnapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['ZMOCK_001.1.1'],
+        projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: 120, toBePerformed: 160 },
         sapStatus: 'editable',

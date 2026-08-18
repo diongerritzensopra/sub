@@ -28,7 +28,10 @@ describe('popup schedule apply', () => {
   const snapshot: TimesheetSnapshot = {
     month: 5,
     year: 2026,
-    projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
+    projects: [
+      { code: 'ZMOCK_001.1.1', name: 'Mockproject' },
+      { code: 'ZTEST_42', name: 'Testproject 42' },
+    ],
     currentProjectCode: 'ZMOCK_001.1.1',
     totals: { worked: 120, toBePerformed: 160 },
     sapStatus: 'editable',

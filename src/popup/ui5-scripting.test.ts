@@ -74,9 +74,10 @@ describe('readTimesheetSnapshotViaUi5', () => {
     const snapshot: TimesheetSnapshot = {
       month: 5,
       year: 2026,
-      projectCodes: ['ZMOCK_001.1.1'],
+      projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
       currentProjectCode: 'ZMOCK_001.1.1',
       totals: { worked: 120, toBePerformed: 160 },
+      sapStatus: 'editable',
     };
     mockExecuteScript.mockResolvedValueOnce([
       {

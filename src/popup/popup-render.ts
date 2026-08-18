@@ -5,6 +5,11 @@
 import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 import type { PopupDomRefs } from './popup-dom';
 
+function formatScheduleProjectOptionLabel(name: string, code: string): string {
+  const trimmedName = name.trim();
+  return trimmedName ? `${trimmedName} [${code}]` : code;
+}
+
 /**
  * Render the snapshot summary (period, project codes, hours totals, data origin).
  * @param dom DOM references
@@ -21,7 +26,10 @@ export function renderSnapshot(
   snapshotTimestampIso: string | null = null,
 ): void {
   dom.periodValue.textContent = snapshot.month && snapshot.year ? `${snapshot.month}/${snapshot.year}` : '-';
-  dom.projectCodesValue.textContent = snapshot.projectCodes.length > 0 ? snapshot.projectCodes.join(', ') : '-';
+  dom.projectsValue.textContent =
+    snapshot.projects.length > 0
+        ? snapshot.projects.map((project) => project.code).join(', ')
+        : '-';
   dom.workedHoursValue.textContent = formatHours(snapshot.totals.worked);
   dom.toBePerformedHoursValue.textContent = formatHours(snapshot.totals.toBePerformed);
 
@@ -229,7 +237,7 @@ function renderScheduleListItem(
 /**
  * Show the schedule form (new or edit mode).
  * @param dom DOM references
- * @param snapshot Current snapshot (provides project codes to populate selector)
+ * @param snapshot Current snapshot (provides project metadata to populate selector)
  * @param scheduleToEdit Optional schedule being edited (null = new)
  */
 export function showScheduleForm(
@@ -247,14 +255,16 @@ export function showScheduleForm(
   const submitBtn = dom.scheduleForm.querySelector('button[type="submit"]') as HTMLButtonElement;
 
   projectSelect.innerHTML = '<option value="">-- Selecteer project --</option>';
-  if (snapshot?.projectCodes) {
-    snapshot.projectCodes.forEach((code) => {
-      const option = document.createElement('option');
-      option.value = code;
-      option.textContent = code;
-      projectSelect.appendChild(option);
-    });
-  }
+  snapshot.projects.forEach(({ code, name }) => {
+    if (!code) {
+      return;
+    }
+
+    const option = document.createElement('option');
+    option.value = code;
+    option.textContent = formatScheduleProjectOptionLabel(name, code);
+    projectSelect.appendChild(option);
+  });
 
   dom.scheduleLabelInput.value = '';
   Object.values(dom.hoursInputs).forEach((input) => {

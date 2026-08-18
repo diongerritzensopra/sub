@@ -27,7 +27,7 @@ describe('ui5MainWorldReadSnapshot', () => {
                     oMonth: 6,
                     oYear: 2026,
                     oCurrentProject: { WorkPackage: 'ZMOCK_001.1.1' },
-                    oProjects: [{ WorkPackage: 'ZMOCK_001.1.1' }],
+                    oProjects: [{ WorkPackage: 'ZMOCK_001.1.1', WorkPackageName: 'Mockproject' }],
                     oTotals: {
                       oStatus: 'U',
                       oTotals: {
@@ -49,6 +49,9 @@ describe('ui5MainWorldReadSnapshot', () => {
     expect(result.success).toBe(true);
     expect(result.snapshot?.month).toBe(7);
     expect(result.snapshot?.year).toBe(2026);
+    expect(result.snapshot?.projects).toEqual([
+      { code: 'ZMOCK_001.1.1', name: 'Mockproject' },
+    ]);
     expect(result.snapshot?.sapStatus).toBe('editable');
   });
 

@@ -160,7 +160,7 @@ export async function applySchedulesFromSelection(ctx: PopupActionsContext): Pro
   }
 
   for (const schedule of schedulesToApply) {
-    if (!ctx.state.currentSnapshot.projectCodes.includes(schedule.projectCode)) {
+    if (!ctx.state.currentSnapshot.projects.some((project) => project.code === schedule.projectCode)) {
       ctx.setStatus(`Fout: Project ${schedule.projectCode} is niet beschikbaar in het SAP navigatiemenu.`, true);
       return;
     }

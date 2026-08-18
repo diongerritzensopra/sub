@@ -54,7 +54,7 @@ describe('storage helpers', () => {
       snapshot: {
         month: 5,
         year: 2026,
-        projectCodes: ['ZMOCK_001.1.1'],
+        projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: {
           worked: 120,
@@ -223,7 +223,7 @@ describe('isCacheStale', () => {
       snapshot: {
         month,
         year,
-        projectCodes: [],
+        projects: [],
         currentProjectCode: null,
         totals: { worked: null, toBePerformed: null },
         sapStatus: 'editable',

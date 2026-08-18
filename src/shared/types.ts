@@ -17,10 +17,15 @@ export interface TimesheetTotals {
   toBePerformed: number | null;
 }
 
+export interface TimesheetProjectOption {
+  code: string;
+  name: string;
+}
+
 export interface TimesheetSnapshot {
   month: number | null;
   year: number | null;
-  projectCodes: string[];
+  projects: TimesheetProjectOption[];
   totals: TimesheetTotals;
   currentProjectCode: string | null;
   sapStatus: 'editable' | 'locked';

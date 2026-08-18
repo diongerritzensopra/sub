@@ -39,7 +39,7 @@ describe('popup snapshot rendering', () => {
       const snapshot: TimesheetSnapshot = {
         month: 4,
         year: 2026,
-        projectCodes: [],
+        projects: [],
         currentProjectCode: null,
         totals: {
           worked: 0,
@@ -58,7 +58,7 @@ describe('popup snapshot rendering', () => {
       const snapshot: TimesheetSnapshot = {
         month: null,
         year: null,
-        projectCodes: [],
+        projects: [],
         currentProjectCode: null,
         totals: {
           worked: 0,
@@ -77,7 +77,10 @@ describe('popup snapshot rendering', () => {
       const snapshot: TimesheetSnapshot = {
         month: 4,
         year: 2026,
-        projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
+        projects: [
+          { code: 'ZMOCK_001.1.1', name: 'Mockproject' },
+          { code: 'ZTEST_42', name: 'Testproject 42' },
+        ],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: {
           worked: null,
@@ -88,7 +91,7 @@ describe('popup snapshot rendering', () => {
 
       renderSnapshot(snapshot);
 
-      expect(document.getElementById('project-codes-value')?.textContent).toBe('ZMOCK_001.1.1, ZTEST_42');
+      expect(document.getElementById('projects-value')?.textContent).toBe('ZMOCK_001.1.1, ZTEST_42');
     });
 
     it('displays "-" when project codes array is empty', async () => {
@@ -96,7 +99,7 @@ describe('popup snapshot rendering', () => {
       const snapshot: TimesheetSnapshot = {
         month: 4,
         year: 2026,
-        projectCodes: [],
+        projects: [],
         currentProjectCode: null,
         totals: {
           worked: null,
@@ -107,7 +110,7 @@ describe('popup snapshot rendering', () => {
 
       renderSnapshot(snapshot);
 
-      expect(document.getElementById('project-codes-value')?.textContent).toBe('-');
+      expect(document.getElementById('projects-value')?.textContent).toBe('-');
     });
 
     it('displays formatted hours for all totals', async () => {
@@ -115,7 +118,7 @@ describe('popup snapshot rendering', () => {
       const snapshot: TimesheetSnapshot = {
         month: 4,
         year: 2026,
-        projectCodes: [],
+        projects: [],
         currentProjectCode: null,
         totals: {
           worked: 134.5,
@@ -135,7 +138,7 @@ describe('popup snapshot rendering', () => {
       const snapshot: TimesheetSnapshot = {
         month: 4,
         year: 2026,
-        projectCodes: [],
+        projects: [],
         currentProjectCode: null,
         totals: {
           worked: 0,
@@ -157,7 +160,7 @@ describe('popup snapshot rendering', () => {
       const snapshot: TimesheetSnapshot = {
         month: 4,
         year: 2026,
-        projectCodes: [],
+        projects: [],
         currentProjectCode: null,
         totals: {
           worked: null,
@@ -177,7 +180,7 @@ describe('popup snapshot rendering', () => {
       const snapshot: TimesheetSnapshot = {
         month: 4,
         year: 2026,
-        projectCodes: [],
+        projects: [],
         currentProjectCode: null,
         totals: {
           worked: 160,
@@ -196,7 +199,7 @@ describe('popup snapshot rendering', () => {
       const snapshot: TimesheetSnapshot = {
         month: 4,
         year: 2026,
-        projectCodes: [],
+        projects: [],
         currentProjectCode: null,
         totals: {
           worked: 160,

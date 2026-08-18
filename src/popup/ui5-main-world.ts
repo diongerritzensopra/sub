@@ -95,10 +95,25 @@ export function ui5MainWorldReadSnapshot(): Ui5SnapshotReadResult {
       ? modelData.oMonth + 1
       : null;
     const year = typeof modelData.oYear === 'number' ? modelData.oYear : null;
-    const projectCodes = modelData.oProjects
-      .map((project) => project.WorkPackage.trim().toUpperCase())
-      .filter((code) => code.length > 0)
-      .sort();
+    const projectsByCode = new Map<string, string>();
+
+    modelData.oProjects.forEach((project) => {
+      const code = project.WorkPackage.trim().toUpperCase();
+      if (!code) {
+        return;
+      }
+
+      const name = (project.WorkPackageName ?? '').trim();
+      const existingName = projectsByCode.get(code);
+      if (!projectsByCode.has(code) || (!existingName && name)) {
+        projectsByCode.set(code, name);
+      }
+    });
+
+    const projects = Array.from(projectsByCode.entries())
+      .map(([code, name]) => ({ code, name }))
+      .sort((left, right) => left.code.localeCompare(right.code));
+
     const currentProjectCode = modelData.oCurrentProject?.WorkPackage
       ? modelData.oCurrentProject.WorkPackage.trim().toUpperCase()
       : null;
@@ -108,7 +123,7 @@ export function ui5MainWorldReadSnapshot(): Ui5SnapshotReadResult {
       snapshot: {
         month,
         year,
-        projectCodes,
+        projects,
         currentProjectCode,
         sapStatus: mapSapStatus(modelData.oTotals.oStatus),
         totals: {
