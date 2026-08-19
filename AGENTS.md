@@ -42,6 +42,9 @@ Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for he
 - Do not commit automatically after each generated or edited step; wait for explicit user confirmation to commit.
 - Commit messages for generated changes MUST start with `[AI]`.
 - The commit message body MUST include both a `Prompt summary` and a `Step executed` summary; order them as prompt first, then step, with one blank line between them (paraphrasing is allowed when intent is preserved).
+- `Prompt summary` MUST be written in imperative form.
+- `Step executed` MUST be written in past tense and MUST reflect the concrete changes made in response to the prompt.
+- Never use backticks in commit messages because they break terminal command execution.
 
 ## Conventions to Follow
 - Add new message kinds to `MessageType` before using them in popup/content scripts.

@@ -15,6 +15,28 @@ function formatProjectWithCode(name: string, code: string): string {
   return `${trimmedName} [${code}]`;
 }
 
+function renderProjectsList(projectList: HTMLUListElement, projects: TimesheetSnapshot['projects']): void {
+  projectList.innerHTML = '';
+  if (projects.length === 0) {
+    const emptyItem = document.createElement('li');
+    emptyItem.textContent = '-';
+    projectList.appendChild(emptyItem);
+    return;
+  }
+
+  projects.forEach((project) => {
+    const item = document.createElement('li');
+    const name = document.createElement('span');
+    name.textContent = project.name.trim() || 'Onbekend project';
+    const code = document.createElement('span');
+    code.textContent = project.code;
+    item.appendChild(name);
+    item.appendChild(document.createElement('br'));
+    item.appendChild(code);
+    projectList.appendChild(item);
+  });
+}
+
 /**
  * Render the snapshot summary (period, projects, hours totals, data origin).
  * @param dom DOM references
@@ -31,10 +53,7 @@ export function renderSnapshot(
   snapshotTimestampIso: string | null = null,
 ): void {
   dom.periodValue.textContent = snapshot.month && snapshot.year ? `${snapshot.month}/${snapshot.year}` : '-';
-  dom.projectsValue.textContent =
-    snapshot.projects.length > 0
-        ? snapshot.projects.map((project) => formatProjectWithCode(project.name, project.code)).join(', ')
-        : '-';
+  renderProjectsList(dom.projectsValue, snapshot.projects);
   dom.workedHoursValue.textContent = formatHours(snapshot.totals.worked);
   dom.toBePerformedHoursValue.textContent = formatHours(snapshot.totals.toBePerformed);
 
@@ -173,7 +192,13 @@ function renderScheduleListItem(
 
   const meta = document.createElement('div');
   meta.className = 'schedule-meta';
-  meta.textContent = `Project: ${projectDisplayLabel}`;
+  const metaName = document.createElement('span');
+  metaName.textContent = projectNameByCode.get(schedule.projectCode)?.trim() || 'Onbekend project';
+  const metaCode = document.createElement('span');
+  metaCode.textContent = schedule.projectCode;
+  meta.appendChild(metaName);
+  meta.appendChild(document.createElement('br'));
+  meta.appendChild(metaCode);
 
   const actions = document.createElement('div');
   actions.className = 'schedule-actions';

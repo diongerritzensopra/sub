@@ -145,7 +145,7 @@ export function setupPopupDom(): void {
           <h2>Timesheet overzicht</h2>
           <ul id="summary-list">
             <li><strong>Periode:</strong> <span id="period-value">-</span></li>
-            <li><strong>Projecten:</strong> <span id="projects-value">-</span></li>
+            <li><strong>Projecten:</strong> <ul id="projects-value" class="project-list"><li>-</li></ul></li>
             <li><strong>Uren gewerkt:</strong> <span id="worked-hours-value">-</span></li>
             <li><strong>Uren uit te voeren:</strong> <span id="to-be-performed-hours-value">-</span></li>
           </ul>
