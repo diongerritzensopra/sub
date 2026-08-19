@@ -97,7 +97,7 @@ export function setupPopupDom(): void {
               <input type="text" id="schedule-label" required>
             </div>
             <div class="form-group">
-              <label for="schedule-project">Projectcode</label>
+              <label for="schedule-project">Project</label>
               <select id="schedule-project" required>
                 <option value="">-- Selecteer project --</option>
               </select>
@@ -145,7 +145,7 @@ export function setupPopupDom(): void {
           <h2>Timesheet overzicht</h2>
           <ul id="summary-list">
             <li><strong>Periode:</strong> <span id="period-value">-</span></li>
-            <li><strong>Projectcodes:</strong> <span id="project-codes-value">-</span></li>
+            <li><strong>Projecten:</strong> <ul id="projects-value" class="project-list"><li>-</li></ul></li>
             <li><strong>Uren gewerkt:</strong> <span id="worked-hours-value">-</span></li>
             <li><strong>Uren uit te voeren:</strong> <span id="to-be-performed-hours-value">-</span></li>
           </ul>

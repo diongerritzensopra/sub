@@ -155,7 +155,7 @@ describe('buildApplyStatusMessage', () => {
 
   it('includes sorted unique failed dates and full submit confirmation', () => {
     const failed = new Map<string, string[]>([
-      ['ZMOCK_001.1.1', ['2026-05-03', '2026-05-01', '2026-05-03']],
+      ['Mockproject', ['2026-05-03', '2026-05-01', '2026-05-03']],
     ]);
 
     const message = buildApplyStatusMessage(
@@ -174,7 +174,7 @@ describe('buildApplyStatusMessage', () => {
       "Schema's toegepast: Kantooruren, Deeltijd.",
       '8/10 dagen bijgewerkt.',
       'Mislukt per project:',
-      '- ZMOCK_001.1.1: 2026-05-01, 2026-05-03.',
+      '- Mockproject: 2026-05-01, 2026-05-03.',
       'SAP bevestiging: ontvangen (2/2).',
     ].join('\n'));
   });

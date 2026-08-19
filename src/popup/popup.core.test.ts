@@ -35,7 +35,7 @@ describe('popup core', () => {
       expect(document.getElementById('schedules-list')?.hidden).toBe(true);
     });
 
-    it('renders saved schedules in read-only list', async () => {
+    it('renders saved schedules in read-only list with project names', async () => {
       const schedules: WeeklySchedule[] = [
         {
           id: 'schedule-1',
@@ -76,17 +76,104 @@ describe('popup core', () => {
         callback({ [key]: undefined });
       });
 
-      await import('./popup');
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      renderSnapshot({
+        month: 5,
+        year: 2026,
+        projects: [
+          { code: 'ZMOCK_001.1.1', name: 'Mockproject' },
+          { code: 'ZTEST_42', name: 'Testproject 42' },
+        ],
+        currentProjectCode: 'ZMOCK_001.1.1',
+        totals: { worked: 120, toBePerformed: 160 },
+        sapStatus: 'editable',
+      });
+      await renderSchedules();
       await flushAsyncWork();
 
       const list = document.getElementById('schedules-list') as HTMLUListElement;
       expect(document.getElementById('schedules-empty')?.hidden).toBe(true);
       expect(list.hidden).toBe(false);
       expect(list.querySelectorAll('li')).toHaveLength(2);
-      expect(list.textContent).toContain('Kantooruren');
-      expect(list.textContent).toContain('Project: ZMOCK_001.1.1');
-      expect(list.textContent).toContain('Deeltijd');
-      expect(list.textContent).toContain('Project: ZTEST_42');
+      const scheduleTitles = list.querySelectorAll('.schedule-title');
+      const scheduleMetas = list.querySelectorAll('.schedule-meta');
+      expect(scheduleTitles).toHaveLength(2);
+      expect(scheduleMetas).toHaveLength(2);
+
+      expect(scheduleTitles[0].textContent).toBe('Kantooruren');
+      const firstMeta = scheduleMetas[0];
+      const firstMetaSpans = firstMeta.querySelectorAll('span');
+      expect(firstMetaSpans).toHaveLength(2);
+      expect(firstMetaSpans[0].textContent).toBe('Mockproject');
+      expect(firstMetaSpans[1].textContent).toBe('ZMOCK_001.1.1');
+      expect(firstMeta.childNodes).toHaveLength(3);
+      expect(firstMeta.childNodes[0].nodeName).toBe('SPAN');
+      expect(firstMeta.childNodes[1].nodeName).toBe('BR');
+      expect(firstMeta.childNodes[2].nodeName).toBe('SPAN');
+
+      expect(scheduleTitles[1].textContent).toBe('Deeltijd');
+      const secondMeta = scheduleMetas[1];
+      const secondMetaSpans = secondMeta.querySelectorAll('span');
+      expect(secondMetaSpans).toHaveLength(2);
+      expect(secondMetaSpans[0].textContent).toBe('Testproject 42');
+      expect(secondMetaSpans[1].textContent).toBe('ZTEST_42');
+      expect(secondMeta.childNodes).toHaveLength(3);
+      expect(secondMeta.childNodes[0].nodeName).toBe('SPAN');
+      expect(secondMeta.childNodes[1].nodeName).toBe('BR');
+      expect(secondMeta.childNodes[2].nodeName).toBe('SPAN');
+    });
+
+    it('renders saved schedules in read-only list without project names when snapshot lacks them', async () => {
+      const schedules: WeeklySchedule[] = [
+        {
+          id: 'schedule-1',
+          label: 'Kantooruren',
+          projectCode: 'ZMOCK_001.1.1',
+          hoursPerWeekday: {
+            monday: 8,
+            tuesday: 8,
+            wednesday: 8,
+            thursday: 8,
+            friday: 8,
+            saturday: 0,
+            sunday: 0,
+          },
+        },
+      ];
+
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        const key = keys[0];
+        if (key === 'projectSchedules') {
+          callback({ [key]: schedules });
+          return;
+        }
+        callback({ [key]: undefined });
+      });
+
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      renderSnapshot({
+        month: 5,
+        year: 2026,
+        projects: [],
+        currentProjectCode: 'ZMOCK_001.1.1',
+        totals: { worked: 120, toBePerformed: 160 },
+        sapStatus: 'editable',
+      });
+      await renderSchedules();
+      await flushAsyncWork();
+
+      const list = document.getElementById('schedules-list') as HTMLUListElement;
+      expect(list.querySelectorAll('li')).toHaveLength(1);
+      const meta = list.querySelector('.schedule-meta');
+      expect(meta).not.toBeNull();
+      const metaSpans = meta?.querySelectorAll('span');
+      expect(metaSpans).toHaveLength(2);
+      expect(metaSpans?.[0].textContent).toBe('Onbekend project');
+      expect(metaSpans?.[1].textContent).toBe('ZMOCK_001.1.1');
+      expect(meta?.childNodes).toHaveLength(3);
+      expect(meta?.childNodes[0].nodeName).toBe('SPAN');
+      expect(meta?.childNodes[1].nodeName).toBe('BR');
+      expect(meta?.childNodes[2].nodeName).toBe('SPAN');
     });
   });
 
@@ -96,7 +183,7 @@ describe('popup core', () => {
         snapshot: {
           month: 5,
           year: 2026,
-          projectCodes: ['ZMOCK_001.1.1'],
+          projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
           currentProjectCode: 'ZMOCK_001.1.1',
           totals: {
             worked: 120,
@@ -120,7 +207,10 @@ describe('popup core', () => {
       await flushAsyncWork();
 
       expect(document.getElementById('period-value')?.textContent).toBe('5/2026');
-      expect(document.getElementById('project-codes-value')?.textContent).toBe('ZMOCK_001.1.1');
+      const projectsList = document.getElementById('projects-value') as HTMLUListElement;
+      expect(projectsList.querySelectorAll('li')).toHaveLength(1);
+      expect(projectsList.textContent).toContain('Mockproject');
+      expect(projectsList.textContent).toContain('ZMOCK_001.1.1');
       expect(document.getElementById('worked-hours-value')?.textContent).toBe('120 u');
       expect(document.getElementById('summary-section')?.hasAttribute('hidden')).toBe(false);
       expect(document.getElementById('data-origin-indicator')?.textContent).toContain('Cache gebruikt');
@@ -132,7 +222,7 @@ describe('popup core', () => {
         snapshot: {
           month: 4,
           year: 2026,
-          projectCodes: ['ZMOCK_001.1.1'],
+          projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
           currentProjectCode: 'ZMOCK_001.1.1',
           totals: { worked: 120, toBePerformed: 160 },
           sapStatus: 'editable',
@@ -163,7 +253,7 @@ describe('popup core', () => {
         snapshot: {
           month: now.getMonth() + 1,
           year: now.getFullYear(),
-          projectCodes: ['ZMOCK_001.1.1'],
+          projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
           currentProjectCode: 'ZMOCK_001.1.1',
           totals: { worked: 120, toBePerformed: 160 },
           sapStatus: 'editable',
@@ -238,7 +328,7 @@ describe('popup core', () => {
     it('saves snapshot to cache after successful scrape', async () => {
       const snapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['ZMOCK_001.1.1'],
+        projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: 120, toBePerformed: 160 },
         sapStatus: 'editable',
@@ -262,7 +352,10 @@ describe('popup core', () => {
     it('renders summary values from the UI5 main-world snapshot reader', async () => {
       const snapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
+        projects: [
+          { code: 'ZMOCK_001.1.1', name: 'Mockproject' },
+          { code: 'ZTEST_42', name: 'Testproject 42' },
+        ],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: 120, toBePerformed: 160 },
         sapStatus: 'editable',
@@ -273,7 +366,12 @@ describe('popup core', () => {
       await flushAsyncWork();
 
       expect(document.getElementById('period-value')?.textContent).toBe('5/2026');
-      expect(document.getElementById('project-codes-value')?.textContent).toBe('ZMOCK_001.1.1, ZTEST_42');
+      const projectsList = document.getElementById('projects-value') as HTMLUListElement;
+      expect(projectsList.querySelectorAll('li')).toHaveLength(2);
+      expect(projectsList.textContent).toContain('Mockproject');
+      expect(projectsList.textContent).toContain('ZMOCK_001.1.1');
+      expect(projectsList.textContent).toContain('Testproject 42');
+      expect(projectsList.textContent).toContain('ZTEST_42');
       expect(document.getElementById('worked-hours-value')?.textContent).toBe('120 u');
       expect(document.getElementById('to-be-performed-hours-value')?.textContent).toBe('160 u');
     });
@@ -281,14 +379,14 @@ describe('popup core', () => {
     it('does not overwrite a complete cache with a partial fresh snapshot', async () => {
       const completeSnapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['ZMOCK_001.1.1'],
+        projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: 120, toBePerformed: 160 },
         sapStatus: 'editable',
       };
       const partialSnapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['ZMOCK_001.1.1'],
+        projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: null, toBePerformed: null },
         sapStatus: 'editable',
@@ -316,7 +414,7 @@ describe('popup core', () => {
     it('caches snapshot even when it has no month or year', async () => {
        const snapshotNoDate: TimesheetSnapshot = {
          month: null, year: null,
-         projectCodes: [],
+         projects: [],
          currentProjectCode: null,
          totals: { worked: null, toBePerformed: null },
          sapStatus: 'editable',
@@ -345,7 +443,7 @@ describe('popup core', () => {
     it('shows cached data and gentle loading message when SAP page is loading', async () => {
       const cachedSnapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['ZMOCK_001.1.1'],
+        projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: 120, toBePerformed: 160 },
         sapStatus: 'editable',
@@ -366,7 +464,10 @@ describe('popup core', () => {
 
       // Cached data should still be visible
       expect(document.getElementById('period-value')?.textContent).toBe('5/2026');
-      expect(document.getElementById('project-codes-value')?.textContent).toBe('ZMOCK_001.1.1');
+      const projectsList = document.getElementById('projects-value') as HTMLUListElement;
+      expect(projectsList.querySelectorAll('li')).toHaveLength(1);
+      expect(projectsList.textContent).toContain('Mockproject');
+      expect(projectsList.textContent).toContain('ZMOCK_001.1.1');
       expect(document.getElementById('worked-hours-value')?.textContent).toBe('120 u');
       // Status message should be gentle, not an error
       expect(document.getElementById('status-message')?.textContent).toContain('Pagina laadt nog');
@@ -375,7 +476,7 @@ describe('popup core', () => {
     it('returns early with cached data visible when tab status is loading', async () => {
       const cachedSnapshot: TimesheetSnapshot = {
         month: 5, year: 2026,
-        projectCodes: ['ZMOCK_001.1.1'],
+        projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: { worked: 120, toBePerformed: 160 },
         sapStatus: 'editable',

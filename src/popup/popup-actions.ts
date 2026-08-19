@@ -35,6 +35,18 @@ import {
 
 const LOCKED_TIMESHEET_MESSAGE = 'De timesheet is vergrendeld. Uren boeken en indienen is uitgeschakeld.';
 
+function getProjectNameByCode(snapshot: TimesheetSnapshot | null): Map<string, string> {
+  if (!snapshot) {
+    return new Map();
+  }
+
+  return new Map(snapshot.projects.map((project) => [project.code, project.name.trim() || 'Onbekend project']));
+}
+
+function resolveProjectName(snapshot: TimesheetSnapshot, projectCode: string): string {
+  return snapshot.projects.find((project) => project.code === projectCode)?.name.trim() || 'Onbekend project';
+}
+
 export type PopupActionsContext = {
   dom: PopupDomRefs;
   state: PopupState;
@@ -60,21 +72,12 @@ function syncApplySchedulesButtonState(ctx: PopupActionsContext, isApplying: boo
   );
 }
 
-export async function reloadSchedulesDisplay(ctx: PopupActionsContext): Promise<void> {
-  const schedules = await getSchedules();
-  ctx.state.renderedSchedules = schedules;
-
-  const availableIds = new Set(schedules.map((schedule) => schedule.id));
-  Array.from<string>(ctx.state.selectedScheduleIds).forEach((id) => {
-    if (!availableIds.has(id)) {
-      ctx.state.selectedScheduleIds.delete(id);
-    }
-  });
-
+function renderSchedulesFromState(ctx: PopupActionsContext): void {
   renderSchedules(
     ctx.dom,
-    schedules,
+    ctx.state.renderedSchedules,
     ctx.state.selectedScheduleIds,
+    getProjectNameByCode(ctx.state.currentSnapshot),
     (scheduleId) => {
       if (ctx.state.selectedScheduleIds.has(scheduleId)) {
         ctx.state.selectedScheduleIds.delete(scheduleId);
@@ -88,8 +91,26 @@ export async function reloadSchedulesDisplay(ctx: PopupActionsContext): Promise<
       void handleDeleteSchedule(ctx, scheduleId);
     },
   );
+}
+
+export async function reloadSchedulesDisplay(ctx: PopupActionsContext): Promise<void> {
+  const schedules = await getSchedules();
+  ctx.state.renderedSchedules = schedules;
+
+  const availableIds = new Set(schedules.map((schedule) => schedule.id));
+  Array.from<string>(ctx.state.selectedScheduleIds).forEach((id) => {
+    if (!availableIds.has(id)) {
+      ctx.state.selectedScheduleIds.delete(id);
+    }
+  });
+
+  renderSchedulesFromState(ctx);
 
   syncApplySchedulesButtonState(ctx);
+}
+
+export function renderCurrentSchedulesDisplay(ctx: PopupActionsContext): void {
+  renderSchedulesFromState(ctx);
 }
 
 export async function handleScheduleFormSubmit(ctx: PopupActionsContext): Promise<void> {
@@ -160,8 +181,10 @@ export async function applySchedulesFromSelection(ctx: PopupActionsContext): Pro
   }
 
   for (const schedule of schedulesToApply) {
-    if (!ctx.state.currentSnapshot.projectCodes.includes(schedule.projectCode)) {
-      ctx.setStatus(`Fout: Project ${schedule.projectCode} is niet beschikbaar in het SAP navigatiemenu.`, true);
+    const project = ctx.state.currentSnapshot.projects.find((item) => item.code === schedule.projectCode);
+    if (!project) {
+      const projectName = resolveProjectName(ctx.state.currentSnapshot, schedule.projectCode);
+      ctx.setStatus(`Fout: Project "${projectName}" is niet beschikbaar in het SAP navigatiemenu.`, true);
       return;
     }
   }
@@ -191,10 +214,11 @@ export async function applySchedulesFromSelection(ctx: PopupActionsContext): Pro
       try {
         await navigateToProject(activeTab.id, month, year, schedule.projectCode);
         const summary = await autofillScheduleEntries(activeTab.id, schedule, month, year);
+        const projectName = resolveProjectName(ctx.state.currentSnapshot, schedule.projectCode);
 
         totalDaysCount += summary.totalDaysCount;
         appliedDaysCount += summary.appliedDaysCount;
-        addFailedDatesForProject(failedDatesByProject, schedule.projectCode, summary.failedDates);
+        addFailedDatesForProject(failedDatesByProject, projectName, summary.failedDates);
         if (summary.submissionAttempted) {
           submissionAttemptedCount += 1;
         }
@@ -202,13 +226,14 @@ export async function applySchedulesFromSelection(ctx: PopupActionsContext): Pro
           submissionConfirmedCount += 1;
         }
         if (summary.error) {
-          scheduleErrors.push(`${schedule.projectCode}: ${summary.error}`);
+          scheduleErrors.push(`${projectName}: ${summary.error}`);
         }
       } catch (error) {
+        const projectName = resolveProjectName(ctx.state.currentSnapshot, schedule.projectCode);
         const scheduleEntries = expandWeeklyScheduleToMonthEntries(schedule, month, year);
         totalDaysCount += scheduleEntries.length;
-        addFailedDatesForProject(failedDatesByProject, schedule.projectCode, scheduleEntries.map((entry) => entry.date));
-        scheduleErrors.push(`${schedule.projectCode}: ${(error as Error).message}`);
+        addFailedDatesForProject(failedDatesByProject, projectName, scheduleEntries.map((entry) => entry.date));
+        scheduleErrors.push(`${projectName}: ${(error as Error).message}`);
       }
     }
 

@@ -5,8 +5,40 @@
 import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 import type { PopupDomRefs } from './popup-dom';
 
+function formatScheduleProjectOptionLabel(name: string, code: string): string {
+  const trimmedName = name.trim();
+  return trimmedName ? `${trimmedName} [${code}]` : code;
+}
+
+function formatProjectWithCode(name: string, code: string): string {
+  const trimmedName = name.trim() || 'Onbekend project';
+  return `${trimmedName} [${code}]`;
+}
+
+function renderProjectsList(projectList: HTMLUListElement, projects: TimesheetSnapshot['projects']): void {
+  projectList.innerHTML = '';
+  if (projects.length === 0) {
+    const emptyItem = document.createElement('li');
+    emptyItem.textContent = '-';
+    projectList.appendChild(emptyItem);
+    return;
+  }
+
+  projects.forEach((project) => {
+    const item = document.createElement('li');
+    const name = document.createElement('span');
+    name.textContent = project.name.trim() || 'Onbekend project';
+    const code = document.createElement('span');
+    code.textContent = project.code;
+    item.appendChild(name);
+    item.appendChild(document.createElement('br'));
+    item.appendChild(code);
+    projectList.appendChild(item);
+  });
+}
+
 /**
- * Render the snapshot summary (period, project codes, hours totals, data origin).
+ * Render the snapshot summary (period, projects, hours totals, data origin).
  * @param dom DOM references
  * @param snapshot Current snapshot to display
  * @param hasAllData Whether snapshot is complete (affects "incomplete" warning)
@@ -21,7 +53,7 @@ export function renderSnapshot(
   snapshotTimestampIso: string | null = null,
 ): void {
   dom.periodValue.textContent = snapshot.month && snapshot.year ? `${snapshot.month}/${snapshot.year}` : '-';
-  dom.projectCodesValue.textContent = snapshot.projectCodes.length > 0 ? snapshot.projectCodes.join(', ') : '-';
+  renderProjectsList(dom.projectsValue, snapshot.projects);
   dom.workedHoursValue.textContent = formatHours(snapshot.totals.worked);
   dom.toBePerformedHoursValue.textContent = formatHours(snapshot.totals.toBePerformed);
 
@@ -62,6 +94,7 @@ export function renderSnapshot(
  * @param dom DOM references
  * @param schedules Schedules to display
  * @param selectedIds Set of selected schedule IDs (for checkbox state)
+ * @param projectNameByCode Map of project codes to names (for display)
  * @param onToggleSelection Callback when user toggles schedule selection
  * @param onEditClick Callback when user clicks edit button
  * @param onDeleteConfirm Callback when user confirms delete
@@ -70,6 +103,7 @@ export function renderSchedules(
   dom: PopupDomRefs,
   schedules: WeeklySchedule[],
   selectedIds: Set<string>,
+  projectNameByCode: Map<string, string>,
   onToggleSelection: (scheduleId: string) => void,
   onEditClick: (schedule: WeeklySchedule) => void,
   onDeleteConfirm: (scheduleId: string) => void,
@@ -90,6 +124,7 @@ export function renderSchedules(
       renderScheduleListItem(
         schedule,
         selectedIds,
+        projectNameByCode,
         onToggleSelection,
         onEditClick,
         onDeleteConfirm,
@@ -108,6 +143,7 @@ export function renderSchedules(
 function renderScheduleListItem(
   schedule: WeeklySchedule,
   selectedIds: Set<string>,
+  projectNameByCode: Map<string, string>,
   onToggleSelection: (scheduleId: string) => void,
   onEditClick: (schedule: WeeklySchedule) => void,
   onDeleteConfirm: (scheduleId: string) => void,
@@ -137,10 +173,11 @@ function renderScheduleListItem(
   });
 
   const content = document.createElement('div');
+  const projectDisplayLabel = formatProjectWithCode(projectNameByCode.get(schedule.projectCode) ?? '', schedule.projectCode);
   content.className = 'schedule-content';
   content.setAttribute('role', 'checkbox');
   content.setAttribute('aria-checked', selectedIds.has(schedule.id) ? 'true' : 'false');
-  content.setAttribute('aria-label', `Selecteren: ${schedule.label} — ${schedule.projectCode}`);
+  content.setAttribute('aria-label', `Selecteren: ${schedule.label} — Project ${projectDisplayLabel}`);
   content.tabIndex = 0;
   content.addEventListener('keydown', (event) => {
     if (event.key === ' ' || event.key === 'Enter') {
@@ -155,7 +192,13 @@ function renderScheduleListItem(
 
   const meta = document.createElement('div');
   meta.className = 'schedule-meta';
-  meta.textContent = `Project: ${schedule.projectCode}`;
+  const metaName = document.createElement('span');
+  metaName.textContent = projectNameByCode.get(schedule.projectCode)?.trim() || 'Onbekend project';
+  const metaCode = document.createElement('span');
+  metaCode.textContent = schedule.projectCode;
+  meta.appendChild(metaName);
+  meta.appendChild(document.createElement('br'));
+  meta.appendChild(metaCode);
 
   const actions = document.createElement('div');
   actions.className = 'schedule-actions';
@@ -229,7 +272,7 @@ function renderScheduleListItem(
 /**
  * Show the schedule form (new or edit mode).
  * @param dom DOM references
- * @param snapshot Current snapshot (provides project codes to populate selector)
+ * @param snapshot Current snapshot (provides project metadata to populate selector)
  * @param scheduleToEdit Optional schedule being edited (null = new)
  */
 export function showScheduleForm(
@@ -247,14 +290,16 @@ export function showScheduleForm(
   const submitBtn = dom.scheduleForm.querySelector('button[type="submit"]') as HTMLButtonElement;
 
   projectSelect.innerHTML = '<option value="">-- Selecteer project --</option>';
-  if (snapshot?.projectCodes) {
-    snapshot.projectCodes.forEach((code) => {
-      const option = document.createElement('option');
-      option.value = code;
-      option.textContent = code;
-      projectSelect.appendChild(option);
-    });
-  }
+  snapshot.projects.forEach(({ code, name }) => {
+    if (!code) {
+      return;
+    }
+
+    const option = document.createElement('option');
+    option.value = code;
+    option.textContent = formatScheduleProjectOptionLabel(name, code);
+    projectSelect.appendChild(option);
+  });
 
   dom.scheduleLabelInput.value = '';
   Object.values(dom.hoursInputs).forEach((input) => {

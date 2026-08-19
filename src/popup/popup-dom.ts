@@ -8,7 +8,7 @@ export type PopupDomRefs = {
   statusDismissButton: HTMLButtonElement;
   summarySection: HTMLElement;
   periodValue: HTMLSpanElement;
-  projectCodesValue: HTMLSpanElement;
+  projectsValue: HTMLUListElement;
   workedHoursValue: HTMLSpanElement;
   toBePerformedHoursValue: HTMLSpanElement;
   scrapeStatus: HTMLSpanElement;
@@ -37,7 +37,7 @@ export function getPopupDomRefs(document: Document): PopupDomRefs {
     statusDismissButton: document.getElementById('btn-status-dismiss') as HTMLButtonElement,
     summarySection: document.getElementById('summary-section') as HTMLElement,
     periodValue: document.getElementById('period-value') as HTMLSpanElement,
-    projectCodesValue: document.getElementById('project-codes-value') as HTMLSpanElement,
+    projectsValue: document.getElementById('projects-value') as HTMLUListElement,
     workedHoursValue: document.getElementById('worked-hours-value') as HTMLSpanElement,
     toBePerformedHoursValue: document.getElementById('to-be-performed-hours-value') as HTMLSpanElement,
     scrapeStatus: document.getElementById('scrape-status') as HTMLSpanElement,

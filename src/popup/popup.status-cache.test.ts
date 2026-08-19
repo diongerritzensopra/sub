@@ -103,7 +103,7 @@ describe('popup status message caching', () => {
             snapshot: {
               month: 8,
               year: 2026,
-              projectCodes: [],
+              projects: [],
               currentProjectCode: null,
               totals: { worked: null, toBePerformed: null },
               sapStatus: 'editable',
@@ -148,7 +148,7 @@ describe('popup status message caching', () => {
             snapshot: {
               month: 8,
               year: 2026,
-              projectCodes: [],
+              projects: [],
               currentProjectCode: null,
               totals: { worked: null, toBePerformed: null },
               sapStatus: 'editable',
@@ -230,7 +230,7 @@ describe('popup status message caching', () => {
             snapshot: {
               month: 8,
               year: 2026,
-              projectCodes: [],
+              projects: [],
               currentProjectCode: null,
               totals: { worked: null, toBePerformed: null },
               sapStatus: 'editable',

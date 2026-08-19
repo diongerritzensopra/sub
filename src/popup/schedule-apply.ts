@@ -112,8 +112,8 @@ function buildFailedDatesLines(failedDatesByProject: Map<string, string[]>): str
   }
 
   const lines = ['Mislukt per project:'];
-  failedDatesByProject.forEach((dates, projectCode) => {
-    lines.push(`- ${projectCode}: ${uniqueSortedDates(dates).join(', ')}.`);
+  failedDatesByProject.forEach((dates, projectName) => {
+    lines.push(`- ${projectName}: ${uniqueSortedDates(dates).join(', ')}.`);
   });
 
   return lines;

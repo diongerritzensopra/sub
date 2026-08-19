@@ -28,7 +28,10 @@ describe('popup schedule apply', () => {
   const snapshot: TimesheetSnapshot = {
     month: 5,
     year: 2026,
-    projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
+    projects: [
+      { code: 'ZMOCK_001.1.1', name: 'Mockproject' },
+      { code: 'ZTEST_42', name: 'Testproject 42' },
+    ],
     currentProjectCode: 'ZMOCK_001.1.1',
     totals: { worked: 120, toBePerformed: 160 },
     sapStatus: 'editable',
@@ -180,7 +183,7 @@ describe('popup schedule apply', () => {
 
     const statusMessage = document.getElementById('status-message')?.textContent ?? '';
     expect(statusMessage).toContain('Fouten:');
-    expect(statusMessage).toContain('ZMOCK_001.1.1: postTimeSheet gaf een fout terug');
+    expect(statusMessage).toContain('Mockproject: postTimeSheet gaf een fout terug');
   });
 
   it('continues with remaining schedules when navigation fails for one schedule', async () => {
@@ -240,7 +243,7 @@ describe('popup schedule apply', () => {
     expect(autofillCalls).toBe(1);
     expect(statusMessage).toContain('Schema\'s toegepast: Kantooruren, Deeltijd.');
     expect(statusMessage).toContain('Fouten:');
-    expect(statusMessage).toContain('ZMOCK_001.1.1: Navigatie mislukt voor project');
+    expect(statusMessage).toContain('Mockproject: Navigatie mislukt voor project');
   });
 
   it('applies only selected schedules when one or more schedules are selected', async () => {
@@ -448,7 +451,7 @@ describe('popup schedule apply', () => {
     expect(statusMessage).toContain('0/');
     expect(statusMessage).toContain('dagen bijgewerkt');
     expect(statusMessage).toContain('Mislukt per project:');
-    expect(statusMessage).toContain('- ZMOCK_001.1.1: 2026-05-05.');
+    expect(statusMessage).toContain('- Mockproject: 2026-05-05.');
     expect(statusMessage).toContain('SAP bevestiging: gedeeltelijk (0/1)');
   });
 
@@ -510,8 +513,8 @@ describe('popup schedule apply', () => {
     const statusMessage = document.getElementById('status-message')?.textContent ?? '';
     expect(statusMessage).toContain('Schema\'s toegepast: Kantooruren, Deeltijd.');
     expect(statusMessage).toContain('Mislukt per project:');
-    expect(statusMessage).toContain('- ZMOCK_001.1.1: 2026-05-05.');
-    expect(statusMessage).toContain('- ZTEST_42: 2026-05-12, 2026-05-19.');
+    expect(statusMessage).toContain('- Mockproject: 2026-05-05.');
+    expect(statusMessage).toContain('- Testproject 42: 2026-05-12, 2026-05-19.');
   });
 
   it('prevents navigation when a selected schedule project is not available', async () => {
@@ -541,7 +544,6 @@ describe('popup schedule apply', () => {
 
     expect(mockChromeTabsQuery).not.toHaveBeenCalled();
     expect(mockChromeTabsUpdate).not.toHaveBeenCalled();
-    expect(document.getElementById('status-message')?.textContent).toContain('UNAVAILABLE_PROJECT');
-    expect(document.getElementById('status-message')?.textContent).toContain('niet beschikbaar');
+    expect(document.getElementById('status-message')?.textContent).toContain('Project "Onbekend project" is niet beschikbaar');
   });
 });

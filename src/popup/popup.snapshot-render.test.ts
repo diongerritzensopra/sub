@@ -39,7 +39,7 @@ describe('popup snapshot rendering', () => {
       const snapshot: TimesheetSnapshot = {
         month: 4,
         year: 2026,
-        projectCodes: [],
+        projects: [],
         currentProjectCode: null,
         totals: {
           worked: 0,
@@ -58,7 +58,7 @@ describe('popup snapshot rendering', () => {
       const snapshot: TimesheetSnapshot = {
         month: null,
         year: null,
-        projectCodes: [],
+        projects: [],
         currentProjectCode: null,
         totals: {
           worked: 0,
@@ -72,12 +72,15 @@ describe('popup snapshot rendering', () => {
       expect(document.getElementById('period-value')?.textContent).toBe('-');
     });
 
-    it('displays project codes joined by comma', async () => {
+    it('displays project names with codes as a list', async () => {
       const { renderSnapshot } = await import('./popup');
       const snapshot: TimesheetSnapshot = {
         month: 4,
         year: 2026,
-        projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
+        projects: [
+          { code: 'ZMOCK_001.1.1', name: 'Mockproject' },
+          { code: 'ZTEST_42', name: 'Testproject 42' },
+        ],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: {
           worked: null,
@@ -88,15 +91,35 @@ describe('popup snapshot rendering', () => {
 
       renderSnapshot(snapshot);
 
-      expect(document.getElementById('project-codes-value')?.textContent).toBe('ZMOCK_001.1.1, ZTEST_42');
+      const projectsList = document.getElementById('projects-value') as HTMLUListElement;
+      expect(projectsList.querySelectorAll('li')).toHaveLength(2);
+      const projectItems = projectsList.querySelectorAll('li');
+
+      const firstProjectSpans = projectItems[0].querySelectorAll('span');
+      expect(firstProjectSpans).toHaveLength(2);
+      expect(firstProjectSpans[0].textContent).toBe('Mockproject');
+      expect(firstProjectSpans[1].textContent).toBe('ZMOCK_001.1.1');
+      expect(projectItems[0].childNodes).toHaveLength(3);
+      expect(projectItems[0].childNodes[0].nodeName).toBe('SPAN');
+      expect(projectItems[0].childNodes[1].nodeName).toBe('BR');
+      expect(projectItems[0].childNodes[2].nodeName).toBe('SPAN');
+
+      const secondProjectSpans = projectItems[1].querySelectorAll('span');
+      expect(secondProjectSpans).toHaveLength(2);
+      expect(secondProjectSpans[0].textContent).toBe('Testproject 42');
+      expect(secondProjectSpans[1].textContent).toBe('ZTEST_42');
+      expect(projectItems[1].childNodes).toHaveLength(3);
+      expect(projectItems[1].childNodes[0].nodeName).toBe('SPAN');
+      expect(projectItems[1].childNodes[1].nodeName).toBe('BR');
+      expect(projectItems[1].childNodes[2].nodeName).toBe('SPAN');
     });
 
-    it('displays "-" when project codes array is empty', async () => {
+    it('displays "-" when projects array is empty', async () => {
       const { renderSnapshot } = await import('./popup');
       const snapshot: TimesheetSnapshot = {
         month: 4,
         year: 2026,
-        projectCodes: [],
+        projects: [],
         currentProjectCode: null,
         totals: {
           worked: null,
@@ -107,7 +130,9 @@ describe('popup snapshot rendering', () => {
 
       renderSnapshot(snapshot);
 
-      expect(document.getElementById('project-codes-value')?.textContent).toBe('-');
+      const projectsList = document.getElementById('projects-value') as HTMLUListElement;
+      expect(projectsList.querySelectorAll('li')).toHaveLength(1);
+      expect(projectsList.textContent).toBe('-');
     });
 
     it('displays formatted hours for all totals', async () => {
@@ -115,7 +140,7 @@ describe('popup snapshot rendering', () => {
       const snapshot: TimesheetSnapshot = {
         month: 4,
         year: 2026,
-        projectCodes: [],
+        projects: [],
         currentProjectCode: null,
         totals: {
           worked: 134.5,
@@ -135,7 +160,7 @@ describe('popup snapshot rendering', () => {
       const snapshot: TimesheetSnapshot = {
         month: 4,
         year: 2026,
-        projectCodes: [],
+        projects: [],
         currentProjectCode: null,
         totals: {
           worked: 0,
@@ -157,7 +182,7 @@ describe('popup snapshot rendering', () => {
       const snapshot: TimesheetSnapshot = {
         month: 4,
         year: 2026,
-        projectCodes: [],
+        projects: [],
         currentProjectCode: null,
         totals: {
           worked: null,
@@ -177,7 +202,7 @@ describe('popup snapshot rendering', () => {
       const snapshot: TimesheetSnapshot = {
         month: 4,
         year: 2026,
-        projectCodes: [],
+        projects: [],
         currentProjectCode: null,
         totals: {
           worked: 160,
@@ -196,7 +221,7 @@ describe('popup snapshot rendering', () => {
       const snapshot: TimesheetSnapshot = {
         month: 4,
         year: 2026,
-        projectCodes: [],
+        projects: [],
         currentProjectCode: null,
         totals: {
           worked: 160,

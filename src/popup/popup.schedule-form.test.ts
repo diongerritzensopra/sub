@@ -25,7 +25,10 @@ describe('popup schedule form', () => {
     const snapshot: TimesheetSnapshot = {
       month: 5,
       year: 2026,
-      projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
+      projects: [
+        { code: 'ZMOCK_001.1.1', name: 'Mockproject' },
+        { code: 'ZTEST_42', name: 'Testproject 42' },
+      ],
       currentProjectCode: 'ZMOCK_001.1.1',
       totals: { worked: 120, toBePerformed: 160 },
       sapStatus: 'editable',
@@ -43,16 +46,19 @@ describe('popup schedule form', () => {
 
     expect(formSection.hidden).toBe(false);
     expect(projectSelect.querySelectorAll('option')).toHaveLength(3);
-    expect(projectSelect.innerHTML).toContain('ZMOCK_001.1.1');
-    expect(projectSelect.innerHTML).toContain('ZTEST_42');
+    expect(projectSelect.options[1].textContent).toBe('Mockproject [ZMOCK_001.1.1]');
+    expect(projectSelect.options[2].textContent).toBe('Testproject 42 [ZTEST_42]');
   });
 
-  it('displays form with project options from snapshot', async () => {
+  it('displays form with project names from snapshot', async () => {
     const { showScheduleForm } = await import('./popup');
     const snapshot: TimesheetSnapshot = {
       month: 5,
       year: 2026,
-      projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
+      projects: [
+        { code: 'ZMOCK_001.1.1', name: 'Mockproject' },
+        { code: 'ZTEST_42', name: 'Testproject 42' },
+      ],
       currentProjectCode: 'ZMOCK_001.1.1',
       totals: { worked: 120, toBePerformed: 160 },
       sapStatus: 'editable',
@@ -65,8 +71,8 @@ describe('popup schedule form', () => {
 
     expect(formSection.hidden).toBe(false);
     expect(projectSelect.querySelectorAll('option')).toHaveLength(3);
-    expect(projectSelect.innerHTML).toContain('ZMOCK_001.1.1');
-    expect(projectSelect.innerHTML).toContain('ZTEST_42');
+    expect(projectSelect.options[1].textContent).toBe('Mockproject [ZMOCK_001.1.1]');
+    expect(projectSelect.options[2].textContent).toBe('Testproject 42 [ZTEST_42]');
   });
 
   it('hides form when showScheduleForm called with null', async () => {
@@ -92,7 +98,7 @@ describe('popup schedule form', () => {
     const snapshot: TimesheetSnapshot = {
       month: 5,
       year: 2026,
-      projectCodes: ['ZMOCK_001.1.1'],
+      projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
       currentProjectCode: 'ZMOCK_001.1.1',
       totals: { worked: 120, toBePerformed: 160 },
       sapStatus: 'editable',
@@ -149,7 +155,7 @@ describe('popup schedule form', () => {
     const snapshot: TimesheetSnapshot = {
       month: 5,
       year: 2026,
-      projectCodes: ['ZMOCK_001.1.1'],
+      projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
       currentProjectCode: 'ZMOCK_001.1.1',
       totals: { worked: 120, toBePerformed: 160 },
       sapStatus: 'editable',
@@ -181,7 +187,10 @@ describe('popup schedule form', () => {
     const snapshot: TimesheetSnapshot = {
       month: 5,
       year: 2026,
-      projectCodes: ['ZMOCK_001.1.1', 'ZTEST_42'],
+      projects: [
+        { code: 'ZMOCK_001.1.1', name: 'Mockproject' },
+        { code: 'ZTEST_42', name: 'Testproject 42' },
+      ],
       currentProjectCode: 'ZMOCK_001.1.1',
       totals: { worked: 120, toBePerformed: 160 },
       sapStatus: 'editable',
@@ -231,7 +240,7 @@ describe('popup schedule form', () => {
     const snapshot: TimesheetSnapshot = {
       month: 5,
       year: 2026,
-      projectCodes: ['ZMOCK_001.1.1'],
+      projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
       currentProjectCode: 'ZMOCK_001.1.1',
       totals: { worked: 120, toBePerformed: 160 },
       sapStatus: 'editable',
@@ -287,7 +296,7 @@ describe('popup schedule form', () => {
     const snapshot: TimesheetSnapshot = {
       month: 5,
       year: 2026,
-      projectCodes: ['ZMOCK_001.1.1'],
+      projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
       currentProjectCode: 'ZMOCK_001.1.1',
       totals: { worked: 120, toBePerformed: 160 },
       sapStatus: 'editable',

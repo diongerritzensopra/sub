@@ -21,6 +21,7 @@ import {
   applySchedulesFromSelection,
   handleScheduleFormSubmit,
   reloadSchedulesDisplay,
+  renderCurrentSchedulesDisplay,
   renderCachedSnapshotIfAvailable,
   type PopupActionsContext,
 } from './popup-actions';
@@ -152,6 +153,8 @@ export function renderSnapshot(
     state.isCachedData,
     state.snapshotTimestampIso,
   );
+
+  renderCurrentSchedulesDisplay(createActionsContext());
 }
 
 export function isTimesheetTab(tab: chrome.tabs.Tab | undefined): boolean {
