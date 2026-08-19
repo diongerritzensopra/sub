@@ -14,11 +14,12 @@ Shared feature roadmap for `sub`.
   - **Integration tests are explicitly out of scope for this refactor.** Any existing test cases that cross multiple popup modules, cannot be cleanly attributed to a single module, and are necessary to maintain coverage must be identified and documented in Chunk 1 so they can be picked up in a dedicated *Popup integration tests* feature (see planned feature below). Those cases must **not** be deleted during this refactor; keep them in a clearly labelled holding file (e.g. `popup.integration.test.ts`) until the separate feature is implemented.
 
 #### Implementation chunks
-- [ ] Chunk 1 - Audit and map existing tests to modules.
+- [x] Chunk 1 - Audit and map existing tests to modules.
   - Read all current popup test files and map each test case to the module it actually exercises.
   - Identify which tests are genuinely unit-level (single module) and which are effectively integration tests (multiple modules wired together).
   - For any test that cannot be mapped to a single module: determine whether it is redundant (safe to drop after per-module coverage is in place) or load-bearing (must be kept to maintain coverage). Document load-bearing cases explicitly — they will be preserved and handed off to the *Popup integration tests* feature.
   - Produce a mapping table (or inline comments in the test files) that drives the subsequent chunks.
+  - Mapping output: `src/popup/popup-test-refactor-audit.md`.
 - [ ] Chunk 2 - Unit tests for `popup-model.ts`.
   - Create `popup-model.test.ts` covering state initialization, mutations, and derived state logic.
   - Mock storage helpers and any other external dependencies.
