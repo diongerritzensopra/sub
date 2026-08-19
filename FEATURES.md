@@ -20,9 +20,10 @@ Shared feature roadmap for `sub`.
   - For any test that cannot be mapped to a single module: determine whether it is redundant (safe to drop after per-module coverage is in place) or load-bearing (must be kept to maintain coverage). Document load-bearing cases explicitly — they will be preserved and handed off to the *Popup integration tests* feature.
   - Produce a mapping table (or inline comments in the test files) that drives the subsequent chunks.
   - Mapping output: `src/popup/popup-test-refactor-audit.md`.
-- [ ] Chunk 2 - Unit tests for `popup-model.ts`.
+- [x] Chunk 2 - Unit tests for `popup-model.ts`.
   - Create `popup-model.test.ts` covering state initialization, mutations, and derived state logic.
   - Mock storage helpers and any other external dependencies.
+  - Output: `src/popup/popup-model.test.ts` (model-focused unit coverage for state defaults, editability/completeness checks, period parsing/fallback, and schedule selection).
 - [ ] Chunk 3 - Unit tests for `popup-dom.ts`.
   - Create `popup-dom.test.ts` covering DOM query helpers and element accessors.
   - Use jsdom; mock only cross-module imports, not the DOM itself.
