@@ -26,40 +26,49 @@ export type PopupDomRefs = {
   hoursInputs: Record<string, HTMLInputElement>;
 };
 
+function getRequiredElement<T extends HTMLElement>(document: Document, id: string): T {
+  const element = document.getElementById(id);
+  if (!element) {
+    throw new Error(`[popup-dom] Missing required element: #${id}`);
+  }
+
+  return element as T;
+}
+
 /**
  * Retrieve all required DOM elements for the popup UI.
  * Throws if any required element is missing.
  */
 export function getPopupDomRefs(document: Document): PopupDomRefs {
   return {
-    btnScrape: document.getElementById('btn-scrape') as HTMLButtonElement,
-    statusMessage: document.getElementById('status-message') as HTMLParagraphElement,
-    statusDismissButton: document.getElementById('btn-status-dismiss') as HTMLButtonElement,
-    summarySection: document.getElementById('summary-section') as HTMLElement,
-    periodValue: document.getElementById('period-value') as HTMLSpanElement,
-    projectsValue: document.getElementById('projects-value') as HTMLUListElement,
-    workedHoursValue: document.getElementById('worked-hours-value') as HTMLSpanElement,
-    toBePerformedHoursValue: document.getElementById('to-be-performed-hours-value') as HTMLSpanElement,
-    scrapeStatus: document.getElementById('scrape-status') as HTMLSpanElement,
-    dataOriginIndicator: document.getElementById('data-origin-indicator') as HTMLParagraphElement,
-    schedulesList: document.getElementById('schedules-list') as HTMLUListElement,
-    schedulesEmpty: document.getElementById('schedules-empty') as HTMLParagraphElement,
-    addScheduleButton: document.getElementById('btn-add-schedule') as HTMLButtonElement,
-    applySchedulesButton: document.getElementById('btn-apply-schedules') as HTMLButtonElement,
-    scheduleFormSection: document.getElementById('schedule-form-section') as HTMLElement,
-    scheduleForm: document.getElementById('schedule-form') as HTMLFormElement,
-    scheduleFormTitle: document.getElementById('schedule-form-title') as HTMLElement,
-    scheduleLabelInput: document.getElementById('schedule-label') as HTMLInputElement,
-    scheduleProjectSelect: document.getElementById('schedule-project') as HTMLSelectElement,
-    scheduleFormCancel: document.getElementById('schedule-form-cancel') as HTMLButtonElement,
+    btnScrape: getRequiredElement<HTMLButtonElement>(document, 'btn-scrape'),
+    statusMessage: getRequiredElement<HTMLParagraphElement>(document, 'status-message'),
+    statusDismissButton: getRequiredElement<HTMLButtonElement>(document, 'btn-status-dismiss'),
+    summarySection: getRequiredElement<HTMLElement>(document, 'summary-section'),
+    periodValue: getRequiredElement<HTMLSpanElement>(document, 'period-value'),
+    projectsValue: getRequiredElement<HTMLUListElement>(document, 'projects-value'),
+    workedHoursValue: getRequiredElement<HTMLSpanElement>(document, 'worked-hours-value'),
+    toBePerformedHoursValue: getRequiredElement<HTMLSpanElement>(document, 'to-be-performed-hours-value'),
+    scrapeStatus: getRequiredElement<HTMLSpanElement>(document, 'scrape-status'),
+    dataOriginIndicator: getRequiredElement<HTMLParagraphElement>(document, 'data-origin-indicator'),
+    schedulesList: getRequiredElement<HTMLUListElement>(document, 'schedules-list'),
+    schedulesEmpty: getRequiredElement<HTMLParagraphElement>(document, 'schedules-empty'),
+    addScheduleButton: getRequiredElement<HTMLButtonElement>(document, 'btn-add-schedule'),
+    applySchedulesButton: getRequiredElement<HTMLButtonElement>(document, 'btn-apply-schedules'),
+    scheduleFormSection: getRequiredElement<HTMLElement>(document, 'schedule-form-section'),
+    scheduleForm: getRequiredElement<HTMLFormElement>(document, 'schedule-form'),
+    scheduleFormTitle: getRequiredElement<HTMLElement>(document, 'schedule-form-title'),
+    scheduleLabelInput: getRequiredElement<HTMLInputElement>(document, 'schedule-label'),
+    scheduleProjectSelect: getRequiredElement<HTMLSelectElement>(document, 'schedule-project'),
+    scheduleFormCancel: getRequiredElement<HTMLButtonElement>(document, 'schedule-form-cancel'),
     hoursInputs: {
-      monday: document.getElementById('hours-monday') as HTMLInputElement,
-      tuesday: document.getElementById('hours-tuesday') as HTMLInputElement,
-      wednesday: document.getElementById('hours-wednesday') as HTMLInputElement,
-      thursday: document.getElementById('hours-thursday') as HTMLInputElement,
-      friday: document.getElementById('hours-friday') as HTMLInputElement,
-      saturday: document.getElementById('hours-saturday') as HTMLInputElement,
-      sunday: document.getElementById('hours-sunday') as HTMLInputElement,
+      monday: getRequiredElement<HTMLInputElement>(document, 'hours-monday'),
+      tuesday: getRequiredElement<HTMLInputElement>(document, 'hours-tuesday'),
+      wednesday: getRequiredElement<HTMLInputElement>(document, 'hours-wednesday'),
+      thursday: getRequiredElement<HTMLInputElement>(document, 'hours-thursday'),
+      friday: getRequiredElement<HTMLInputElement>(document, 'hours-friday'),
+      saturday: getRequiredElement<HTMLInputElement>(document, 'hours-saturday'),
+      sunday: getRequiredElement<HTMLInputElement>(document, 'hours-sunday'),
     },
   };
 }

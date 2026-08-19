@@ -44,4 +44,16 @@ describe('getPopupDomRefs', () => {
     expect(dom.hoursInputs.saturday).toBe(document.getElementById('hours-saturday'));
     expect(dom.hoursInputs.sunday).toBe(document.getElementById('hours-sunday'));
   });
+
+  it('throws when a required top-level element is missing', () => {
+    document.getElementById('btn-scrape')?.remove();
+
+    expect(() => getPopupDomRefs(document)).toThrow('[popup-dom] Missing required element: #btn-scrape');
+  });
+
+  it('throws when a required weekday input element is missing', () => {
+    document.getElementById('hours-friday')?.remove();
+
+    expect(() => getPopupDomRefs(document)).toThrow('[popup-dom] Missing required element: #hours-friday');
+  });
 });
