@@ -63,11 +63,3 @@ export function getPopupDomRefs(document: Document): PopupDomRefs {
     },
   };
 }
-
-/**
- * Minimal DOM utility: set visibility.
- */
-export function setVisible(element: HTMLElement, visible: boolean): void {
-  element.hidden = !visible;
-}
-
