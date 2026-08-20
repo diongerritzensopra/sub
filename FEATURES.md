@@ -32,9 +32,10 @@ Shared feature roadmap for `sub`.
   - Create `popup-render.test.ts` covering all render functions (snapshot display, schedule list, status messages, lock state, button states).
   - Use jsdom-backed `PopupDomRefs` fixtures and module-local test data so render logic is tested directly without popup bootstrap wiring.
   - Output: `src/popup/popup-render.test.ts` (render helpers, snapshot rendering, schedule list interactions, form rendering, and button/status state coverage).
-- [ ] Chunk 5 - Unit tests for `popup-actions.ts`.
+- [x] Chunk 5 - Unit tests for `popup-actions.ts`.
   - Create `popup-actions.test.ts` covering every user-action handler (refresh, apply, schedule save/delete, status dismiss).
   - Mock `popup-model.ts`, `popup-render.ts`, `popup-gateway.ts`, storage, and scripting wrappers.
+  - Output: `src/popup/popup-actions.test.ts` (reload/apply/form-submit/delete/cache/analyze action orchestration with mocked module boundaries).
 - [ ] Chunk 6 - Unit tests for `popup-gateway.ts`.
   - Create `popup-gateway.test.ts` covering message dispatch, tab queries, and error paths.
   - Mock `chrome.*` APIs (tabs, scripting, runtime) via the existing Vitest chrome mock setup.
