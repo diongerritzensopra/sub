@@ -28,9 +28,10 @@ Shared feature roadmap for `sub`.
   - Create `popup-dom.test.ts` covering DOM query helpers and element accessors.
   - Use jsdom; mock only cross-module imports, not the DOM itself.
   - Output: `src/popup/popup-dom.test.ts` (DOM ref mapping and element accessor coverage).
-- [ ] Chunk 4 - Unit tests for `popup-render.ts`.
+- [x] Chunk 4 - Unit tests for `popup-render.ts`.
   - Create `popup-render.test.ts` covering all render functions (snapshot display, schedule list, status messages, lock state, button states).
-  - Mock `popup-dom.ts` element accessors and `popup-model.ts` state reads so render logic is tested in isolation.
+  - Use jsdom-backed `PopupDomRefs` fixtures and module-local test data so render logic is tested directly without popup bootstrap wiring.
+  - Output: `src/popup/popup-render.test.ts` (render helpers, snapshot rendering, schedule list interactions, form rendering, and button/status state coverage).
 - [ ] Chunk 5 - Unit tests for `popup-actions.ts`.
   - Create `popup-actions.test.ts` covering every user-action handler (refresh, apply, schedule save/delete, status dismiss).
   - Mock `popup-model.ts`, `popup-render.ts`, `popup-gateway.ts`, storage, and scripting wrappers.
