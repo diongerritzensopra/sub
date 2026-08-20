@@ -16,26 +16,45 @@ import {
 import { setupPopupDom } from './popup.test-helpers';
 import {
   deleteSchedule,
-  getActiveTab,
-  getSAPBusyStateForTab,
   getSchedules,
+  saveSchedule,
+  getCachedStatusMessage,
+  setCachedStatusMessage,
+  getCachedTimesheetSnapshot,
+  isCacheStale,
+  clearCachedTimesheetSnapshot,
+} from '../shared/storage';
+import { getSAPBusyStateForTab } from '../shared/busy-state';
+import {
+  getActiveTab,
   getValidCachedSnapshot,
   readTimesheetSnapshotViaUi5,
-  saveSchedule,
   setCachedTimesheetSnapshot,
 } from './popup-gateway';
 import { addFailedDatesForProject, autofillScheduleEntries, buildApplyStatusMessage, navigateToProject } from './schedule-apply';
 import { getSchedulesToApply, isSapTimesheetEditable, isSnapshotComplete } from './popup-model';
 import { hideScheduleForm, renderSchedules, setScrapeButtonState, updateApplySchedulesButtonState } from './popup-render';
 
-vi.mock('./popup-gateway', () => ({
+vi.mock('../shared/storage', () => ({
   deleteSchedule: vi.fn(),
-  getActiveTab: vi.fn(),
-  getSAPBusyStateForTab: vi.fn(),
   getSchedules: vi.fn(),
+  saveSchedule: vi.fn(),
+  getCachedStatusMessage: vi.fn(),
+  setCachedStatusMessage: vi.fn(),
+  getCachedTimesheetSnapshot: vi.fn(),
+  setCachedTimesheetSnapshot: vi.fn(),
+  isCacheStale: vi.fn(),
+  clearCachedTimesheetSnapshot: vi.fn(),
+}));
+
+vi.mock('../shared/busy-state', () => ({
+  getSAPBusyStateForTab: vi.fn(),
+}));
+
+vi.mock('./popup-gateway', () => ({
+  getActiveTab: vi.fn(),
   getValidCachedSnapshot: vi.fn(),
   readTimesheetSnapshotViaUi5: vi.fn(),
-  saveSchedule: vi.fn(),
   setCachedTimesheetSnapshot: vi.fn(),
 }));
 
@@ -131,7 +150,11 @@ beforeEach(() => {
   vi.mocked(getSchedules).mockResolvedValue([]);
   vi.mocked(deleteSchedule).mockResolvedValue();
   vi.mocked(saveSchedule).mockResolvedValue();
-  vi.mocked(setCachedTimesheetSnapshot).mockResolvedValue();
+  vi.mocked(getCachedStatusMessage).mockResolvedValue(undefined);
+  vi.mocked(setCachedStatusMessage).mockResolvedValue();
+  vi.mocked(clearCachedTimesheetSnapshot).mockResolvedValue();
+  vi.mocked(getCachedTimesheetSnapshot).mockResolvedValue(undefined);
+  vi.mocked(isCacheStale).mockReturnValue(false);
 
   vi.mocked(getActiveTab).mockResolvedValue({
     id: 1,
@@ -141,6 +164,7 @@ beforeEach(() => {
   vi.mocked(getSAPBusyStateForTab).mockResolvedValue(false);
   vi.mocked(getValidCachedSnapshot).mockResolvedValue(undefined);
   vi.mocked(readTimesheetSnapshotViaUi5).mockResolvedValue(createSnapshot());
+  vi.mocked(setCachedTimesheetSnapshot).mockResolvedValue();
 
   vi.mocked(getSchedulesToApply).mockImplementation((rendered) => rendered);
   vi.mocked(isSnapshotComplete).mockReturnValue(true);
