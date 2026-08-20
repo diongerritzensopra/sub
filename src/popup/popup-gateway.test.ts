@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { CachedTimesheetSnapshot, TimesheetSnapshot } from '../shared/types';
-import { mockChromeTabsQuery } from './popup.test-helpers';
+import type { CachedTimesheetSnapshot } from '../shared/types';
+import { mockChromeTabsQuery, createSnapshot } from './popup.test-helpers';
 import {
   getActiveTab,
   getValidCachedSnapshot,
@@ -31,17 +31,6 @@ vi.mock('./popup-model', () => ({
 vi.mock('./ui5-scripting', () => ({
   readTimesheetSnapshotViaUi5: vi.fn(),
 }));
-
-function createSnapshot(): TimesheetSnapshot {
-  return {
-    month: 8,
-    year: 2026,
-    projects: [{ code: 'C001', name: 'Project Alpha' }],
-    totals: { worked: 10, toBePerformed: 20 },
-    currentProjectCode: 'C001',
-    sapStatus: 'editable',
-  };
-}
 
 beforeEach(() => {
   vi.clearAllMocks();

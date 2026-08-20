@@ -1,13 +1,12 @@
 import { vi } from 'vitest';
 
+import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
+
 export const mockChromeTabsQuery = vi.fn<
   (queryInfo: chrome.tabs.QueryInfo) => Promise<chrome.tabs.Tab[]>
 >();
 export const mockChromeRuntimeSendMessage = vi.fn<
   (message: any, options?: chrome.runtime.MessageOptions) => Promise<any>
->();
-export const mockChromeTabsSendMessage = vi.fn<
-  (tabId: number, message: any) => Promise<any>
 >();
 export const mockChromeTabsGet = vi.fn<
   (tabId: number) => Promise<chrome.tabs.Tab>
@@ -34,7 +33,6 @@ function installChromeMockGlobal(): void {
       query: mockChromeTabsQuery,
       get: mockChromeTabsGet,
       update: mockChromeTabsUpdate,
-      sendMessage: mockChromeTabsSendMessage,
       onUpdated: { addListener: vi.fn() },
       onActivated: { addListener: vi.fn() },
     },
@@ -204,7 +202,6 @@ export function resetPopupTestEnvironment(): void {
     }];
   });
 
-  mockChromeTabsSendMessage.mockResolvedValue({ success: false, error: 'not mocked' });
   mockChromeRuntimeSendMessage.mockResolvedValue({
     success: true,
     data: { busy: false },
@@ -221,6 +218,42 @@ export function resetPopupTestEnvironment(): void {
   mockChromeStorageLocalRemove.mockImplementation((_key, callback) => {
     callback();
   });
+}
+
+// Test data factory helpers
+export function createSnapshot(overrides: Partial<TimesheetSnapshot> = {}): TimesheetSnapshot {
+  return {
+    month: 8,
+    year: 2026,
+    projects: [
+      { code: 'C001', name: 'Project Alpha' },
+      { code: 'C002', name: '  ' },
+    ],
+    totals: {
+      worked: 12.5,
+      toBePerformed: 30,
+    },
+    currentProjectCode: 'C001',
+    sapStatus: 'editable',
+    ...overrides,
+  };
+}
+
+export function createSchedule(id: string, projectCode: string = 'C001'): WeeklySchedule {
+  return {
+    id,
+    label: `Schema ${id}`,
+    projectCode,
+    hoursPerWeekday: {
+      monday: 8,
+      tuesday: 8,
+      wednesday: 8,
+      thursday: 8,
+      friday: 8,
+      saturday: 0,
+      sunday: 0,
+    },
+  };
 }
 
 installChromeMockGlobal();

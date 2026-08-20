@@ -41,12 +41,13 @@ Shared feature roadmap for `sub`.
   - Mock `chrome.*` APIs (tabs, scripting, runtime) via the existing Vitest chrome mock setup.
   - Output: `src/popup/popup-gateway.test.ts` (active-tab lookup, cache staleness handling, storage delegations, and SAP/UI5 gateway delegations).
 - [x] Chunk 7 - Isolate load-bearing cross-module test cases.
-   - Move any test cases identified in Chunk 1 as load-bearing integration tests into `popup.integration.test.ts` without modifying them.
-   - Add a comment block at the top of the file explaining that these tests are placeholders pending the *Popup integration tests* feature.
-   - Output: `src/popup/popup.integration.test.ts` (status restore lifecycle, apply flow resilience with navigation failures, skip-navigation when already on target project).
-- [ ] Chunk 8 - Clean up legacy test files and shared helpers.
+  - Move any test cases identified in Chunk 1 as load-bearing integration tests into `popup.integration.test.ts` without modifying them.
+  - Add a comment block at the top of the file explaining that these tests are placeholders pending the *Popup integration tests* feature.
+  - Output: `src/popup/popup.integration.test.ts` (status restore lifecycle, apply flow resilience with navigation failures, skip-navigation when already on target project).
+- [x] Chunk 8 - Clean up legacy test files and shared helpers.
   - Remove or repurpose the old functionality-bucketed test files once all their cases have been migrated into per-module files or moved to `popup.integration.test.ts`.
   - Prune `popup.test-helpers.ts` to only the helpers still needed after the refactor; delete the file if it becomes empty.
+  - Output: Deleted 7 legacy bucketed test files. Pruned popup.test-helpers.ts by removing unused mockChromeTabsSendMessage mock. Consolidated duplicate helper functions (`createSnapshot`, `createSchedule`, `createTab`) into popup.test-helpers.ts and updated test files to use shared factories.
 - [ ] Chunk 9 - Coverage and CI validation.
   - Run `npm test` and confirm all tests pass and coverage is at least equal to the pre-refactor baseline.
   - Fix any import or mock wiring issues discovered during the test run.

@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 import { getPopupDomRefs } from './popup-dom';
 import {
   formatHours,
@@ -14,42 +13,7 @@ import {
   updateAddScheduleButtonState,
   updateApplySchedulesButtonState,
 } from './popup-render';
-import { setupPopupDom } from './popup.test-helpers';
-
-function createSnapshot(overrides: Partial<TimesheetSnapshot> = {}): TimesheetSnapshot {
-  return {
-    month: 8,
-    year: 2026,
-    projects: [
-      { code: 'C001', name: 'Project Alpha' },
-      { code: 'C002', name: '  ' },
-    ],
-    totals: {
-      worked: 12.5,
-      toBePerformed: 30,
-    },
-    currentProjectCode: 'C001',
-    sapStatus: 'editable',
-    ...overrides,
-  };
-}
-
-function createSchedule(id: string, projectCode: string = 'C001'): WeeklySchedule {
-  return {
-    id,
-    label: `Schema ${id}`,
-    projectCode,
-    hoursPerWeekday: {
-      monday: 8,
-      tuesday: 8,
-      wednesday: 8,
-      thursday: 8,
-      friday: 8,
-      saturday: 0,
-      sunday: 0,
-    },
-  };
-}
+import { setupPopupDom, createSnapshot, createSchedule } from './popup.test-helpers';
 
 beforeEach(() => {
   setupPopupDom();
