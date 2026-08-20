@@ -36,9 +36,10 @@ Shared feature roadmap for `sub`.
   - Create `popup-actions.test.ts` covering every user-action handler (refresh, apply, schedule save/delete, status dismiss).
   - Mock `popup-model.ts`, `popup-render.ts`, `popup-gateway.ts`, storage, and scripting wrappers.
   - Output: `src/popup/popup-actions.test.ts` (reload/apply/form-submit/delete/cache/analyze action orchestration with mocked module boundaries).
-- [ ] Chunk 6 - Unit tests for `popup-gateway.ts`.
+- [x] Chunk 6 - Unit tests for `popup-gateway.ts`.
   - Create `popup-gateway.test.ts` covering message dispatch, tab queries, and error paths.
   - Mock `chrome.*` APIs (tabs, scripting, runtime) via the existing Vitest chrome mock setup.
+  - Output: `src/popup/popup-gateway.test.ts` (active-tab lookup, cache staleness handling, storage delegations, and SAP/UI5 gateway delegations).
 - [ ] Chunk 7 - Isolate load-bearing cross-module test cases.
   - Move any test cases identified in Chunk 1 as load-bearing integration tests into `popup.integration.test.ts` without modifying them.
   - Add a comment block at the top of the file explaining that these tests are placeholders pending the *Popup integration tests* feature.
