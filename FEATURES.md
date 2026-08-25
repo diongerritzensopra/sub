@@ -48,9 +48,10 @@ Shared feature roadmap for `sub`.
   - Remove or repurpose the old functionality-bucketed test files once all their cases have been migrated into per-module files or moved to `popup.integration.test.ts`.
   - Prune `popup.test-helpers.ts` to only the helpers still needed after the refactor; delete the file if it becomes empty.
   - Output: Deleted 7 legacy bucketed test files. Pruned popup.test-helpers.ts by removing unused mockChromeTabsSendMessage mock. Consolidated duplicate helper functions (`createSnapshot`, `createSchedule`, `createTab`) into popup.test-helpers.ts and updated test files to use shared factories.
-- [ ] Chunk 9 - Coverage and CI validation.
+- [x] Chunk 9 - Coverage and CI validation.
   - Run `npm test` and confirm all tests pass and coverage is at least equal to the pre-refactor baseline.
   - Fix any import or mock wiring issues discovered during the test run.
+  - Output: All 137 tests passing. Coverage report: 86.91% statements (overall), 90.51% popup modules, 91.13% shared utilities. No import or wiring issues. service-worker.ts (0%) excluded as not part of unit test scope; popup.ts (61.19%) lower due to orchestration lifecycle complexity (covered by integration tests).
 
 ### Popup integration tests
 #### Feature description
