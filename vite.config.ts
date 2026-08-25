@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
 import { crx } from '@crxjs/vite-plugin';
 import manifest from './manifest.json';
@@ -16,7 +17,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html'],
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/assets/**'],
+      exclude: ['src/**/*.test.ts', 'src/assets/**', 'src/**/*.test-helpers.ts'],
     },
     include: ['src/**/*.test.ts'],
   },
