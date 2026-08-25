@@ -4,13 +4,13 @@
 
 **CRITICAL: Follow these rules consistently.**
 
-- Do not commit automatically after each generated or edited step; wait for explicit user confirmation to commit.
-- Commit messages for generated changes MUST start with `[AI]`.
-- The commit message body MUST include both a `Prompt summary` and a `Step executed` summary; order them as prompt first, then step, with one blank line between them (paraphrasing is allowed when intent is preserved).
-- `Prompt summary` MUST be written in imperative form.
-- `Step executed` MUST be written in past tense and MUST reflect the concrete changes made in response to the prompt.
-- Never use backticks in commit messages because they break terminal command execution.
-- **IMPORTANT: Always run Prettier on files you create or edit.** After creating or editing any file, run `npx prettier --write <file-path>` or `npx prettier --write src/` to format according to `.prettierrc`.
+- Wait for explicit user confirmation to commit each completed change.
+- Prefix all commit messages for generated changes with `[AI]`.
+- Include both a `Prompt summary` and a `Step executed` summary in the commit message body, in that order, separated by one blank line (paraphrasing is allowed when intent is preserved).
+- Write the `Prompt summary` in imperative form.
+- Write the `Step executed` in past tense, reflecting the concrete changes made in response to the prompt.
+- Use only simple quotes and avoid backticks in commit messages to ensure terminal command compatibility.
+- Run Prettier on all files you create or edit. After creating or editing any file, run `npx prettier --write <file-path>` or `npx prettier --write src/` to format according to `.prettierrc`.
 
 ## Project Goal
 
