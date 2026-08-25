@@ -7,6 +7,8 @@
 import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
 import { expandWeeklyScheduleToMonthEntries } from '../shared/schedule-expansion';
+import { deleteSchedule,  getSchedules,  saveSchedule } from '../shared/storage';
+import { getSAPBusyStateForTab } from '../shared/busy-state';
 import {
   addFailedDatesForProject,
   autofillScheduleEntries,
@@ -17,13 +19,9 @@ import type { PopupDomRefs } from './popup-dom';
 import type { PopupState } from './popup-model';
 import { getSchedulesToApply, isSapTimesheetEditable, isSnapshotComplete } from './popup-model';
 import {
-  deleteSchedule,
   getActiveTab,
-  getSAPBusyStateForTab,
-  getSchedules,
   getValidCachedSnapshot,
   readTimesheetSnapshotViaUi5,
-  saveSchedule,
   setCachedTimesheetSnapshot,
 } from './popup-gateway';
 import {

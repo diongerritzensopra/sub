@@ -5,17 +5,17 @@
 import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
 import { initBusyStateListener } from '../shared/busy-state';
+import {
+  clearCachedStatusMessage,
+  getCachedStatusMessage,
+  setCachedStatusMessage,
+} from '../shared/storage';
 import { getPopupDomRefs } from './popup-dom';
 import {
   STATUS_MESSAGE_MAX_AGE_MS,
   createInitialPopupState,
   isSapTimesheetEditable,
 } from './popup-model';
-import {
-  clearCachedStatusMessage,
-  getCachedStatusMessage,
-  setCachedStatusMessage,
-} from './popup-gateway';
 import {
   analyseActiveTab,
   applySchedulesFromSelection,
