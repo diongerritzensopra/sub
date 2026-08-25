@@ -172,7 +172,7 @@ export function setStatus(message: string, persist: boolean = false): void {
   }
 }
 
-async function restoreCachedStatusMessage(): Promise<boolean> {
+export async function restoreCachedStatusMessage(): Promise<boolean> {
   const cached = await getCachedStatusMessage();
   if (!cached) {
     return false;

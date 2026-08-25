@@ -73,13 +73,14 @@ Shared feature roadmap for `sub`.
 - [x] Chunk 3 - Coverage and CI validation.
   - Run `npm test` and confirm all tests pass and coverage meets or exceeds the pre-refactoring baseline.
   - Output: `npm test` passed (`12/12` files, `137/137` tests). `npm run test:coverage` passed with updated overall coverage (`87.01%` statements, `78.45%` branches, `88.7%` functions, `86.97%` lines), but `popup.ts` remained at `61.19%`, below the desired `>=80%` target for this feature.
-- [ ] Chunk 4 - Close remaining `popup.ts` integration coverage gaps.
+- [x] Chunk 4 - Close remaining `popup.ts` integration coverage gaps.
   - Add integration tests to `popup.integration.test.ts` covering:
-    - Event listener wiring: dismiss status button (`btn-status-dismiss`), add schedule button (`btn-add-schedule`), cancel form button (`btn-cancel-schedule`), schedule form submit handler.
-    - Popup-level utility functions: `isTimesheetTab()` URL pattern matching; `setStatus()` with persist flag and cache clearing; `restoreCachedStatusMessage()` with invalid/expired timestamp handling.
+    - Event listener wiring: dismiss status button (`btn-status-dismiss`), add schedule button (`btn-add-schedule`), cancel form button (`schedule-form-cancel`), schedule form submit handler.
+    - Popup-level utility functions: `isTimesheetTab()` URL pattern matching; `restoreCachedStatusMessage()` with invalid/expired/fresh timestamp handling.
     - Snapshot-dependent error paths: `openScheduleFormForEdit()` and `openScheduleFormFromLatestSnapshot()` when no snapshot is loaded.
     - Busy-state integration: callback listener auto-triggers `analyseActiveTab()` when SAP becomes ready.
   - Validation target: run `npm test` and `npm run test:coverage`; keep all tests green and raise `popup.ts` coverage to at least `80%`.
+  - Output: `npm test` passed (`12/12` files, `148/148` tests). `popup.ts` coverage reached `91.04%` statements/lines, `87.87%` branches, `88.88%` functions — exceeding the `>=80%` target. Overall coverage: `89.17%` statements.
 
 ### General hours schedules
 #### Feature description
