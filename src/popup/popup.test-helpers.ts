@@ -2,30 +2,38 @@ import { vi } from 'vitest';
 
 import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 
-export const mockChromeTabsQuery = vi.fn<
-  (queryInfo: chrome.tabs.QueryInfo) => Promise<chrome.tabs.Tab[]>
->();
-export const mockChromeRuntimeSendMessage = vi.fn<
-  (message: any, options?: chrome.runtime.MessageOptions) => Promise<any>
->();
-export const mockChromeTabsGet = vi.fn<
-  (tabId: number) => Promise<chrome.tabs.Tab>
->();
-export const mockChromeTabsUpdate = vi.fn<
-  (tabId: number, updateProperties: chrome.tabs.UpdateProperties) => Promise<chrome.tabs.Tab>
->();
-export const mockChromeScriptingExecuteScript = vi.fn<
-  (injection: chrome.scripting.ScriptInjection<any[], any>) => Promise<chrome.scripting.InjectionResult[]>
->();
-export const mockChromeStorageLocalGet = vi.fn<
-  (keys: string[], callback: (result: Record<string, unknown>) => void) => void
->();
-export const mockChromeStorageLocalSet = vi.fn<
-  (values: Record<string, unknown>, callback: () => void) => void
->();
-export const mockChromeStorageLocalRemove = vi.fn<
-  (key: string, callback: () => void) => void
->();
+export const mockChromeTabsQuery =
+  vi.fn<(queryInfo: chrome.tabs.QueryInfo) => Promise<chrome.tabs.Tab[]>>();
+export const mockChromeRuntimeSendMessage =
+  vi.fn<
+    (message: any, options?: chrome.runtime.MessageOptions) => Promise<any>
+  >();
+export const mockChromeTabsGet =
+  vi.fn<(tabId: number) => Promise<chrome.tabs.Tab>>();
+export const mockChromeTabsUpdate =
+  vi.fn<
+    (
+      tabId: number,
+      updateProperties: chrome.tabs.UpdateProperties,
+    ) => Promise<chrome.tabs.Tab>
+  >();
+export const mockChromeScriptingExecuteScript =
+  vi.fn<
+    (
+      injection: chrome.scripting.ScriptInjection<any[], any>,
+    ) => Promise<chrome.scripting.InjectionResult[]>
+  >();
+export const mockChromeStorageLocalGet =
+  vi.fn<
+    (
+      keys: string[],
+      callback: (result: Record<string, unknown>) => void,
+    ) => void
+  >();
+export const mockChromeStorageLocalSet =
+  vi.fn<(values: Record<string, unknown>, callback: () => void) => void>();
+export const mockChromeStorageLocalRemove =
+  vi.fn<(key: string, callback: () => void) => void>();
 
 function installChromeMockGlobal(): void {
   globalThis.chrome = {
@@ -162,44 +170,56 @@ export function resetPopupTestEnvironment(): void {
   vi.clearAllMocks();
 
   mockChromeTabsQuery.mockResolvedValue([]);
-  mockChromeTabsGet.mockResolvedValue({ id: 99, status: 'complete' } as chrome.tabs.Tab);
-  mockChromeTabsUpdate.mockImplementation(async (tabId, updateProperties) => ({
-    id: tabId,
+  mockChromeTabsGet.mockResolvedValue({
+    id: 99,
     status: 'complete',
-    url: updateProperties.url,
-  } as chrome.tabs.Tab));
+  } as chrome.tabs.Tab);
+  mockChromeTabsUpdate.mockImplementation(
+    async (tabId, updateProperties) =>
+      ({
+        id: tabId,
+        status: 'complete',
+        url: updateProperties.url,
+      }) as chrome.tabs.Tab,
+  );
 
   mockChromeScriptingExecuteScript.mockImplementation(async (injection) => {
     const funcName = injection.func?.name;
     if (funcName === 'ui5MainWorldAutofill') {
-      return [{
-        documentId: 'mock-id',
-        frameId: 0,
-        result: {
-          appliedDaysCount: 1,
-          failedDates: [],
-          submissionAttempted: true,
-          submissionConfirmed: true,
+      return [
+        {
+          documentId: 'mock-id',
+          frameId: 0,
+          result: {
+            appliedDaysCount: 1,
+            failedDates: [],
+            submissionAttempted: true,
+            submissionConfirmed: true,
+          },
         },
-      }];
+      ];
     }
 
     if (funcName === 'ui5MainWorldReadSnapshot') {
-      return [{
-        documentId: 'mock-id',
-        frameId: 0,
-        result: {
-          success: false,
-          error: 'not mocked',
+      return [
+        {
+          documentId: 'mock-id',
+          frameId: 0,
+          result: {
+            success: false,
+            error: 'not mocked',
+          },
         },
-      }];
+      ];
     }
 
-    return [{
-      documentId: 'mock-id',
-      frameId: 0,
-      result: undefined,
-    }];
+    return [
+      {
+        documentId: 'mock-id',
+        frameId: 0,
+        result: undefined,
+      },
+    ];
   });
 
   mockChromeRuntimeSendMessage.mockResolvedValue({
@@ -221,7 +241,9 @@ export function resetPopupTestEnvironment(): void {
 }
 
 // Test data factory helpers
-export function createSnapshot(overrides: Partial<TimesheetSnapshot> = {}): TimesheetSnapshot {
+export function createSnapshot(
+  overrides: Partial<TimesheetSnapshot> = {},
+): TimesheetSnapshot {
   return {
     month: 8,
     year: 2026,
@@ -239,7 +261,10 @@ export function createSnapshot(overrides: Partial<TimesheetSnapshot> = {}): Time
   };
 }
 
-export function createSchedule(id: string, projectCode: string = 'C001'): WeeklySchedule {
+export function createSchedule(
+  id: string,
+  projectCode: string = 'C001',
+): WeeklySchedule {
   return {
     id,
     label: `Schema ${id}`,

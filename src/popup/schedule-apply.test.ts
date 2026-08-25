@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WeeklySchedule } from '../shared/types';
+import {
+  addFailedDatesForProject,
+  autofillScheduleEntries,
+  buildApplyStatusMessage,
+  buildTimesheetUrlForProject,
+  navigateToProject,
+} from './schedule-apply';
 
 const {
   mockGetSAPBusyStateForTab,
@@ -8,7 +15,13 @@ const {
 } = vi.hoisted(() => ({
   mockGetSAPBusyStateForTab: vi.fn<(tabId: number) => Promise<boolean>>(),
   mockExpandWeeklyScheduleToMonthEntries: vi.fn(),
-  mockAutofillEntriesViaUi5: vi.fn<(tabId: number, entries: Array<{ date: string; hours: number }>) => Promise<any>>(),
+  mockAutofillEntriesViaUi5:
+    vi.fn<
+      (
+        tabId: number,
+        entries: Array<{ date: string; hours: number }>,
+      ) => Promise<any>
+    >(),
 }));
 
 vi.mock('../shared/busy-state', () => ({
@@ -23,18 +36,17 @@ vi.mock('./ui5-scripting', () => ({
   autofillEntriesViaUi5: mockAutofillEntriesViaUi5,
 }));
 
-import {
-  addFailedDatesForProject,
-  autofillScheduleEntries,
-  buildApplyStatusMessage,
-  buildTimesheetUrlForProject,
-  navigateToProject,
-} from './schedule-apply';
-
 const mockChromeTabsGet = vi.fn<(tabId: number) => Promise<chrome.tabs.Tab>>();
-const mockChromeTabsUpdate = vi.fn<(tabId: number, updateProperties: chrome.tabs.UpdateProperties) => Promise<chrome.tabs.Tab>>();
+const mockChromeTabsUpdate =
+  vi.fn<
+    (
+      tabId: number,
+      updateProperties: chrome.tabs.UpdateProperties,
+    ) => Promise<chrome.tabs.Tab>
+  >();
 
-const BASE_URL = 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet';
+const BASE_URL =
+  'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet';
 
 const BASE_SCHEDULE: WeeklySchedule = {
   id: 'schedule-1',
@@ -62,8 +74,16 @@ beforeEach(() => {
     },
   } as unknown as typeof chrome;
 
-  mockChromeTabsGet.mockResolvedValue({ id: 99, status: 'complete', url: BASE_URL } as chrome.tabs.Tab);
-  mockChromeTabsUpdate.mockResolvedValue({ id: 99, status: 'complete', url: BASE_URL } as chrome.tabs.Tab);
+  mockChromeTabsGet.mockResolvedValue({
+    id: 99,
+    status: 'complete',
+    url: BASE_URL,
+  } as chrome.tabs.Tab);
+  mockChromeTabsUpdate.mockResolvedValue({
+    id: 99,
+    status: 'complete',
+    url: BASE_URL,
+  } as chrome.tabs.Tab);
   mockGetSAPBusyStateForTab.mockResolvedValue(false);
 });
 
@@ -99,14 +119,28 @@ describe('buildTimesheetUrlForProject', () => {
       'ZTEST_42',
     );
 
-    expect(nextUrl).toBe('https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?/5/2026/project/ZTEST_42');
+    expect(nextUrl).toBe(
+      'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?/5/2026/project/ZTEST_42',
+    );
   });
 
   it('falls back to ? or & when URL has no #timesheet-my route', () => {
-    const withQuery = buildTimesheetUrlForProject('https://example.test/path?foo=1', 5, 2026, 'P1');
-    const withoutQuery = buildTimesheetUrlForProject('https://example.test/path', 5, 2026, 'P1');
+    const withQuery = buildTimesheetUrlForProject(
+      'https://example.test/path?foo=1',
+      5,
+      2026,
+      'P1',
+    );
+    const withoutQuery = buildTimesheetUrlForProject(
+      'https://example.test/path',
+      5,
+      2026,
+      'P1',
+    );
 
-    expect(withQuery).toBe('https://example.test/path?foo=1&/5/2026/project/P1');
+    expect(withQuery).toBe(
+      'https://example.test/path?foo=1&/5/2026/project/P1',
+    );
     expect(withoutQuery).toBe('https://example.test/path?/5/2026/project/P1');
   });
 
@@ -146,11 +180,13 @@ describe('buildApplyStatusMessage', () => {
       0,
     );
 
-    expect(message).toBe([
-      'Schema toegepast: Kantooruren.',
-      '2/3 dagen bijgewerkt.',
-      'SAP bevestiging: geen submit uitgevoerd.',
-    ].join('\n'));
+    expect(message).toBe(
+      [
+        'Schema toegepast: Kantooruren.',
+        '2/3 dagen bijgewerkt.',
+        'SAP bevestiging: geen submit uitgevoerd.',
+      ].join('\n'),
+    );
   });
 
   it('includes sorted unique failed dates and full submit confirmation', () => {
@@ -161,7 +197,12 @@ describe('buildApplyStatusMessage', () => {
     const message = buildApplyStatusMessage(
       [
         BASE_SCHEDULE,
-        { ...BASE_SCHEDULE, id: 'schedule-2', label: 'Deeltijd', projectCode: 'ZTEST_42' },
+        {
+          ...BASE_SCHEDULE,
+          id: 'schedule-2',
+          label: 'Deeltijd',
+          projectCode: 'ZTEST_42',
+        },
       ],
       8,
       10,
@@ -170,38 +211,56 @@ describe('buildApplyStatusMessage', () => {
       2,
     );
 
-    expect(message).toBe([
-      "Schema's toegepast: Kantooruren, Deeltijd.",
-      '8/10 dagen bijgewerkt.',
-      'Mislukt per project:',
-      '- Mockproject: 2026-05-01, 2026-05-03.',
-      'SAP bevestiging: ontvangen (2/2).',
-    ].join('\n'));
+    expect(message).toBe(
+      [
+        "Schema's toegepast: Kantooruren, Deeltijd.",
+        '8/10 dagen bijgewerkt.',
+        'Mislukt per project:',
+        '- Mockproject: 2026-05-01, 2026-05-03.',
+        'SAP bevestiging: ontvangen (2/2).',
+      ].join('\n'),
+    );
   });
 
   it('marks submit confirmation as partial when not all submits are confirmed', () => {
-    const message = buildApplyStatusMessage([BASE_SCHEDULE], 1, 2, new Map(), 2, 1);
-    expect(message).toBe([
-      'Schema toegepast: Kantooruren.',
-      '1/2 dagen bijgewerkt.',
-      'SAP bevestiging: gedeeltelijk (1/2).',
-    ].join('\n'));
+    const message = buildApplyStatusMessage(
+      [BASE_SCHEDULE],
+      1,
+      2,
+      new Map(),
+      2,
+      1,
+    );
+    expect(message).toBe(
+      [
+        'Schema toegepast: Kantooruren.',
+        '1/2 dagen bijgewerkt.',
+        'SAP bevestiging: gedeeltelijk (1/2).',
+      ].join('\n'),
+    );
   });
 });
 
 describe('navigateToProject', () => {
   it('throws when current tab has no URL', async () => {
-    mockChromeTabsGet.mockResolvedValueOnce({ id: 99, status: 'complete' } as chrome.tabs.Tab);
+    mockChromeTabsGet.mockResolvedValueOnce({
+      id: 99,
+      status: 'complete',
+    } as chrome.tabs.Tab);
 
-    await expect(navigateToProject(99, 5, 2026, 'ZMOCK_001.1.1')).rejects.toThrow(
-      'Kan niet navigeren zonder huidige tab-URL.',
-    );
+    await expect(
+      navigateToProject(99, 5, 2026, 'ZMOCK_001.1.1'),
+    ).rejects.toThrow('Kan niet navigeren zonder huidige tab-URL.');
     expect(mockChromeTabsUpdate).not.toHaveBeenCalled();
   });
 
   it('skips navigation when target URL equals current URL', async () => {
     const sameUrl = `${BASE_URL}&/5/2026/project/ZMOCK_001.1.1`;
-    mockChromeTabsGet.mockResolvedValueOnce({ id: 99, status: 'complete', url: sameUrl } as chrome.tabs.Tab);
+    mockChromeTabsGet.mockResolvedValueOnce({
+      id: 99,
+      status: 'complete',
+      url: sameUrl,
+    } as chrome.tabs.Tab);
 
     await navigateToProject(99, 5, 2026, 'ZMOCK_001.1.1');
 
@@ -212,10 +271,26 @@ describe('navigateToProject', () => {
     vi.useFakeTimers();
 
     mockChromeTabsGet
-      .mockResolvedValueOnce({ id: 99, status: 'complete', url: BASE_URL } as chrome.tabs.Tab) // pre-check
-      .mockResolvedValueOnce({ id: 99, status: 'loading', url: BASE_URL } as chrome.tabs.Tab) // check 1
-      .mockResolvedValueOnce({ id: 99, status: 'complete', url: BASE_URL } as chrome.tabs.Tab) // check 2
-      .mockResolvedValueOnce({ id: 99, status: 'complete', url: BASE_URL } as chrome.tabs.Tab); // check 3
+      .mockResolvedValueOnce({
+        id: 99,
+        status: 'complete',
+        url: BASE_URL,
+      } as chrome.tabs.Tab) // pre-check
+      .mockResolvedValueOnce({
+        id: 99,
+        status: 'loading',
+        url: BASE_URL,
+      } as chrome.tabs.Tab) // check 1
+      .mockResolvedValueOnce({
+        id: 99,
+        status: 'complete',
+        url: BASE_URL,
+      } as chrome.tabs.Tab) // check 2
+      .mockResolvedValueOnce({
+        id: 99,
+        status: 'complete',
+        url: BASE_URL,
+      } as chrome.tabs.Tab); // check 3
     mockGetSAPBusyStateForTab
       .mockResolvedValueOnce(true) // check 1
       .mockResolvedValueOnce(true) // check 2
@@ -227,7 +302,9 @@ describe('navigateToProject', () => {
 
     expect(mockChromeTabsUpdate).toHaveBeenCalledWith(
       99,
-      expect.objectContaining({ url: expect.stringContaining('&/5/2026/project/ZMOCK_001.1.1') }),
+      expect.objectContaining({
+        url: expect.stringContaining('&/5/2026/project/ZMOCK_001.1.1'),
+      }),
     );
     expect(mockGetSAPBusyStateForTab).toHaveBeenCalledTimes(3);
   });
@@ -235,13 +312,21 @@ describe('navigateToProject', () => {
   it('times out when SAP stays busy too long', async () => {
     vi.useFakeTimers();
     const nowValues = [0, 0, 10_001];
-    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => nowValues.shift() ?? 10_001);
+    const nowSpy = vi
+      .spyOn(Date, 'now')
+      .mockImplementation(() => nowValues.shift() ?? 10_001);
 
-    mockChromeTabsGet.mockResolvedValue({ id: 99, status: 'complete', url: BASE_URL } as chrome.tabs.Tab);
+    mockChromeTabsGet.mockResolvedValue({
+      id: 99,
+      status: 'complete',
+      url: BASE_URL,
+    } as chrome.tabs.Tab);
     mockGetSAPBusyStateForTab.mockResolvedValue(true);
 
     const navigation = navigateToProject(99, 5, 2026, 'ZMOCK_001.1.1');
-    const rejection = expect(navigation).rejects.toThrow('Navigatie naar projectpagina duurde te lang.');
+    const rejection = expect(navigation).rejects.toThrow(
+      'Navigatie naar projectpagina duurde te lang.',
+    );
     await vi.advanceTimersByTimeAsync(250);
 
     await rejection;
@@ -261,7 +346,8 @@ describe('autofillScheduleEntries', () => {
       failedDates: [],
       submissionAttempted: false,
       submissionConfirmed: false,
-      error: 'Geen toepasbare dagen gevonden voor schema Kantooruren in periode 5/2026.',
+      error:
+        'Geen toepasbare dagen gevonden voor schema Kantooruren in periode 5/2026.',
     });
     expect(mockAutofillEntriesViaUi5).not.toHaveBeenCalled();
   });
@@ -306,7 +392,9 @@ describe('autofillScheduleEntries', () => {
 
     const result = await autofillScheduleEntries(99, BASE_SCHEDULE, 5, 2026);
 
-    expect(result.error).toBe('Geen maandgegevens beschikbaar voor autofill in SAP.');
+    expect(result.error).toBe(
+      'Geen maandgegevens beschikbaar voor autofill in SAP.',
+    );
   });
 
   it('maps successful UI5 autofill result into summary', async () => {
@@ -363,4 +451,3 @@ describe('autofillScheduleEntries', () => {
     });
   });
 });
-

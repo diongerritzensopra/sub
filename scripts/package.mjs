@@ -1,6 +1,6 @@
 import { execSync } from 'child_process';
 import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
+import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -17,6 +17,7 @@ const zipFilename = `sub-extension-v${version}.zip`;
 
 // Create zip from dist directory
 console.log(`Creating ${zipFilename}...`);
-execSync(`cd dist && zip -r ../${zipFilename} . && cd ..`, { stdio: 'inherit' });
+execSync(`cd dist && zip -r ../${zipFilename} . && cd ..`, {
+  stdio: 'inherit',
+});
 console.log(`Done! Created ${zipFilename}`);
-

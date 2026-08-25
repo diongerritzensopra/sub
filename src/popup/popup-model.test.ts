@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 import {
@@ -9,7 +9,9 @@ import {
   resolveValidationPeriod,
 } from './popup-model';
 
-function createSnapshot(overrides: Partial<TimesheetSnapshot> = {}): TimesheetSnapshot {
+function createSnapshot(
+  overrides: Partial<TimesheetSnapshot> = {},
+): TimesheetSnapshot {
   return {
     month: 8,
     year: 2026,
@@ -126,7 +128,10 @@ describe('isSnapshotComplete', () => {
 describe('resolveValidationPeriod', () => {
   it('uses route period when available', () => {
     const period = resolveValidationPeriod(
-      createTab('https://host/site#timesheet-my?sap-ui-app-id-hint=app&/11/2026/project/XYZ', 1),
+      createTab(
+        'https://host/site#timesheet-my?sap-ui-app-id-hint=app&/11/2026/project/XYZ',
+        1,
+      ),
     );
 
     expect(period).toEqual({ month: 11, year: 2026 });
@@ -134,7 +139,10 @@ describe('resolveValidationPeriod', () => {
 
   it('supports leading-zero month values in route period', () => {
     const period = resolveValidationPeriod(
-      createTab('https://host/site#timesheet-my?sap-ui-app-id-hint=app&/09/2026/project/XYZ', 3),
+      createTab(
+        'https://host/site#timesheet-my?sap-ui-app-id-hint=app&/09/2026/project/XYZ',
+        3,
+      ),
     );
 
     expect(period).toEqual({ month: 9, year: 2026 });
@@ -153,7 +161,9 @@ describe('resolveValidationPeriod', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-01T09:00:00.000Z'));
 
-    const period = resolveValidationPeriod(createTab('https://host/site?state=/13/2026', 4));
+    const period = resolveValidationPeriod(
+      createTab('https://host/site?state=/13/2026', 4),
+    );
 
     expect(period).toEqual({ month: 3, year: 2026 });
   });
@@ -172,13 +182,22 @@ describe('getSchedulesToApply', () => {
   it('returns all schedules when nothing is selected', () => {
     const schedules = [createSchedule('a'), createSchedule('b')];
 
-    expect(getSchedulesToApply(schedules, new Set<string>())).toEqual(schedules);
+    expect(getSchedulesToApply(schedules, new Set<string>())).toEqual(
+      schedules,
+    );
   });
 
   it('returns only selected schedules when ids are provided', () => {
-    const schedules = [createSchedule('a'), createSchedule('b'), createSchedule('c')];
+    const schedules = [
+      createSchedule('a'),
+      createSchedule('b'),
+      createSchedule('c'),
+    ];
 
-    const selected = getSchedulesToApply(schedules, new Set<string>(['c', 'a']));
+    const selected = getSchedulesToApply(
+      schedules,
+      new Set<string>(['c', 'a']),
+    );
 
     expect(selected).toEqual([schedules[0], schedules[2]]);
   });
@@ -186,7 +205,10 @@ describe('getSchedulesToApply', () => {
   it('ignores selected ids that are not in rendered schedules', () => {
     const schedules = [createSchedule('a')];
 
-    const selected = getSchedulesToApply(schedules, new Set<string>(['missing']));
+    const selected = getSchedulesToApply(
+      schedules,
+      new Set<string>(['missing']),
+    );
 
     expect(selected).toEqual([]);
   });

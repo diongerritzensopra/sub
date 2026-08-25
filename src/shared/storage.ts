@@ -2,7 +2,11 @@
  * chrome.storage helper — typed wrappers around chrome.storage.local.
  */
 
-import type { CachedStatusMessage, CachedTimesheetSnapshot, WeeklySchedule } from './types';
+import type {
+  CachedStatusMessage,
+  CachedTimesheetSnapshot,
+  WeeklySchedule,
+} from './types';
 
 export const STORAGE_KEYS = {
   timesheetSnapshotCache: 'timesheetSnapshotCache',
@@ -48,11 +52,17 @@ async function storageRemove(key: string): Promise<void> {
   });
 }
 
-export async function getCachedTimesheetSnapshot(): Promise<CachedTimesheetSnapshot | undefined> {
-  return storageGet<CachedTimesheetSnapshot>(STORAGE_KEYS.timesheetSnapshotCache);
+export async function getCachedTimesheetSnapshot(): Promise<
+  CachedTimesheetSnapshot | undefined
+> {
+  return storageGet<CachedTimesheetSnapshot>(
+    STORAGE_KEYS.timesheetSnapshotCache,
+  );
 }
 
-export async function setCachedTimesheetSnapshot(cache: CachedTimesheetSnapshot): Promise<void> {
+export async function setCachedTimesheetSnapshot(
+  cache: CachedTimesheetSnapshot,
+): Promise<void> {
   await storageSet(STORAGE_KEYS.timesheetSnapshotCache, cache);
 }
 
@@ -61,7 +71,9 @@ export async function clearCachedTimesheetSnapshot(): Promise<void> {
 }
 
 export async function getSchedules(): Promise<WeeklySchedule[]> {
-  const schedules = await storageGet<WeeklySchedule[]>(STORAGE_KEYS.projectSchedules);
+  const schedules = await storageGet<WeeklySchedule[]>(
+    STORAGE_KEYS.projectSchedules,
+  );
   if (!Array.isArray(schedules)) {
     return [];
   }
@@ -90,11 +102,15 @@ export async function deleteSchedule(scheduleId: string): Promise<void> {
   await storageSet(STORAGE_KEYS.projectSchedules, filtered);
 }
 
-export async function getCachedStatusMessage(): Promise<CachedStatusMessage | undefined> {
+export async function getCachedStatusMessage(): Promise<
+  CachedStatusMessage | undefined
+> {
   return storageGet<CachedStatusMessage>(STORAGE_KEYS.statusMessageCache);
 }
 
-export async function setCachedStatusMessage(cache: CachedStatusMessage): Promise<void> {
+export async function setCachedStatusMessage(
+  cache: CachedStatusMessage,
+): Promise<void> {
   await storageSet(STORAGE_KEYS.statusMessageCache, cache);
 }
 
@@ -110,7 +126,10 @@ export async function clearCachedStatusMessage(): Promise<void> {
  */
 export function isCacheStale(
   cache: CachedTimesheetSnapshot,
-  referencePeriod: CachePeriod = { month: new Date().getMonth() + 1, year: new Date().getFullYear() },
+  referencePeriod: CachePeriod = {
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear(),
+  },
   now: Date = new Date(),
 ): boolean {
   if (isCacheTooOld(cache.cachedAt, now)) {
@@ -123,4 +142,3 @@ export function isCacheStale(
   }
   return month !== referencePeriod.month || year !== referencePeriod.year;
 }
-

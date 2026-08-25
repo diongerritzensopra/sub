@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { CachedTimesheetSnapshot } from '../shared/types';
-import { mockChromeTabsQuery, createSnapshot } from './popup.test-helpers';
+import { createSnapshot, mockChromeTabsQuery } from './popup.test-helpers';
 import {
   getActiveTab,
   getValidCachedSnapshot,
@@ -41,7 +41,9 @@ beforeEach(() => {
   vi.mocked(isCacheStale).mockReturnValue(false);
   vi.mocked(resolveValidationPeriod).mockReturnValue({ month: 8, year: 2026 });
   vi.mocked(setCachedTimesheetSnapshotToStorage).mockResolvedValue();
-  vi.mocked(readTimesheetSnapshotViaUi5FromScripting).mockResolvedValue(createSnapshot());
+  vi.mocked(readTimesheetSnapshotViaUi5FromScripting).mockResolvedValue(
+    createSnapshot(),
+  );
 });
 
 describe('getActiveTab', () => {
@@ -51,7 +53,10 @@ describe('getActiveTab', () => {
 
     const result = await getActiveTab();
 
-    expect(mockChromeTabsQuery).toHaveBeenCalledWith({ active: true, currentWindow: true });
+    expect(mockChromeTabsQuery).toHaveBeenCalledWith({
+      active: true,
+      currentWindow: true,
+    });
     expect(result).toBe(tab);
   });
 
@@ -80,7 +85,10 @@ describe('getValidCachedSnapshot', () => {
     const tab = { id: 11, url: 'https://example.test' } as chrome.tabs.Tab;
 
     vi.mocked(getCachedTimesheetSnapshot).mockResolvedValue(cache);
-    vi.mocked(resolveValidationPeriod).mockReturnValue({ month: 8, year: 2026 });
+    vi.mocked(resolveValidationPeriod).mockReturnValue({
+      month: 8,
+      year: 2026,
+    });
     vi.mocked(isCacheStale).mockReturnValue(true);
 
     const result = await getValidCachedSnapshot(tab);
@@ -110,7 +118,9 @@ describe('getValidCachedSnapshot', () => {
 describe('readTimesheetSnapshotViaUi5', () => {
   it('delegates to ui5-scripting module', async () => {
     const snapshot = createSnapshot();
-    vi.mocked(readTimesheetSnapshotViaUi5FromScripting).mockResolvedValue(snapshot);
+    vi.mocked(readTimesheetSnapshotViaUi5FromScripting).mockResolvedValue(
+      snapshot,
+    );
 
     await expect(readTimesheetSnapshotViaUi5(77)).resolves.toBe(snapshot);
     expect(readTimesheetSnapshotViaUi5FromScripting).toHaveBeenCalledWith(77);

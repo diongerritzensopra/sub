@@ -32,13 +32,10 @@ describe('autofillEntriesViaUi5', () => {
       },
     ]);
 
-    const result = await autofillEntriesViaUi5(
-      99,
-      [
-        { date: '2026-05-10', hours: 8 },
-        { date: '2026-05-11', hours: 8 },
-      ],
-    );
+    const result = await autofillEntriesViaUi5(99, [
+      { date: '2026-05-10', hours: 8 },
+      { date: '2026-05-11', hours: 8 },
+    ]);
 
     expect(result).toEqual({
       appliedDaysCount: 2,
@@ -51,13 +48,10 @@ describe('autofillEntriesViaUi5', () => {
   it('returns fallback autofill result with all entry dates when script result is missing', async () => {
     mockExecuteScript.mockResolvedValueOnce([]);
 
-    const result = await autofillEntriesViaUi5(
-      99,
-      [
-        { date: '2026-05-10', hours: 8 },
-        { date: '2026-05-11', hours: 0 },
-      ],
-    );
+    const result = await autofillEntriesViaUi5(99, [
+      { date: '2026-05-10', hours: 8 },
+      { date: '2026-05-11', hours: 0 },
+    ]);
 
     expect(result).toEqual({
       appliedDaysCount: 0,
@@ -107,13 +101,16 @@ describe('readTimesheetSnapshotViaUi5', () => {
       },
     ]);
 
-    await expect(readTimesheetSnapshotViaUi5(99)).rejects.toThrow('UI5 snapshot faalde');
+    await expect(readTimesheetSnapshotViaUi5(99)).rejects.toThrow(
+      'UI5 snapshot faalde',
+    );
   });
 
   it('throws default error when payload is missing', async () => {
     mockExecuteScript.mockResolvedValueOnce([]);
 
-    await expect(readTimesheetSnapshotViaUi5(99)).rejects.toThrow('UI5 snapshot leverde geen resultaat op.');
+    await expect(readTimesheetSnapshotViaUi5(99)).rejects.toThrow(
+      'UI5 snapshot leverde geen resultaat op.',
+    );
   });
 });
-

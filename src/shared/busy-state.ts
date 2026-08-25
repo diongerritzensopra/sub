@@ -7,7 +7,9 @@ import type { MessageRequest, MessageResponse } from './types';
 
 let isSAPBusy = false;
 
-export function initBusyStateListener(onBusyStateChange?: (busy: boolean, tabId?: number) => void): void {
+export function initBusyStateListener(
+  onBusyStateChange?: (busy: boolean, tabId?: number) => void,
+): void {
   chrome.runtime.onMessage.addListener((message, sender) => {
     if (message.type !== 'SAP_BUSY_STATE_CHANGED') {
       return;
@@ -20,7 +22,10 @@ export function initBusyStateListener(onBusyStateChange?: (busy: boolean, tabId?
 
 export async function getSAPBusyStateForTab(tabId: number): Promise<boolean> {
   try {
-    const response = await chrome.runtime.sendMessage<MessageRequest, MessageResponse>({
+    const response = await chrome.runtime.sendMessage<
+      MessageRequest,
+      MessageResponse
+    >({
       type: 'GET_SAP_BUSY_STATE',
       payload: { tabId },
     });
@@ -33,5 +38,3 @@ export async function getSAPBusyStateForTab(tabId: number): Promise<boolean> {
     return isSAPBusy;
   }
 }
-
-

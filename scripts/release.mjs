@@ -1,6 +1,6 @@
 import { execSync } from 'child_process';
 import { readFileSync, writeFileSync } from 'fs';
-import { join, dirname } from 'path';
+import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const SEMVER_REGEX = /^(\d+)\.(\d+)\.(\d+)$/;
@@ -20,8 +20,13 @@ function run(command, capture = false) {
     execSync(command, { cwd: root, stdio: 'inherit' });
     return '';
   } catch (error) {
-    const exitCode = typeof error === 'object' && error !== null && 'status' in error ? error.status : undefined;
-    fail(`Command failed${exitCode !== undefined ? ` (exit code ${exitCode})` : ''}: ${command}`);
+    const exitCode =
+      typeof error === 'object' && error !== null && 'status' in error
+        ? error.status
+        : undefined;
+    fail(
+      `Command failed${exitCode !== undefined ? ` (exit code ${exitCode})` : ''}: ${command}`,
+    );
   }
 }
 
@@ -62,7 +67,10 @@ function determineNextVersion(currentVersion, args) {
     return explicitVersion;
   }
 
-  const [major, minor, patch] = parseSemver(currentVersion, 'current manifest version');
+  const [major, minor, patch] = parseSemver(
+    currentVersion,
+    'current manifest version',
+  );
 
   if (hasMajorFlag) {
     return `${major + 1}.0.0`;
@@ -78,12 +86,16 @@ function determineNextVersion(currentVersion, args) {
 function assertGitPreconditions() {
   const status = run('git --no-pager status --porcelain', true);
   if (status) {
-    fail('Working tree is not clean. Commit or stash changes before running release.');
+    fail(
+      'Working tree is not clean. Commit or stash changes before running release.',
+    );
   }
 
   const branch = run('git --no-pager rev-parse --abbrev-ref HEAD', true);
   if (branch !== 'main') {
-    fail(`Current branch is \"${branch}\". Switch to \"main\" before running release.`);
+    fail(
+      `Current branch is \"${branch}\". Switch to \"main\" before running release.`,
+    );
   }
 
   const tagsOnHead = run('git --no-pager tag --points-at HEAD', true)
@@ -91,7 +103,9 @@ function assertGitPreconditions() {
     .map((tag) => tag.trim())
     .filter(Boolean);
 
-  const hasVersionTagOnHead = tagsOnHead.some((tag) => /^v?\d+\.\d+\.\d+$/.test(tag));
+  const hasVersionTagOnHead = tagsOnHead.some((tag) =>
+    /^v?\d+\.\d+\.\d+$/.test(tag),
+  );
   if (hasVersionTagOnHead) {
     fail(`Current commit already has a version tag: ${tagsOnHead.join(', ')}`);
   }
@@ -109,7 +123,10 @@ function main() {
   const packageLock = JSON.parse(readFileSync(packageLockPath, 'utf8'));
 
   const currentVersion = manifest.version;
-  const newVersion = determineNextVersion(currentVersion, process.argv.slice(2));
+  const newVersion = determineNextVersion(
+    currentVersion,
+    process.argv.slice(2),
+  );
 
   if (newVersion === currentVersion) {
     fail(`Resolved version ${newVersion} matches current version.`);
@@ -151,4 +168,3 @@ function main() {
 }
 
 main();
-

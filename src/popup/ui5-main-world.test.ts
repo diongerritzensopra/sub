@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SapProjectsModelData, SapTimesheetDayEntry } from '../shared/types';
-import { ui5MainWorldAutofill, ui5MainWorldReadSnapshot } from './ui5-main-world';
+import type {
+  SapProjectsModelData,
+  SapTimesheetDayEntry,
+} from '../shared/types';
+import {
+  ui5MainWorldAutofill,
+  ui5MainWorldReadSnapshot,
+} from './ui5-main-world';
 
 describe('ui5MainWorldReadSnapshot', () => {
   beforeEach(() => {
@@ -27,7 +33,12 @@ describe('ui5MainWorldReadSnapshot', () => {
                     oMonth: 6,
                     oYear: 2026,
                     oCurrentProject: { WorkPackage: 'ZMOCK_001.1.1' },
-                    oProjects: [{ WorkPackage: 'ZMOCK_001.1.1', WorkPackageName: 'Mockproject' }],
+                    oProjects: [
+                      {
+                        WorkPackage: 'ZMOCK_001.1.1',
+                        WorkPackageName: 'Mockproject',
+                      },
+                    ],
                     oTotals: {
                       oStatus: 'U',
                       oTotals: {
@@ -72,13 +83,17 @@ describe('ui5MainWorldReadSnapshot', () => {
 
     expect(ui5MainWorldReadSnapshot()).toEqual({
       success: false,
-      error: 'SAP projectsmodel kon niet worden gelezen via de UI5 pagina-context.',
+      error:
+        'SAP projectsmodel kon niet worden gelezen via de UI5 pagina-context.',
     });
   });
 });
 
 describe('ui5MainWorldAutofill', () => {
-  const baseDay = (date: string, overrides?: Partial<SapTimesheetDayEntry>): SapTimesheetDayEntry => ({
+  const baseDay = (
+    date: string,
+    overrides?: Partial<SapTimesheetDayEntry>,
+  ): SapTimesheetDayEntry => ({
     Date: new Date(date).getTime(),
     ProjectCode: 'ZMOCK_001.1.1',
     Comment: '',
@@ -199,7 +214,8 @@ describe('ui5MainWorldAutofill', () => {
       ui: {
         getCore: () => ({
           byId: (id: string) => {
-            if (id !== 'application-timesheet-my-component---idDetail') return null;
+            if (id !== 'application-timesheet-my-component---idDetail')
+              return null;
             return {
               getController: () => ({ _refreshTotalsModels: vi.fn() }),
               getModel: (name?: string) => {
@@ -208,10 +224,21 @@ describe('ui5MainWorldAutofill', () => {
                     getData: () => ({
                       oMonth: 4,
                       oYear: 2026,
-                      UserDetail: { PersonWorkAgreement: '40001234', PersonWorkAgreementExternalID: '00045678', CompanyCode: '1000' },
+                      UserDetail: {
+                        PersonWorkAgreement: '40001234',
+                        PersonWorkAgreementExternalID: '00045678',
+                        CompanyCode: '1000',
+                      },
                       oCurrentProject: null,
                       oProjects: [],
-                      oTotals: { oStatus: 'U', oTotals: { hoursToBePerformed: '00:00', totalActualWorkHours: '00:00', leaveHours: null } },
+                      oTotals: {
+                        oStatus: 'U',
+                        oTotals: {
+                          hoursToBePerformed: '00:00',
+                          totalActualWorkHours: '00:00',
+                          leaveHours: null,
+                        },
+                      },
                     }),
                   };
                 }
@@ -223,7 +250,9 @@ describe('ui5MainWorldAutofill', () => {
       },
     };
 
-    const result = await ui5MainWorldAutofill({ entries: [{ date: '2026-05-01', hours: 8 }] });
+    const result = await ui5MainWorldAutofill({
+      entries: [{ date: '2026-05-01', hours: 8 }],
+    });
 
     expect(result).toEqual({
       appliedDaysCount: 0,
@@ -239,7 +268,8 @@ describe('ui5MainWorldAutofill', () => {
       ui: {
         getCore: () => ({
           byId: (id: string) => {
-            if (id !== 'application-timesheet-my-component---idDetail') return null;
+            if (id !== 'application-timesheet-my-component---idDetail')
+              return null;
             return {
               getController: () => ({ _refreshTotalsModels: vi.fn() }),
               getModel: (name?: string) => {
@@ -254,7 +284,9 @@ describe('ui5MainWorldAutofill', () => {
       },
     };
 
-    const result = await ui5MainWorldAutofill({ entries: [{ date: '2026-05-01', hours: 8 }] });
+    const result = await ui5MainWorldAutofill({
+      entries: [{ date: '2026-05-01', hours: 8 }],
+    });
 
     expect(result).toEqual({
       appliedDaysCount: 0,
@@ -285,7 +317,9 @@ describe('ui5MainWorldAutofill', () => {
       submissionConfirmed: true,
     });
 
-    const payload = JSON.parse(callFunctionSpy.mock.calls[0][1].urlParameters.payload) as { v_General: Array<any> };
+    const payload = JSON.parse(
+      callFunctionSpy.mock.calls[0][1].urlParameters.payload,
+    ) as { v_General: Array<any> };
     expect(payload.v_General[0].TimeSheetOperation).toBe('C');
     expect(payload.v_General[0].TimeSheetDataFields.RecordedHours).toBe('8');
     expect(refreshSpy).toHaveBeenCalledTimes(1);
@@ -293,7 +327,10 @@ describe('ui5MainWorldAutofill', () => {
 
   it('returns detailed error context when postTimeSheet fails', async () => {
     const callFunctionSpy = vi.fn((_path: string, params: any) => {
-      const err = new Error('Network failed') as Error & { responseText?: string; body?: string };
+      const err = new Error('Network failed') as Error & {
+        responseText?: string;
+        body?: string;
+      };
       err.responseText = ' SAP backend';
       err.body = ' body payload';
       params.error?.(err);
@@ -333,9 +370,14 @@ describe('ui5MainWorldAutofill', () => {
 
   it('fails a day where the requested hours exceed day availability', async () => {
     // AvailabilityInHours is in minutes (480 = 8h). Requesting 9h (540 min) exceeds it.
-    setSapContext([baseDay('2026-05-01', { AvailabilityInHours: 480 })], vi.fn());
+    setSapContext(
+      [baseDay('2026-05-01', { AvailabilityInHours: 480 })],
+      vi.fn(),
+    );
 
-    const result = await ui5MainWorldAutofill({ entries: [{ date: '2026-05-01', hours: 9 }] });
+    const result = await ui5MainWorldAutofill({
+      entries: [{ date: '2026-05-01', hours: 9 }],
+    });
 
     expect(result.failedDates).toEqual(['2026-05-01']);
     expect(result.appliedDaysCount).toBe(0);
@@ -345,10 +387,14 @@ describe('ui5MainWorldAutofill', () => {
   it('fails a day with negative or non-finite hours', async () => {
     setSapContext([baseDay('2026-05-01'), baseDay('2026-05-02')], vi.fn());
 
-    const negativeResult = await ui5MainWorldAutofill({ entries: [{ date: '2026-05-01', hours: -1 }] });
+    const negativeResult = await ui5MainWorldAutofill({
+      entries: [{ date: '2026-05-01', hours: -1 }],
+    });
     expect(negativeResult.failedDates).toEqual(['2026-05-01']);
 
-    const nanResult = await ui5MainWorldAutofill({ entries: [{ date: '2026-05-02', hours: NaN }] });
+    const nanResult = await ui5MainWorldAutofill({
+      entries: [{ date: '2026-05-02', hours: NaN }],
+    });
     expect(nanResult.failedDates).toEqual(['2026-05-02']);
   });
 
@@ -359,14 +405,17 @@ describe('ui5MainWorldAutofill', () => {
       CompanyCode: '',
     });
 
-    const result = await ui5MainWorldAutofill({ entries: [{ date: '2026-05-01', hours: 8 }] });
+    const result = await ui5MainWorldAutofill({
+      entries: [{ date: '2026-05-01', hours: 8 }],
+    });
 
     expect(result).toEqual({
       appliedDaysCount: 0,
       failedDates: ['2026-05-01'],
       submissionAttempted: false,
       submissionConfirmed: false,
-      error: 'Kan vereiste SAP identificatievelden niet bepalen voor postTimeSheet.',
+      error:
+        'Kan vereiste SAP identificatievelden niet bepalen voor postTimeSheet.',
     });
   });
 
@@ -376,7 +425,8 @@ describe('ui5MainWorldAutofill', () => {
       ui: {
         getCore: () => ({
           byId: (id: string) => {
-            if (id !== 'application-timesheet-my-component---idDetail') return null;
+            if (id !== 'application-timesheet-my-component---idDetail')
+              return null;
             return {
               getController: () => ({ _refreshTotalsModels: vi.fn() }),
               getModel: (name?: string) => {
@@ -385,7 +435,11 @@ describe('ui5MainWorldAutofill', () => {
                     getData: () => ({
                       oMonth: 4,
                       oYear: 2026,
-                      UserDetail: { PersonWorkAgreement: '40001234', PersonWorkAgreementExternalID: '00045678', CompanyCode: '1000' },
+                      UserDetail: {
+                        PersonWorkAgreement: '40001234',
+                        PersonWorkAgreementExternalID: '00045678',
+                        CompanyCode: '1000',
+                      },
                       oCurrentProject: {
                         WorkPackage: 'ZMOCK_001.1.1',
                         oTimeSheet: [baseDay('2026-05-01')],
@@ -400,7 +454,14 @@ describe('ui5MainWorldAutofill', () => {
                         PurchaseOrderItemCalculated: '00000',
                       },
                       oProjects: [],
-                      oTotals: { oStatus: 'U', oTotals: { hoursToBePerformed: '00:00', totalActualWorkHours: '00:00', leaveHours: null } },
+                      oTotals: {
+                        oStatus: 'U',
+                        oTotals: {
+                          hoursToBePerformed: '00:00',
+                          totalActualWorkHours: '00:00',
+                          leaveHours: null,
+                        },
+                      },
                     }),
                   };
                 }
@@ -413,7 +474,9 @@ describe('ui5MainWorldAutofill', () => {
       },
     };
 
-    const result = await ui5MainWorldAutofill({ entries: [{ date: '2026-05-01', hours: 8 }] });
+    const result = await ui5MainWorldAutofill({
+      entries: [{ date: '2026-05-01', hours: 8 }],
+    });
 
     expect(result).toEqual({
       appliedDaysCount: 0,
@@ -447,12 +510,16 @@ describe('ui5MainWorldAutofill', () => {
     const refreshSpy = vi.fn();
     const monthData = [
       baseDay('2026-05-01', {
-        FullTime_Entries: [{ TimeSheetRecord: 'REC001', PersonWorkAgreement: '40001234' }],
+        FullTime_Entries: [
+          { TimeSheetRecord: 'REC001', PersonWorkAgreement: '40001234' },
+        ],
       }),
     ];
     setSapContext(monthData, callFunctionSpy, refreshSpy);
 
-    const result = await ui5MainWorldAutofill({ entries: [{ date: '2026-05-01', hours: 0 }] });
+    const result = await ui5MainWorldAutofill({
+      entries: [{ date: '2026-05-01', hours: 0 }],
+    });
 
     expect(result).toEqual({
       appliedDaysCount: 1,
@@ -460,7 +527,9 @@ describe('ui5MainWorldAutofill', () => {
       submissionAttempted: true,
       submissionConfirmed: true,
     });
-    const payload = JSON.parse(callFunctionSpy.mock.calls[0][1].urlParameters.payload) as { v_General: Array<any> };
+    const payload = JSON.parse(
+      callFunctionSpy.mock.calls[0][1].urlParameters.payload,
+    ) as { v_General: Array<any> };
     expect(payload.v_General[0].TimeSheetOperation).toBe('D');
     expect(payload.v_General[0].TimeSheetRecord).toBe('REC001');
   });
@@ -471,7 +540,9 @@ describe('ui5MainWorldAutofill', () => {
       vi.fn(),
     );
 
-    const result = await ui5MainWorldAutofill({ entries: [{ date: '2026-05-01', hours: 0 }] });
+    const result = await ui5MainWorldAutofill({
+      entries: [{ date: '2026-05-01', hours: 0 }],
+    });
 
     expect(result.failedDates).toEqual(['2026-05-01']);
     expect(result.appliedDaysCount).toBe(0);
@@ -484,15 +555,21 @@ describe('ui5MainWorldAutofill', () => {
     });
     const monthData = [
       baseDay('2026-05-01', {
-        FullTime_Entries: [{ TimeSheetRecord: 'REC002', PersonWorkAgreement: '40001234' }],
+        FullTime_Entries: [
+          { TimeSheetRecord: 'REC002', PersonWorkAgreement: '40001234' },
+        ],
       }),
     ];
     setSapContext(monthData, callFunctionSpy, vi.fn());
 
-    const result = await ui5MainWorldAutofill({ entries: [{ date: '2026-05-01', hours: 6 }] });
+    const result = await ui5MainWorldAutofill({
+      entries: [{ date: '2026-05-01', hours: 6 }],
+    });
 
     expect(result.appliedDaysCount).toBe(1);
-    const payload = JSON.parse(callFunctionSpy.mock.calls[0][1].urlParameters.payload) as { v_General: Array<any> };
+    const payload = JSON.parse(
+      callFunctionSpy.mock.calls[0][1].urlParameters.payload,
+    ) as { v_General: Array<any> };
     expect(payload.v_General[0].TimeSheetOperation).toBe('U');
     expect(payload.v_General[0].TimeSheetRecord).toBe('REC002');
   });
@@ -503,7 +580,9 @@ describe('ui5MainWorldAutofill', () => {
       vi.fn(),
     );
 
-    const result = await ui5MainWorldAutofill({ entries: [{ date: '2026-05-01', hours: 8 }] });
+    const result = await ui5MainWorldAutofill({
+      entries: [{ date: '2026-05-01', hours: 8 }],
+    });
 
     expect(result.failedDates).toEqual(['2026-05-01']);
     expect(result.appliedDaysCount).toBe(0);

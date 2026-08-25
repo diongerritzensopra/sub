@@ -12,26 +12,26 @@ import {
 } from '../shared/storage';
 import { getPopupDomRefs } from './popup-dom';
 import {
-  STATUS_MESSAGE_MAX_AGE_MS,
   createInitialPopupState,
   isSapTimesheetEditable,
+  STATUS_MESSAGE_MAX_AGE_MS,
 } from './popup-model';
 import {
   analyseActiveTab,
   applySchedulesFromSelection,
   handleScheduleFormSubmit,
-  reloadSchedulesDisplay,
-  renderCurrentSchedulesDisplay,
-  renderCachedSnapshotIfAvailable,
   type PopupActionsContext,
+  reloadSchedulesDisplay,
+  renderCachedSnapshotIfAvailable,
+  renderCurrentSchedulesDisplay,
 } from './popup-actions';
 import {
-  renderSnapshot as renderSnapshotCore,
-  showScheduleForm as showScheduleFormCore,
   hideScheduleForm,
+  renderSnapshot as renderSnapshotCore,
+  renderStatusMessage,
+  showScheduleForm as showScheduleFormCore,
   updateAddScheduleButtonState,
   updateApplySchedulesButtonState,
-  renderStatusMessage,
 } from './popup-render';
 
 // Popup state
@@ -95,7 +95,9 @@ void (async () => {
 
 function openScheduleFormForEdit(schedule: WeeklySchedule): void {
   if (!state.currentSnapshot) {
-    setStatus('Analyseer eerst de huidige timesheet voordat je een schema bewerkt.');
+    setStatus(
+      'Analyseer eerst de huidige timesheet voordat je een schema bewerkt.',
+    );
     return;
   }
 
@@ -110,13 +112,16 @@ function setTimesheetApplyAllowedState(editable: boolean): void {
     !editable,
     state.selectedScheduleIds.size > 0,
     state.renderedSchedules.length,
-    state.currentSnapshot?.month !== null && state.currentSnapshot?.year !== null,
+    state.currentSnapshot?.month !== null &&
+      state.currentSnapshot?.year !== null,
   );
 }
 
 function openScheduleFormFromLatestSnapshot(): void {
   if (!state.currentSnapshot) {
-    setStatus('Analyseer eerst de huidige timesheet voordat je een schema toevoegt.');
+    setStatus(
+      'Analyseer eerst de huidige timesheet voordat je een schema toevoegt.',
+    );
     return;
   }
 
@@ -143,7 +148,8 @@ export function renderSnapshot(
     !state.isTimesheetApplyAllowed,
     state.selectedScheduleIds.size > 0,
     state.renderedSchedules.length,
-    state.currentSnapshot?.month !== null && state.currentSnapshot?.year !== null,
+    state.currentSnapshot?.month !== null &&
+      state.currentSnapshot?.year !== null,
   );
 
   renderSnapshotCore(
@@ -168,7 +174,10 @@ export function setStatus(message: string, persist: boolean = false): void {
       void clearCachedStatusMessage();
     }
   } else if (persist) {
-    void setCachedStatusMessage({ message, cachedAt: new Date().toISOString() });
+    void setCachedStatusMessage({
+      message,
+      cachedAt: new Date().toISOString(),
+    });
   }
 }
 
@@ -197,13 +206,20 @@ export async function restoreCachedStatusMessage(): Promise<boolean> {
 export { formatHours } from './popup-render';
 export { getPopupDomRefs } from './popup-dom';
 export type { PopupDomRefs } from './popup-dom';
-export { extractPeriodFromTimesheetUrl, isSnapshotComplete, isSapTimesheetEditable } from './popup-model';
+export {
+  extractPeriodFromTimesheetUrl,
+  isSnapshotComplete,
+  isSapTimesheetEditable,
+} from './popup-model';
 export { getActiveTab } from './popup-gateway';
 
 /**
  * Test-compatible wrapper for showScheduleForm (old API).
  */
-export function showScheduleForm(snapshot: TimesheetSnapshot | null, scheduleToEdit?: WeeklySchedule | null): void {
+export function showScheduleForm(
+  snapshot: TimesheetSnapshot | null,
+  scheduleToEdit?: WeeklySchedule | null,
+): void {
   state.currentSnapshot = snapshot;
   state.scheduleBeingEdited = scheduleToEdit ?? null;
   showScheduleFormCore(dom, snapshot, scheduleToEdit);

@@ -1,22 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <circle cx="64" cy="64" r="60" fill="#ffffff" stroke="#d9d9d9" stroke-width="4"/>
+    <circle cx="64" cy="64" r="60" fill="#ffffff" stroke="#d9d9d9" stroke-width="4"/>
 
-  <!-- Hull -->
-  <ellipse cx="64" cy="80" rx="46" ry="22" fill="#1c65bf"/>
-  <!-- Sail -->
-  <rect x="49" y="50" width="22" height="22" rx="6" fill="#1c65bf"/>
-  <!-- Periscope shaft -->
-  <rect x="56" y="30" width="11" height="24" rx="5" fill="#1c65bf"/>
-  <!-- Periscope arm -->
-  <rect x="40" y="29" width="27" height="11" rx="5" fill="#1c65bf"/>
-  <!-- Periscope eyepiece -->
-  <circle cx="40" cy="34" r="5" fill="#ffffff"/>
-  <!-- Windows (3 evenly spaced) -->
-  <circle cx="45" cy="80" r="5" fill="#ffffff" stroke="#1c65bf" stroke-width="2"/>
-  <circle cx="64" cy="80" r="5" fill="#ffffff" stroke="#1c65bf" stroke-width="2"/>
-  <circle cx="83" cy="80" r="5" fill="#ffffff" stroke="#1c65bf" stroke-width="2"/>
-  <!-- Propulsor -->
-  <ellipse cx="110" cy="80" rx="4" ry="8" fill="#1c65bf"/>
+    <!-- Hull -->
+    <ellipse cx="64" cy="80" rx="46" ry="22" fill="#1c65bf"/>
+    <!-- Sail -->
+    <rect x="49" y="50" width="22" height="22" rx="6" fill="#1c65bf"/>
+    <!-- Periscope shaft -->
+    <rect x="56" y="30" width="11" height="24" rx="5" fill="#1c65bf"/>
+    <!-- Periscope arm -->
+    <rect x="40" y="29" width="27" height="11" rx="5" fill="#1c65bf"/>
+    <!-- Periscope eyepiece -->
+    <circle cx="40" cy="34" r="5" fill="#ffffff"/>
+    <!-- Windows (3 evenly spaced) -->
+    <circle cx="45" cy="80" r="5" fill="#ffffff" stroke="#1c65bf" stroke-width="2"/>
+    <circle cx="64" cy="80" r="5" fill="#ffffff" stroke="#1c65bf" stroke-width="2"/>
+    <circle cx="83" cy="80" r="5" fill="#ffffff" stroke="#1c65bf" stroke-width="2"/>
+    <!-- Propulsor -->
+    <ellipse cx="110" cy="80" rx="4" ry="8" fill="#1c65bf"/>
 </svg>
 
 
