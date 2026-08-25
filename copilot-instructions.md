@@ -1,4 +1,16 @@
-# AGENTS.md
+# copilot-instructions.md
+
+## Agent Execution Rules
+
+**CRITICAL: Follow these rules consistently.**
+
+- Do not commit automatically after each generated or edited step; wait for explicit user confirmation to commit.
+- Commit messages for generated changes MUST start with `[AI]`.
+- The commit message body MUST include both a `Prompt summary` and a `Step executed` summary; order them as prompt first, then step, with one blank line between them (paraphrasing is allowed when intent is preserved).
+- `Prompt summary` MUST be written in imperative form.
+- `Step executed` MUST be written in past tense and MUST reflect the concrete changes made in response to the prompt.
+- Never use backticks in commit messages because they break terminal command execution.
+- **IMPORTANT: Always run Prettier on files you create or edit.** After creating or editing any file, run `npx prettier --write <file-path>` or `npx prettier --write src/` to format according to `.prettierrc`.
 
 ## Project Goal
 
@@ -45,15 +57,6 @@ Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for he
 | Release        | `npm run release`       |
 | Package zip    | `npm run package`       |
 
-## Agent Execution Rules
-
-- Do not commit automatically after each generated or edited step; wait for explicit user confirmation to commit.
-- Commit messages for generated changes MUST start with `[AI]`.
-- The commit message body MUST include both a `Prompt summary` and a `Step executed` summary; order them as prompt first, then step, with one blank line between them (paraphrasing is allowed when intent is preserved).
-- `Prompt summary` MUST be written in imperative form.
-- `Step executed` MUST be written in past tense and MUST reflect the concrete changes made in response to the prompt.
-- Never use backticks in commit messages because they break terminal command execution.
-
 ## Conventions to Follow
 
 - Add new message kinds to `MessageType` before using them in popup/content scripts.
@@ -65,14 +68,9 @@ Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for he
 - User-facing error messages shown by popup/UI5 apply flows remain in Dutch.
 - Keep popup text and manifest metadata branded as `sub`.
 - Keep tests next to source as `*.test.ts` (Vitest + jsdom via `vite.config.ts`).
-- **IMPORTANT: Always run Prettier on files you create or edit.** After creating or editing any file, run `npx prettier --write <file-path>` or `npx prettier --write src/` to format according to `.prettierrc`.
 
 ## Maintenance Notes
 
 - Update this file when architecture, workflow, or SAP-specific targeting changes.
-- Prefer repository-specific instructions over generic advice.
+- Prefer repository-specific instructions to generic advice.
 - Track planned/completed product features in `FEATURES.md`.
-
-## Active TODO Surface
-
-- i18n: Dutch and English UI text, language selector in popup, persisted language preference.
