@@ -66,9 +66,10 @@ Shared feature roadmap for `sub`.
   - Review every test case in `popup.integration.test.ts`; classify each as redundant or still load-bearing.
   - If all cases are redundant, delete `popup.integration.test.ts` and close this feature with no further work.
   - Output: All concrete cases in `popup.integration.test.ts` remain load-bearing (status restore lifecycle, apply resilience with partial navigation failure, and skip-navigation when already on target project). `popup.integration.test.ts` is retained and Chunk 2 is required.
-- [ ] Chunk 2 - Author integration tests (only if load-bearing cases exist).
+- [x] Chunk 2 - Author integration tests (only if load-bearing cases exist).
   - Convert the load-bearing cases from `popup.integration.test.ts` into proper integration tests with clear, descriptive names and only external-boundary mocking.
   - Remove the placeholder comment block added during the refactoring.
+  - Output: Converted `popup.integration.test.ts` from holding-file format to active integration coverage by removing placeholder commentary and retaining the three load-bearing assembled-popup scenarios with clearer descriptive test names and external-boundary mocks only.
 - [ ] Chunk 3 - Coverage and CI validation.
   - Run `npm test` and confirm all tests pass and coverage meets or exceeds the pre-refactoring baseline.
 

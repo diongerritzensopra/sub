@@ -1,24 +1,3 @@
-/**
- * Popup integration tests (placeholder for feature: Popup integration tests)
- *
- * This file holds load-bearing cross-module test cases that cannot be cleanly
- * attributed to a single popup module and are necessary to maintain coverage.
- * These tests validate real popup lifecycle sequencing, multi-module state
- * propagation, and resilience flows that depend on the assembled popup behavior.
- *
- * Each test in this file was identified during the Popup unit test refactoring
- * (see popup-test-refactor-audit.md, section "Load-bearing Cross-module Tests")
- * as requiring:
- * - Popup bootstrap wiring (`popup.ts` initializing multiple modules together)
- * - Multi-module state propagation across async operations
- * - Lifecycle ordering that spans actions, rendering, storage, and messaging
- *
- * When the dedicated Popup integration tests feature is implemented, these tests
- * should be evaluated: if per-module coverage renders them redundant, they can be
- * dropped; if they still add value, they become proper integration tests with
- * clear descriptive names and only external-boundary mocking.
- */
-
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 import { STORAGE_KEYS } from '../shared/storage';
@@ -39,15 +18,8 @@ beforeEach(() => {
 });
 
 describe('popup integration tests', () => {
-  /**
-   * Load-bearing test: Status restore lifecycle after refresh/loading transitions
-   *
-   * Validates real popup lifecycle sequencing, temporary status transitions,
-   * and persisted status restoration after user-triggered refresh cycles.
-   * Depends on popup bootstrap coordinating actions, storage, and rendering.
-   */
   describe('status restore lifecycle', () => {
-    it('restores persisted status after pressing refresh and temporary loading messages', async () => {
+    it('keeps the persisted status visible after refresh lifecycle transitions', async () => {
       const sapTab = {
         id: 99,
         url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet&/8/2026/project/ZSST',
@@ -100,14 +72,6 @@ describe('popup integration tests', () => {
     });
   });
 
-  /**
-   * Load-bearing test: Apply flow resilience when one schedule navigation fails
-   *
-   * Validates multi-schedule loop behavior across actions + apply orchestration +
-   * status rendering. Tests that the apply flow continues with remaining schedules
-   * when one navigation fails, properly accumulating error state while maintaining
-   * partial success reporting.
-   */
   describe('apply flow resilience', () => {
     const makeSchedule = (id: string, label: string, projectCode: string): WeeklySchedule => ({
       id,
@@ -134,7 +98,7 @@ describe('popup integration tests', () => {
       status: 'complete',
     } as chrome.tabs.Tab;
 
-    it('continues with remaining schedules when navigation fails for one schedule', async () => {
+    it('continues with remaining schedules and reports accumulated errors when one navigation fails', async () => {
       const storedValues: Record<string, unknown> = {
         [STORAGE_KEYS.projectSchedules]: [
           makeSchedule('s1', 'Kantooruren', 'ZMOCK_001.1.1'),
@@ -194,13 +158,6 @@ describe('popup integration tests', () => {
       expect(statusMessage).toContain('Mockproject: Navigatie mislukt voor project');
     });
 
-    /**
-     * Load-bearing test: Apply flow skip-navigation branch when already on target project
-     *
-     * Validates cross-module route-state + apply execution interplay. Tests that the apply
-     * flow correctly detects when the SAP tab is already on the target project page and
-     * skips navigation in that case.
-     */
     it('applies without navigation when already on the same project page', async () => {
       const storedValues: Record<string, unknown> = {
         [STORAGE_KEYS.projectSchedules]: [makeSchedule('s1', 'Kantooruren', 'ZMOCK_001.1.1')],
@@ -234,14 +191,4 @@ describe('popup integration tests', () => {
       expect(document.getElementById('status-message')?.textContent).toContain('SAP bevestiging: ontvangen (1/1)');
     });
   });
-
-  /**
-   * Load-bearing test: Bootstrap cache/ready-state lifecycle
-   *
-   * Validates popup initialization flow that loads cached data, queries SAP busy state,
-   * and transitions through ready states. Tests that depend on popup.ts bootstrap
-   * orchestration rather than individual module behavior.
-   * [Placeholder for specific bootstrap lifecycle tests from popup.core.test.ts if needed]
-   */
 });
-
