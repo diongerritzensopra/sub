@@ -40,6 +40,8 @@ Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for he
 | Test           | `npm test`              |
 | Test (watch)   | `npm run test:watch`    |
 | Coverage       | `npm run test:coverage` |
+| Format         | `npm run format`        |
+| Format (check) | `npm run format:check`  |
 | Release        | `npm run release`       |
 | Package zip    | `npm run package`       |
 
@@ -63,6 +65,7 @@ Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for he
 - User-facing error messages shown by popup/UI5 apply flows remain in Dutch.
 - Keep popup text and manifest metadata branded as `sub`.
 - Keep tests next to source as `*.test.ts` (Vitest + jsdom via `vite.config.ts`).
+- **IMPORTANT: Always run Prettier on files you create or edit.** After creating or editing any file, run `npx prettier --write <file-path>` or `npx prettier --write src/` to format according to `.prettierrc`.
 
 ## Maintenance Notes
 
