@@ -61,10 +61,11 @@ Shared feature roadmap for `sub`.
   - Integration tests at this level must test the assembled popup behavior without mocking internal popup modules — only external boundaries (storage, `chrome.*` APIs, scripting wrappers) may be mocked.
 
 #### Implementation chunks
-- [ ] Chunk 1 - Evaluate coverage gap after unit test refactor.
+- [x] Chunk 1 - Evaluate coverage gap after unit test refactor.
   - Review the coverage report produced at the end of the refactoring feature.
   - Review every test case in `popup.integration.test.ts`; classify each as redundant or still load-bearing.
   - If all cases are redundant, delete `popup.integration.test.ts` and close this feature with no further work.
+  - Output: All concrete cases in `popup.integration.test.ts` remain load-bearing (status restore lifecycle, apply resilience with partial navigation failure, and skip-navigation when already on target project). `popup.integration.test.ts` is retained and Chunk 2 is required.
 - [ ] Chunk 2 - Author integration tests (only if load-bearing cases exist).
   - Convert the load-bearing cases from `popup.integration.test.ts` into proper integration tests with clear, descriptive names and only external-boundary mocking.
   - Remove the placeholder comment block added during the refactoring.

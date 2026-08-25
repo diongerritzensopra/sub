@@ -47,6 +47,19 @@ These tests are not part of the module-unit refactor and must be preserved in a 
 - Load-bearing (must preserve until integration feature evaluates them):
   - assertions that require `popup.ts` bootstrap wiring, multi-module state propagation, or lifecycle ordering across async operations.
 
+## Popup Integration Tests Feature - Chunk 1 Evaluation (2026-08-25)
+
+Coverage review baseline: refactor Chunk 9 (`npm run test:coverage`) showed `popup.ts` at 61.19%, indicating remaining orchestration/lifecycle behavior beyond per-module unit scope.
+
+| Candidate from `popup.integration.test.ts` | Decision | Why |
+| --- | --- | --- |
+| Status restore lifecycle after refresh/loading transitions | Load-bearing | Requires assembled-popup bootstrap wiring and lifecycle sequencing (persisted status -> temporary loading state -> restored status) across actions, storage, and rendering. |
+| Apply flow resilience when one schedule navigation fails | Load-bearing | Requires real multi-schedule apply loop behavior with partial failure accumulation and final status composition across actions + apply orchestration + rendering. |
+| Apply flow skip-navigation when already on target project | Load-bearing | Requires end-to-end route-state detection + apply execution interplay with popup state and rendered status output. |
+| Bootstrap cache/ready-state lifecycle placeholder | Redundant for now | No concrete test case remains in the holding file; keep as future optional scope only if new regressions appear. |
+
+Decision: keep `popup.integration.test.ts` and proceed with *Popup integration tests* Chunk 2.
+
 ## Next Refactor Driver
 
 Use this file as the migration checklist for Chunks 2-7:
