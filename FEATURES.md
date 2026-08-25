@@ -4,84 +4,6 @@ Shared feature roadmap for `sub`.
 
 ## Planned
 
-### Popup unit test refactoring
-#### Feature description
-- [x] Refactor the popup unit tests so that each popup module (`popup-actions.ts`, `popup-dom.ts`, `popup-gateway.ts`, `popup-model.ts`, `popup-render.ts`) has its own dedicated unit test file.
-  - The existing test files (`popup.core.test.ts`, `popup.lock-state.test.ts`, `popup.schedule-apply.test.ts`, `popup.schedule-delete.test.ts`, `popup.schedule-form.test.ts`, `popup.snapshot-render.test.ts`, `popup.status-cache.test.ts`) currently test behaviour at the level of the assembled popup (`popup.ts`) rather than individual modules; they rely on the full popup being wired up.
-  - After the refactor, each module's test file should import and exercise only that module, with its dependencies (other popup modules, storage, scripting wrappers, etc.) mocked via Vitest's `vi.mock`.
-  - Shared test helpers in `popup.test-helpers.ts` should be reviewed; keep only the helpers that remain relevant for module-level tests and move or remove the rest.
-  - The existing functional test coverage (core init, lock state, schedule apply, schedule delete, schedule form, snapshot render, status cache) must be preserved in the refactored files — no test cases may be dropped, only reorganised and re-scoped.
-  - **Integration tests are explicitly out of scope for this refactor.** Any existing test cases that cross multiple popup modules, cannot be cleanly attributed to a single module, and are necessary to maintain coverage must be identified and documented in Chunk 1 so they can be picked up in a dedicated *Popup integration tests* feature (see planned feature below). Those cases must **not** be deleted during this refactor; keep them in a clearly labelled holding file (e.g. `popup.integration.test.ts`) until the separate feature is implemented.
-
-#### Implementation chunks
-- [x] Chunk 1 - Audit and map existing tests to modules.
-  - Read all current popup test files and map each test case to the module it actually exercises.
-  - Identify which tests are genuinely unit-level (single module) and which are effectively integration tests (multiple modules wired together).
-  - For any test that cannot be mapped to a single module: determine whether it is redundant (safe to drop after per-module coverage is in place) or load-bearing (must be kept to maintain coverage). Document load-bearing cases explicitly — they will be preserved and handed off to the *Popup integration tests* feature.
-  - Produce a mapping table (or inline comments in the test files) that drives the subsequent chunks.
-  - Mapping output: `src/popup/popup-test-refactor-audit.md`.
-- [x] Chunk 2 - Unit tests for `popup-model.ts`.
-  - Create `popup-model.test.ts` covering state initialization, mutations, and derived state logic.
-  - Mock storage helpers and any other external dependencies.
-  - Output: `src/popup/popup-model.test.ts` (model-focused unit coverage for state defaults, editability/completeness checks, period parsing/fallback, and schedule selection).
-- [x] Chunk 3 - Unit tests for `popup-dom.ts`.
-  - Create `popup-dom.test.ts` covering DOM query helpers and element accessors.
-  - Use jsdom; mock only cross-module imports, not the DOM itself.
-  - Output: `src/popup/popup-dom.test.ts` (DOM ref mapping and element accessor coverage).
-- [x] Chunk 4 - Unit tests for `popup-render.ts`.
-  - Create `popup-render.test.ts` covering all render functions (snapshot display, schedule list, status messages, lock state, button states).
-  - Use jsdom-backed `PopupDomRefs` fixtures and module-local test data so render logic is tested directly without popup bootstrap wiring.
-  - Output: `src/popup/popup-render.test.ts` (render helpers, snapshot rendering, schedule list interactions, form rendering, and button/status state coverage).
-- [x] Chunk 5 - Unit tests for `popup-actions.ts`.
-  - Create `popup-actions.test.ts` covering every user-action handler (refresh, apply, schedule save/delete, status dismiss).
-  - Mock `popup-model.ts`, `popup-render.ts`, `popup-gateway.ts`, storage, and scripting wrappers.
-  - Output: `src/popup/popup-actions.test.ts` (reload/apply/form-submit/delete/cache/analyze action orchestration with mocked module boundaries).
-- [x] Chunk 6 - Unit tests for `popup-gateway.ts`.
-  - Create `popup-gateway.test.ts` covering message dispatch, tab queries, and error paths.
-  - Mock `chrome.*` APIs (tabs, scripting, runtime) via the existing Vitest chrome mock setup.
-  - Output: `src/popup/popup-gateway.test.ts` (active-tab lookup, cache staleness handling, storage delegations, and SAP/UI5 gateway delegations).
-- [x] Chunk 7 - Isolate load-bearing cross-module test cases.
-  - Move any test cases identified in Chunk 1 as load-bearing integration tests into `popup.integration.test.ts` without modifying them.
-  - Add a comment block at the top of the file explaining that these tests are placeholders pending the *Popup integration tests* feature.
-  - Output: `src/popup/popup.integration.test.ts` (status restore lifecycle, apply flow resilience with navigation failures, skip-navigation when already on target project).
-- [x] Chunk 8 - Clean up legacy test files and shared helpers.
-  - Remove or repurpose the old functionality-bucketed test files once all their cases have been migrated into per-module files or moved to `popup.integration.test.ts`.
-  - Prune `popup.test-helpers.ts` to only the helpers still needed after the refactor; delete the file if it becomes empty.
-  - Output: Deleted 7 legacy bucketed test files. Pruned popup.test-helpers.ts by removing unused mockChromeTabsSendMessage mock. Consolidated duplicate helper functions (`createSnapshot`, `createSchedule`, `createTab`) into popup.test-helpers.ts and updated test files to use shared factories.
-- [x] Chunk 9 - Coverage and CI validation.
-  - Run `npm test` and confirm all tests pass and coverage is at least equal to the pre-refactor baseline.
-  - Fix any import or mock wiring issues discovered during the test run.
-  - Output: All 137 tests passing. Coverage report: 86.91% statements (overall), 90.51% popup modules, 91.13% shared utilities. No import or wiring issues. service-worker.ts (0%) excluded as not part of unit test scope; popup.ts (61.19%) lower due to orchestration lifecycle complexity (covered by integration tests).
-
-### Popup integration tests
-#### Feature description
-- [ ] Determine whether popup-level integration tests (tests that exercise multiple popup modules wired together) are necessary after the *Popup unit test refactoring* is complete.
-  - This feature is a direct follow-up to the refactoring. The need for integration tests — and the scope of what they should cover — can only be assessed once the per-module unit tests exist and coverage results are known.
-  - Candidate cases are the load-bearing cross-module tests parked in `popup.integration.test.ts` during the refactoring (see Chunk 7 of the refactoring feature). Each candidate must be evaluated: if per-module coverage now renders it redundant it can be dropped; if it still adds value it becomes a proper integration test.
-  - Integration tests at this level must test the assembled popup behavior without mocking internal popup modules — only external boundaries (storage, `chrome.*` APIs, scripting wrappers) may be mocked.
-
-#### Implementation chunks
-- [x] Chunk 1 - Evaluate coverage gap after unit test refactor.
-  - Review the coverage report produced at the end of the refactoring feature.
-  - Review every test case in `popup.integration.test.ts`; classify each as redundant or still load-bearing.
-  - If all cases are redundant, delete `popup.integration.test.ts` and close this feature with no further work.
-  - Output: All concrete cases in `popup.integration.test.ts` remain load-bearing (status restore lifecycle, apply resilience with partial navigation failure, and skip-navigation when already on target project). `popup.integration.test.ts` is retained and Chunk 2 is required.
-- [x] Chunk 2 - Author integration tests (only if load-bearing cases exist).
-  - Convert the load-bearing cases from `popup.integration.test.ts` into proper integration tests with clear, descriptive names and only external-boundary mocking.
-  - Remove the placeholder comment block added during the refactoring.
-  - Output: Converted `popup.integration.test.ts` from holding-file format to active integration coverage by removing placeholder commentary and retaining the three load-bearing assembled-popup scenarios with clearer descriptive test names and external-boundary mocks only.
-- [x] Chunk 3 - Coverage and CI validation.
-  - Run `npm test` and confirm all tests pass and coverage meets or exceeds the pre-refactoring baseline.
-  - Output: `npm test` passed (`12/12` files, `137/137` tests). `npm run test:coverage` passed with updated overall coverage (`87.01%` statements, `78.45%` branches, `88.7%` functions, `86.97%` lines), but `popup.ts` remained at `61.19%`, below the desired `>=80%` target for this feature.
-- [x] Chunk 4 - Close remaining `popup.ts` integration coverage gaps.
-  - Add integration tests to `popup.integration.test.ts` covering:
-    - Event listener wiring: dismiss status button (`btn-status-dismiss`), add schedule button (`btn-add-schedule`), cancel form button (`schedule-form-cancel`), schedule form submit handler.
-    - Popup-level utility functions: `isTimesheetTab()` URL pattern matching; `restoreCachedStatusMessage()` with invalid/expired/fresh timestamp handling.
-    - Snapshot-dependent error paths: `openScheduleFormForEdit()` and `openScheduleFormFromLatestSnapshot()` when no snapshot is loaded.
-    - Busy-state integration: callback listener auto-triggers `analyseActiveTab()` when SAP becomes ready.
-  - Validation target: run `npm test` and `npm run test:coverage`; keep all tests green and raise `popup.ts` coverage to at least `80%`.
-  - Output: `npm test` passed (`12/12` files, `148/148` tests). `popup.ts` coverage reached `91.04%` statements/lines, `87.87%` branches, `88.88%` functions — exceeding the `>=80%` target. Overall coverage: `89.17%` statements.
-
 ### General hours schedules
 #### Feature description
 - [ ] Allow users to create and edit weekly schedules for SAP "general hours" timesheets.
@@ -193,6 +115,84 @@ Shared feature roadmap for `sub`.
 
 
 ## Completed
+
+### Popup unit test refactoring
+#### Feature description
+- [x] Refactor the popup unit tests so that each popup module (`popup-actions.ts`, `popup-dom.ts`, `popup-gateway.ts`, `popup-model.ts`, `popup-render.ts`) has its own dedicated unit test file.
+  - The existing test files (`popup.core.test.ts`, `popup.lock-state.test.ts`, `popup.schedule-apply.test.ts`, `popup.schedule-delete.test.ts`, `popup.schedule-form.test.ts`, `popup.snapshot-render.test.ts`, `popup.status-cache.test.ts`) currently test behaviour at the level of the assembled popup (`popup.ts`) rather than individual modules; they rely on the full popup being wired up.
+  - After the refactor, each module's test file should import and exercise only that module, with its dependencies (other popup modules, storage, scripting wrappers, etc.) mocked via Vitest's `vi.mock`.
+  - Shared test helpers in `popup.test-helpers.ts` should be reviewed; keep only the helpers that remain relevant for module-level tests and move or remove the rest.
+  - The existing functional test coverage (core init, lock state, schedule apply, schedule delete, schedule form, snapshot render, status cache) must be preserved in the refactored files — no test cases may be dropped, only reorganised and re-scoped.
+  - **Integration tests are explicitly out of scope for this refactor.** Any existing test cases that cross multiple popup modules, cannot be cleanly attributed to a single module, and are necessary to maintain coverage must be identified and documented in Chunk 1 so they can be picked up in a dedicated *Popup integration tests* feature (see planned feature below). Those cases must **not** be deleted during this refactor; keep them in a clearly labelled holding file (e.g. `popup.integration.test.ts`) until the separate feature is implemented.
+
+#### Implementation chunks
+- [x] Chunk 1 - Audit and map existing tests to modules.
+  - Read all current popup test files and map each test case to the module it actually exercises.
+  - Identify which tests are genuinely unit-level (single module) and which are effectively integration tests (multiple modules wired together).
+  - For any test that cannot be mapped to a single module: determine whether it is redundant (safe to drop after per-module coverage is in place) or load-bearing (must be kept to maintain coverage). Document load-bearing cases explicitly — they will be preserved and handed off to the *Popup integration tests* feature.
+  - Produce a mapping table (or inline comments in the test files) that drives the subsequent chunks.
+  - Mapping output: `src/popup/popup-test-refactor-audit.md`.
+- [x] Chunk 2 - Unit tests for `popup-model.ts`.
+  - Create `popup-model.test.ts` covering state initialization, mutations, and derived state logic.
+  - Mock storage helpers and any other external dependencies.
+  - Output: `src/popup/popup-model.test.ts` (model-focused unit coverage for state defaults, editability/completeness checks, period parsing/fallback, and schedule selection).
+- [x] Chunk 3 - Unit tests for `popup-dom.ts`.
+  - Create `popup-dom.test.ts` covering DOM query helpers and element accessors.
+  - Use jsdom; mock only cross-module imports, not the DOM itself.
+  - Output: `src/popup/popup-dom.test.ts` (DOM ref mapping and element accessor coverage).
+- [x] Chunk 4 - Unit tests for `popup-render.ts`.
+  - Create `popup-render.test.ts` covering all render functions (snapshot display, schedule list, status messages, lock state, button states).
+  - Use jsdom-backed `PopupDomRefs` fixtures and module-local test data so render logic is tested directly without popup bootstrap wiring.
+  - Output: `src/popup/popup-render.test.ts` (render helpers, snapshot rendering, schedule list interactions, form rendering, and button/status state coverage).
+- [x] Chunk 5 - Unit tests for `popup-actions.ts`.
+  - Create `popup-actions.test.ts` covering every user-action handler (refresh, apply, schedule save/delete, status dismiss).
+  - Mock `popup-model.ts`, `popup-render.ts`, `popup-gateway.ts`, storage, and scripting wrappers.
+  - Output: `src/popup/popup-actions.test.ts` (reload/apply/form-submit/delete/cache/analyze action orchestration with mocked module boundaries).
+- [x] Chunk 6 - Unit tests for `popup-gateway.ts`.
+  - Create `popup-gateway.test.ts` covering message dispatch, tab queries, and error paths.
+  - Mock `chrome.*` APIs (tabs, scripting, runtime) via the existing Vitest chrome mock setup.
+  - Output: `src/popup/popup-gateway.test.ts` (active-tab lookup, cache staleness handling, storage delegations, and SAP/UI5 gateway delegations).
+- [x] Chunk 7 - Isolate load-bearing cross-module test cases.
+  - Move any test cases identified in Chunk 1 as load-bearing integration tests into `popup.integration.test.ts` without modifying them.
+  - Add a comment block at the top of the file explaining that these tests are placeholders pending the *Popup integration tests* feature.
+  - Output: `src/popup/popup.integration.test.ts` (status restore lifecycle, apply flow resilience with navigation failures, skip-navigation when already on target project).
+- [x] Chunk 8 - Clean up legacy test files and shared helpers.
+  - Remove or repurpose the old functionality-bucketed test files once all their cases have been migrated into per-module files or moved to `popup.integration.test.ts`.
+  - Prune `popup.test-helpers.ts` to only the helpers still needed after the refactor; delete the file if it becomes empty.
+  - Output: Deleted 7 legacy bucketed test files. Pruned popup.test-helpers.ts by removing unused mockChromeTabsSendMessage mock. Consolidated duplicate helper functions (`createSnapshot`, `createSchedule`, `createTab`) into popup.test-helpers.ts and updated test files to use shared factories.
+- [x] Chunk 9 - Coverage and CI validation.
+  - Run `npm test` and confirm all tests pass and coverage is at least equal to the pre-refactor baseline.
+  - Fix any import or mock wiring issues discovered during the test run.
+  - Output: All 137 tests passing. Coverage report: 86.91% statements (overall), 90.51% popup modules, 91.13% shared utilities. No import or wiring issues. service-worker.ts (0%) excluded as not part of unit test scope; popup.ts (61.19%) lower due to orchestration lifecycle complexity (covered by integration tests).
+
+### Popup integration tests
+#### Feature description
+- [x] Determine whether popup-level integration tests (tests that exercise multiple popup modules wired together) are necessary after the *Popup unit test refactoring* is complete.
+  - This feature is a direct follow-up to the refactoring. The need for integration tests — and the scope of what they should cover — can only be assessed once the per-module unit tests exist and coverage results are known.
+  - Candidate cases are the load-bearing cross-module tests parked in `popup.integration.test.ts` during the refactoring (see Chunk 7 of the refactoring feature). Each candidate must be evaluated: if per-module coverage now renders it redundant it can be dropped; if it still adds value it becomes a proper integration test.
+  - Integration tests at this level must test the assembled popup behavior without mocking internal popup modules — only external boundaries (storage, `chrome.*` APIs, scripting wrappers) may be mocked.
+
+#### Implementation chunks
+- [x] Chunk 1 - Evaluate coverage gap after unit test refactor.
+  - Review the coverage report produced at the end of the refactoring feature.
+  - Review every test case in `popup.integration.test.ts`; classify each as redundant or still load-bearing.
+  - If all cases are redundant, delete `popup.integration.test.ts` and close this feature with no further work.
+  - Output: All concrete cases in `popup.integration.test.ts` remain load-bearing (status restore lifecycle, apply resilience with partial navigation failure, and skip-navigation when already on target project). `popup.integration.test.ts` is retained and Chunk 2 is required.
+- [x] Chunk 2 - Author integration tests (only if load-bearing cases exist).
+  - Convert the load-bearing cases from `popup.integration.test.ts` into proper integration tests with clear, descriptive names and only external-boundary mocking.
+  - Remove the placeholder comment block added during the refactoring.
+  - Output: Converted `popup.integration.test.ts` from holding-file format to active integration coverage by removing placeholder commentary and retaining the three load-bearing assembled-popup scenarios with clearer descriptive test names and external-boundary mocks only.
+- [x] Chunk 3 - Coverage and CI validation.
+  - Run `npm test` and confirm all tests pass and coverage meets or exceeds the pre-refactoring baseline.
+  - Output: `npm test` passed (`12/12` files, `137/137` tests). `npm run test:coverage` passed with updated overall coverage (`87.01%` statements, `78.45%` branches, `88.7%` functions, `86.97%` lines), but `popup.ts` remained at `61.19%`, below the desired `>=80%` target for this feature.
+- [x] Chunk 4 - Close remaining `popup.ts` integration coverage gaps.
+  - Add integration tests to `popup.integration.test.ts` covering:
+    - Event listener wiring: dismiss status button (`btn-status-dismiss`), add schedule button (`btn-add-schedule`), cancel form button (`schedule-form-cancel`), schedule form submit handler.
+    - Popup-level utility functions: `isTimesheetTab()` URL pattern matching; `restoreCachedStatusMessage()` with invalid/expired/fresh timestamp handling.
+    - Snapshot-dependent error paths: `openScheduleFormForEdit()` and `openScheduleFormFromLatestSnapshot()` when no snapshot is loaded.
+    - Busy-state integration: callback listener auto-triggers `analyseActiveTab()` when SAP becomes ready.
+  - Validation target: run `npm test` and `npm run test:coverage`; keep all tests green and raise `popup.ts` coverage to at least `80%`.
+  - Output: `npm test` passed (`12/12` files, `148/148` tests). `popup.ts` coverage reached `91.04%` statements/lines, `87.87%` branches, `88.88%` functions — exceeding the `>=80%` target. Overall coverage: `89.17%` statements.
 
 ### Versioning, packaging and distribution
 #### Feature description
