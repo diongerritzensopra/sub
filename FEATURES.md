@@ -70,8 +70,16 @@ Shared feature roadmap for `sub`.
   - Convert the load-bearing cases from `popup.integration.test.ts` into proper integration tests with clear, descriptive names and only external-boundary mocking.
   - Remove the placeholder comment block added during the refactoring.
   - Output: Converted `popup.integration.test.ts` from holding-file format to active integration coverage by removing placeholder commentary and retaining the three load-bearing assembled-popup scenarios with clearer descriptive test names and external-boundary mocks only.
-- [ ] Chunk 3 - Coverage and CI validation.
+- [x] Chunk 3 - Coverage and CI validation.
   - Run `npm test` and confirm all tests pass and coverage meets or exceeds the pre-refactoring baseline.
+  - Output: `npm test` passed (`12/12` files, `137/137` tests). `npm run test:coverage` passed with updated overall coverage (`87.01%` statements, `78.45%` branches, `88.7%` functions, `86.97%` lines), but `popup.ts` remained at `61.19%`, below the desired `>=80%` target for this feature.
+- [ ] Chunk 4 - Close remaining `popup.ts` integration coverage gaps.
+  - Add integration tests to `popup.integration.test.ts` covering:
+    - Event listener wiring: dismiss status button (`btn-status-dismiss`), add schedule button (`btn-add-schedule`), cancel form button (`btn-cancel-schedule`), schedule form submit handler.
+    - Popup-level utility functions: `isTimesheetTab()` URL pattern matching; `setStatus()` with persist flag and cache clearing; `restoreCachedStatusMessage()` with invalid/expired timestamp handling.
+    - Snapshot-dependent error paths: `openScheduleFormForEdit()` and `openScheduleFormFromLatestSnapshot()` when no snapshot is loaded.
+    - Busy-state integration: callback listener auto-triggers `analyseActiveTab()` when SAP becomes ready.
+  - Validation target: run `npm test` and `npm run test:coverage`; keep all tests green and raise `popup.ts` coverage to at least `80%`.
 
 ### General hours schedules
 #### Feature description
