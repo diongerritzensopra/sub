@@ -12,7 +12,8 @@ import { getSAPBusyStateForTab } from '../shared/busy-state';
 import { expandWeeklyScheduleToMonthEntries } from '../shared/schedule-expansion';
 import { autofillEntriesViaUi5 } from './ui5-scripting';
 
-const ROUTE_PROJECT_SEGMENT_PATTERN = /([?&])\/(1[0-2]|0?[1-9])\/(20\d{2})(?:\/project\/[^&#?]*)?/i;
+const ROUTE_PROJECT_SEGMENT_PATTERN =
+  /([?&])\/(1[0-2]|0?[1-9])\/(20\d{2})(?:\/project\/[^&#?]*)?/i;
 const PROJECT_NAVIGATION_TIMEOUT_MS = 10_000;
 const PROJECT_NAVIGATION_POLL_INTERVAL_MS = 200;
 
@@ -69,14 +70,24 @@ async function waitForTabReady(tabId: number): Promise<void> {
   throw new Error('Navigatie naar projectpagina duurde te lang.');
 }
 
-export async function navigateToProject(tabId: number, month: number, year: number, projectCode: string): Promise<void> {
+export async function navigateToProject(
+  tabId: number,
+  month: number,
+  year: number,
+  projectCode: string,
+): Promise<void> {
   const currentTab = await chrome.tabs.get(tabId);
   const tabUrl = currentTab.url;
   if (!tabUrl) {
     throw new Error('Kan niet navigeren zonder huidige tab-URL.');
   }
 
-  const targetUrl = buildTimesheetUrlForProject(tabUrl, month, year, projectCode);
+  const targetUrl = buildTimesheetUrlForProject(
+    tabUrl,
+    month,
+    year,
+    projectCode,
+  );
   if (targetUrl === tabUrl) {
     return;
   }
@@ -89,7 +100,11 @@ function uniqueSortedDates(dates: string[]): string[] {
   return Array.from(new Set(dates)).sort((a, b) => a.localeCompare(b));
 }
 
-export function addFailedDatesForProject(failedDatesByProject: Map<string, string[]>, projectCode: string, dates: string[]): void {
+export function addFailedDatesForProject(
+  failedDatesByProject: Map<string, string[]>,
+  projectCode: string,
+  dates: string[],
+): void {
   if (dates.length === 0) {
     return;
   }
@@ -106,7 +121,9 @@ function buildAppliedSchedulesLine(schedules: WeeklySchedule[]): string {
     : `Schema's toegepast: ${scheduleLabels.join(', ')}.`;
 }
 
-function buildFailedDatesLines(failedDatesByProject: Map<string, string[]>): string[] {
+function buildFailedDatesLines(
+  failedDatesByProject: Map<string, string[]>,
+): string[] {
   if (failedDatesByProject.size === 0) {
     return [];
   }
@@ -136,15 +153,24 @@ export function buildApplyStatusMessage(
   if (submissionAttemptedCount === 0) {
     parts.push('SAP bevestiging: geen submit uitgevoerd.');
   } else if (submissionConfirmedCount === submissionAttemptedCount) {
-    parts.push(`SAP bevestiging: ontvangen (${submissionConfirmedCount}/${submissionAttemptedCount}).`);
+    parts.push(
+      `SAP bevestiging: ontvangen (${submissionConfirmedCount}/${submissionAttemptedCount}).`,
+    );
   } else {
-    parts.push(`SAP bevestiging: gedeeltelijk (${submissionConfirmedCount}/${submissionAttemptedCount}).`);
+    parts.push(
+      `SAP bevestiging: gedeeltelijk (${submissionConfirmedCount}/${submissionAttemptedCount}).`,
+    );
   }
 
   return parts.join('\n');
 }
 
-export async function autofillScheduleEntries(tabId: number, schedule: WeeklySchedule, month: number, year: number): Promise<ScheduleAutofillSummary> {
+export async function autofillScheduleEntries(
+  tabId: number,
+  schedule: WeeklySchedule,
+  month: number,
+  year: number,
+): Promise<ScheduleAutofillSummary> {
   const entries = expandWeeklyScheduleToMonthEntries(schedule, month, year);
   const totalDaysCount = entries.length;
   if (totalDaysCount === 0) {
@@ -174,4 +200,3 @@ export async function autofillScheduleEntries(tabId: number, schedule: WeeklySch
     error: result.error,
   };
 }
-

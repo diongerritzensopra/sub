@@ -4,7 +4,8 @@
 
 import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 
-export const ROUTE_PERIOD_PATTERN = /[?&]\/(1[0-2]|0?[1-9])\/(20\d{2})(?:[/?&#]|$)/i;
+export const ROUTE_PERIOD_PATTERN =
+  /[?&]\/(1[0-2]|0?[1-9])\/(20\d{2})(?:[/?&#]|$)/i;
 export const STATUS_MESSAGE_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
 
 export type PopupState = {
@@ -29,16 +30,21 @@ export function createInitialPopupState(): PopupState {
   };
 }
 
-export function isSapTimesheetEditable(status: TimesheetSnapshot['sapStatus'] | null | undefined): boolean {
+export function isSapTimesheetEditable(
+  status: TimesheetSnapshot['sapStatus'] | null | undefined,
+): boolean {
   return status !== 'locked';
 }
 
 export function isSnapshotComplete(snapshot: TimesheetSnapshot): boolean {
-  return snapshot.totals.worked !== null
-    && snapshot.totals.toBePerformed !== null;
+  return (
+    snapshot.totals.worked !== null && snapshot.totals.toBePerformed !== null
+  );
 }
 
-export function extractPeriodFromTimesheetUrl(url: string | undefined): { month: number; year: number } | null {
+export function extractPeriodFromTimesheetUrl(
+  url: string | undefined,
+): { month: number; year: number } | null {
   if (!url) {
     return null;
   }
@@ -54,7 +60,10 @@ export function extractPeriodFromTimesheetUrl(url: string | undefined): { month:
   };
 }
 
-export function resolveValidationPeriod(tab: chrome.tabs.Tab | undefined): { month: number; year: number } {
+export function resolveValidationPeriod(tab: chrome.tabs.Tab | undefined): {
+  month: number;
+  year: number;
+} {
   const routePeriod = extractPeriodFromTimesheetUrl(tab?.url);
   if (routePeriod) {
     return routePeriod;
@@ -72,5 +81,7 @@ export function getSchedulesToApply(
     return renderedSchedules;
   }
 
-  return renderedSchedules.filter((schedule) => selectedScheduleIds.has(schedule.id));
+  return renderedSchedules.filter((schedule) =>
+    selectedScheduleIds.has(schedule.id),
+  );
 }

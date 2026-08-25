@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 import type { PopupDomRefs } from './popup-dom';
-import type { PopupActionsContext } from './popup-actions';
 import { getPopupDomRefs } from './popup-dom';
+import type { PopupActionsContext } from './popup-actions';
 import {
   analyseActiveTab,
   applySchedulesFromSelection,
@@ -15,14 +15,14 @@ import {
 } from './popup-actions';
 import { setupPopupDom } from './popup.test-helpers';
 import {
-  deleteSchedule,
-  getSchedules,
-  saveSchedule,
-  getCachedStatusMessage,
-  setCachedStatusMessage,
-  getCachedTimesheetSnapshot,
-  isCacheStale,
   clearCachedTimesheetSnapshot,
+  deleteSchedule,
+  getCachedStatusMessage,
+  getCachedTimesheetSnapshot,
+  getSchedules,
+  isCacheStale,
+  saveSchedule,
+  setCachedStatusMessage,
 } from '../shared/storage';
 import { getSAPBusyStateForTab } from '../shared/busy-state';
 import {
@@ -31,9 +31,23 @@ import {
   readTimesheetSnapshotViaUi5,
   setCachedTimesheetSnapshot,
 } from './popup-gateway';
-import { addFailedDatesForProject, autofillScheduleEntries, buildApplyStatusMessage, navigateToProject } from './schedule-apply';
-import { getSchedulesToApply, isSapTimesheetEditable, isSnapshotComplete } from './popup-model';
-import { hideScheduleForm, renderSchedules, setScrapeButtonState, updateApplySchedulesButtonState } from './popup-render';
+import {
+  addFailedDatesForProject,
+  autofillScheduleEntries,
+  buildApplyStatusMessage,
+  navigateToProject,
+} from './schedule-apply';
+import {
+  getSchedulesToApply,
+  isSapTimesheetEditable,
+  isSnapshotComplete,
+} from './popup-model';
+import {
+  hideScheduleForm,
+  renderSchedules,
+  setScrapeButtonState,
+  updateApplySchedulesButtonState,
+} from './popup-render';
 
 vi.mock('../shared/storage', () => ({
   deleteSchedule: vi.fn(),
@@ -78,7 +92,10 @@ vi.mock('./popup-render', () => ({
   updateApplySchedulesButtonState: vi.fn(),
 }));
 
-function createSchedule(id: string, projectCode: string = 'C001'): WeeklySchedule {
+function createSchedule(
+  id: string,
+  projectCode: string = 'C001',
+): WeeklySchedule {
   return {
     id,
     label: `Schema ${id}`,
@@ -95,7 +112,9 @@ function createSchedule(id: string, projectCode: string = 'C001'): WeeklySchedul
   };
 }
 
-function createSnapshot(overrides: Partial<TimesheetSnapshot> = {}): TimesheetSnapshot {
+function createSnapshot(
+  overrides: Partial<TimesheetSnapshot> = {},
+): TimesheetSnapshot {
   return {
     month: 8,
     year: 2026,
@@ -110,7 +129,9 @@ function createSnapshot(overrides: Partial<TimesheetSnapshot> = {}): TimesheetSn
   };
 }
 
-function createContext(overrides: Partial<PopupActionsContext> = {}): PopupActionsContext {
+function createContext(
+  overrides: Partial<PopupActionsContext> = {},
+): PopupActionsContext {
   setupPopupDom();
   const dom = getPopupDomRefs(document);
 
@@ -223,7 +244,9 @@ describe('handleScheduleFormSubmit', () => {
 
     await handleScheduleFormSubmit(ctx);
 
-    expect(ctx.setStatus).toHaveBeenCalledWith('Vul alstublieft alle vereiste velden in.');
+    expect(ctx.setStatus).toHaveBeenCalledWith(
+      'Vul alstublieft alle vereiste velden in.',
+    );
     expect(saveSchedule).not.toHaveBeenCalled();
   });
 
@@ -288,7 +311,11 @@ describe('renderCachedSnapshotIfAvailable', () => {
 
     expect(ctx.state.isCachedData).toBe(true);
     expect(ctx.state.snapshotTimestampIso).toBe('2026-08-20T09:00:00.000Z');
-    expect(ctx.renderSnapshot).toHaveBeenCalledWith(cachedSnapshot, true, false);
+    expect(ctx.renderSnapshot).toHaveBeenCalledWith(
+      cachedSnapshot,
+      true,
+      false,
+    );
   });
 });
 
@@ -301,7 +328,9 @@ describe('analyseActiveTab', () => {
 
     expect(setScrapeButtonState).toHaveBeenNthCalledWith(1, ctx.dom, true);
     expect(setScrapeButtonState).toHaveBeenNthCalledWith(2, ctx.dom, false);
-    expect(ctx.setStatus).toHaveBeenCalledWith('Fout: Geen actief tabblad gevonden.');
+    expect(ctx.setStatus).toHaveBeenCalledWith(
+      'Fout: Geen actief tabblad gevonden.',
+    );
   });
 
   it('renders fresh snapshot and updates cache when page is ready', async () => {

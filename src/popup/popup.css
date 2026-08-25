@@ -112,7 +112,6 @@ h2 {
   background: #d4a017;
 }
 
-
 .subtle-indicator[hidden] {
   display: none;
 }
@@ -213,7 +212,6 @@ h2 {
   white-space: nowrap;
 }
 
-
 #btn-add-schedule {
   background: #1c65bf;
   color: #fff;
@@ -289,7 +287,6 @@ h2 {
   font-family: inherit;
 }
 
-
 .weekday-hours {
   border: none;
   padding: 0;
@@ -326,7 +323,6 @@ h2 {
   border: 1px solid #ccc;
   border-radius: 4px;
 }
-
 
 .form-actions {
   display: flex;

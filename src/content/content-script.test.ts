@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockSendMessage = vi.fn();
 
@@ -20,7 +20,8 @@ globalThis.chrome = {
 
 // Top-level import gives us a stable module reference for the unit tests below.
 // The bootstrap test re-imports via vi.resetModules() to test side-effect isolation.
-const { isTimesheetReady, startBusyStateMonitor } = await import('./content-script');
+const { isTimesheetReady, startBusyStateMonitor } =
+  await import('./content-script');
 
 describe('isTimesheetReady', () => {
   afterEach(() => {

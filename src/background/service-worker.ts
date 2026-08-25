@@ -88,10 +88,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return;
   }
 
-  sendResponse({ success: true, data: { busy: busyStateByTabId.get(tabId) ?? false } });
+  sendResponse({
+    success: true,
+    data: { busy: busyStateByTabId.get(tabId) ?? false },
+  });
 });
 
-
-function applyIconForTab(tabId: number, iconSet: typeof ICON_SETS[keyof typeof ICON_SETS]): void {
+function applyIconForTab(
+  tabId: number,
+  iconSet: (typeof ICON_SETS)[keyof typeof ICON_SETS],
+): void {
   chrome.action.setIcon({ tabId, path: iconSet });
 }

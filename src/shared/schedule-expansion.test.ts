@@ -54,7 +54,9 @@ describe('expandWeeklyScheduleToMonthEntries', () => {
     const entries = expandWeeklyScheduleToMonthEntries(schedule, 3, 2026);
 
     expect(entries.length).toBe(31);
-    expect(entries.filter((entry) => entry.hours === 4).map((entry) => entry.date)).toEqual([
+    expect(
+      entries.filter((entry) => entry.hours === 4).map((entry) => entry.date),
+    ).toEqual([
       '2026-03-02',
       '2026-03-09',
       '2026-03-16',
@@ -79,14 +81,13 @@ describe('expandWeeklyScheduleToMonthEntries', () => {
 
     const entries = expandWeeklyScheduleToMonthEntries(schedule, 2, 2024);
 
-    expect(entries.filter((entry) => entry.hours === 2).map((entry) => entry.date)).toEqual([
-      '2024-02-04',
-      '2024-02-11',
-      '2024-02-18',
-      '2024-02-25',
-    ]);
+    expect(
+      entries.filter((entry) => entry.hours === 2).map((entry) => entry.date),
+    ).toEqual(['2024-02-04', '2024-02-11', '2024-02-18', '2024-02-25']);
     expect(entries.filter((entry) => entry.hours === 0)).toHaveLength(25);
-    expect(entries.every((entry) => entry.project === 'ZMOCK_001.1.1')).toBe(true);
+    expect(entries.every((entry) => entry.project === 'ZMOCK_001.1.1')).toBe(
+      true,
+    );
   });
 
   it('skips days with negative hours and keeps zero-hour days', () => {
@@ -112,10 +113,14 @@ describe('expandWeeklyScheduleToMonthEntries', () => {
   it('throws for invalid month/year arguments', () => {
     const schedule = makeSchedule();
 
-    expect(() => expandWeeklyScheduleToMonthEntries(schedule, 0, 2026)).toThrow('Month must be an integer between 1 and 12.');
-    expect(() => expandWeeklyScheduleToMonthEntries(schedule, 13, 2026)).toThrow('Month must be an integer between 1 and 12.');
-    expect(() => expandWeeklyScheduleToMonthEntries(schedule, 5, 100)).toThrow('Year must be an integer between 1970 and 9999.');
+    expect(() => expandWeeklyScheduleToMonthEntries(schedule, 0, 2026)).toThrow(
+      'Month must be an integer between 1 and 12.',
+    );
+    expect(() =>
+      expandWeeklyScheduleToMonthEntries(schedule, 13, 2026),
+    ).toThrow('Month must be an integer between 1 and 12.');
+    expect(() => expandWeeklyScheduleToMonthEntries(schedule, 5, 100)).toThrow(
+      'Year must be an integer between 1970 and 9999.',
+    );
   });
 });
-
-

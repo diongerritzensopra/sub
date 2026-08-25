@@ -4,7 +4,10 @@
  * Bridges Chrome APIs and cache lifecycle logic.
  */
 
-import type { CachedTimesheetSnapshot, TimesheetSnapshot } from '../shared/types';
+import type {
+  CachedTimesheetSnapshot,
+  TimesheetSnapshot,
+} from '../shared/types';
 import {
   clearCachedTimesheetSnapshot,
   getCachedTimesheetSnapshot,
@@ -19,7 +22,9 @@ export async function getActiveTab(): Promise<chrome.tabs.Tab | undefined> {
   return tab;
 }
 
-export async function getValidCachedSnapshot(tab: chrome.tabs.Tab | undefined): Promise<CachedTimesheetSnapshot | undefined> {
+export async function getValidCachedSnapshot(
+  tab: chrome.tabs.Tab | undefined,
+): Promise<CachedTimesheetSnapshot | undefined> {
   const cached = await getCachedTimesheetSnapshot();
   if (!cached) {
     return undefined;
@@ -33,10 +38,14 @@ export async function getValidCachedSnapshot(tab: chrome.tabs.Tab | undefined): 
   return cached;
 }
 
-export async function readTimesheetSnapshotViaUi5(tabId: number): Promise<TimesheetSnapshot> {
+export async function readTimesheetSnapshotViaUi5(
+  tabId: number,
+): Promise<TimesheetSnapshot> {
   return readTimesheetSnapshotViaUi5FromScripting(tabId);
 }
 
-export async function setCachedTimesheetSnapshot(cache: CachedTimesheetSnapshot): Promise<void> {
+export async function setCachedTimesheetSnapshot(
+  cache: CachedTimesheetSnapshot,
+): Promise<void> {
   await setCachedTimesheetSnapshotToStorage(cache);
 }

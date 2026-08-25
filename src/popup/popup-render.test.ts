@@ -13,7 +13,11 @@ import {
   updateAddScheduleButtonState,
   updateApplySchedulesButtonState,
 } from './popup-render';
-import { setupPopupDom, createSnapshot, createSchedule } from './popup.test-helpers';
+import {
+  createSchedule,
+  createSnapshot,
+  setupPopupDom,
+} from './popup.test-helpers';
 
 beforeEach(() => {
   setupPopupDom();
@@ -40,9 +44,14 @@ describe('formatTimestampSuffix', () => {
     const timestampIso = '2026-08-05T14:30:00.000Z';
     const originalDateTimeFormat = Intl.DateTimeFormat;
     // We only force UTC in this test so the hardcoded expectation is deterministic across environments.
-    const dateTimeFormatSpy = vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(function (locales, options) {
-      return new originalDateTimeFormat(locales, { ...options, timeZone: 'UTC' });
-    });
+    const dateTimeFormatSpy = vi
+      .spyOn(Intl, 'DateTimeFormat')
+      .mockImplementation(function (locales, options) {
+        return new originalDateTimeFormat(locales, {
+          ...options,
+          timeZone: 'UTC',
+        });
+      });
 
     try {
       const result = formatTimestampSuffix(timestampIso);
@@ -93,7 +102,13 @@ describe('renderSnapshot', () => {
   it('renders cached origin styling and message when cached data is shown', () => {
     const dom = getPopupDomRefs(document);
 
-    renderSnapshot(dom, createSnapshot(), true, true, '2026-08-05T14:30:00.000Z');
+    renderSnapshot(
+      dom,
+      createSnapshot(),
+      true,
+      true,
+      '2026-08-05T14:30:00.000Z',
+    );
 
     expect(dom.summarySection.classList.contains('cached-data')).toBe(true);
     expect(dom.dataOriginIndicator.classList.contains('cached')).toBe(true);
@@ -105,7 +120,13 @@ describe('renderSnapshot', () => {
   it('renders fresh origin styling and message when live data is shown', () => {
     const dom = getPopupDomRefs(document);
 
-    renderSnapshot(dom, createSnapshot(), true, false, '2026-08-05T14:30:00.000Z');
+    renderSnapshot(
+      dom,
+      createSnapshot(),
+      true,
+      false,
+      '2026-08-05T14:30:00.000Z',
+    );
 
     expect(dom.summarySection.classList.contains('cached-data')).toBe(false);
     expect(dom.dataOriginIndicator.classList.contains('fresh')).toBe(true);
@@ -118,7 +139,15 @@ describe('renderSchedules', () => {
   it('shows empty state when no schedules exist', () => {
     const dom = getPopupDomRefs(document);
 
-    renderSchedules(dom, [], new Set<string>(), new Map(), vi.fn(), vi.fn(), vi.fn());
+    renderSchedules(
+      dom,
+      [],
+      new Set<string>(),
+      new Map(),
+      vi.fn(),
+      vi.fn(),
+      vi.fn(),
+    );
 
     expect(dom.schedulesEmpty.hidden).toBe(false);
     expect(dom.schedulesList.hidden).toBe(true);
@@ -127,7 +156,10 @@ describe('renderSchedules', () => {
 
   it('renders schedule rows and fallback project labels', () => {
     const dom = getPopupDomRefs(document);
-    const schedules = [createSchedule('a', 'C001'), createSchedule('b', 'UNKNOWN')];
+    const schedules = [
+      createSchedule('a', 'C001'),
+      createSchedule('b', 'UNKNOWN'),
+    ];
 
     renderSchedules(
       dom,
@@ -159,9 +191,19 @@ describe('renderSchedules', () => {
       }
     });
 
-    renderSchedules(dom, schedules, selected, new Map(), onToggleSelection, vi.fn(), vi.fn());
+    renderSchedules(
+      dom,
+      schedules,
+      selected,
+      new Map(),
+      onToggleSelection,
+      vi.fn(),
+      vi.fn(),
+    );
 
-    const item = dom.schedulesList.querySelector('.schedule-item') as HTMLLIElement;
+    const item = dom.schedulesList.querySelector(
+      '.schedule-item',
+    ) as HTMLLIElement;
     const content = item.querySelector('.schedule-content') as HTMLDivElement;
 
     item.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -169,7 +211,9 @@ describe('renderSchedules', () => {
     expect(item.classList.contains('schedule-item--selected')).toBe(true);
     expect(content.getAttribute('aria-checked')).toBe('true');
 
-    content.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    content.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+    );
     expect(onToggleSelection).toHaveBeenCalledTimes(2);
     expect(item.classList.contains('schedule-item--selected')).toBe(false);
     expect(content.getAttribute('aria-checked')).toBe('false');
@@ -191,13 +235,25 @@ describe('renderSchedules', () => {
       onDeleteConfirm,
     );
 
-    const item = dom.schedulesList.querySelector('.schedule-item') as HTMLLIElement;
-    const editButton = item.querySelector('.schedule-edit-button') as HTMLButtonElement;
-    const deleteButton = item.querySelector('.schedule-delete-button') as HTMLButtonElement;
+    const item = dom.schedulesList.querySelector(
+      '.schedule-item',
+    ) as HTMLLIElement;
+    const editButton = item.querySelector(
+      '.schedule-edit-button',
+    ) as HTMLButtonElement;
+    const deleteButton = item.querySelector(
+      '.schedule-delete-button',
+    ) as HTMLButtonElement;
     const actions = item.querySelector('.schedule-actions') as HTMLDivElement;
-    const confirmRow = item.querySelector('.schedule-confirm-delete') as HTMLDivElement;
-    const confirmNo = item.querySelector('.schedule-confirm-no') as HTMLButtonElement;
-    const confirmYes = item.querySelector('.schedule-confirm-yes') as HTMLButtonElement;
+    const confirmRow = item.querySelector(
+      '.schedule-confirm-delete',
+    ) as HTMLDivElement;
+    const confirmNo = item.querySelector(
+      '.schedule-confirm-no',
+    ) as HTMLButtonElement;
+    const confirmYes = item.querySelector(
+      '.schedule-confirm-yes',
+    ) as HTMLButtonElement;
 
     editButton.click();
     expect(onEditClick).toHaveBeenCalledWith(schedule);
@@ -229,7 +285,9 @@ describe('schedule form rendering', () => {
   it('shows form in new mode with project options and defaults', () => {
     const dom = getPopupDomRefs(document);
     const snapshot = createSnapshot();
-    const submitBtn = dom.scheduleForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+    const submitBtn = dom.scheduleForm.querySelector(
+      'button[type="submit"]',
+    ) as HTMLButtonElement;
 
     dom.scheduleLabelInput.value = 'Old value';
     dom.hoursInputs.monday.value = '7';
@@ -242,13 +300,17 @@ describe('schedule form rendering', () => {
     expect(dom.scheduleLabelInput.value).toBe('');
     expect(dom.hoursInputs.monday.value).toBe('0');
     expect(dom.scheduleProjectSelect.options).toHaveLength(3);
-    expect(dom.scheduleProjectSelect.options[1].textContent).toBe('Project Alpha [C001]');
+    expect(dom.scheduleProjectSelect.options[1].textContent).toBe(
+      'Project Alpha [C001]',
+    );
     expect(dom.scheduleProjectSelect.options[2].textContent).toBe('C002');
   });
 
   it('shows form in edit mode and pre-fills schedule values', () => {
     const dom = getPopupDomRefs(document);
-    const submitBtn = dom.scheduleForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+    const submitBtn = dom.scheduleForm.querySelector(
+      'button[type="submit"]',
+    ) as HTMLButtonElement;
     const scheduleToEdit = createSchedule('a', 'C001');
     scheduleToEdit.label = 'Bestaand schema';
     scheduleToEdit.hoursPerWeekday.monday = 6.5;
@@ -291,8 +353,12 @@ describe('button and status rendering helpers', () => {
     updateApplySchedulesButtonState(dom, false, false, 2, true, false);
     expect(dom.applySchedulesButton.textContent).toBe('Alles toepassen');
     expect(dom.applySchedulesButton.disabled).toBe(false);
-    expect(dom.applySchedulesButton.classList.contains('is-locked')).toBe(false);
-    expect(dom.applySchedulesButton.classList.contains('is-applying')).toBe(false);
+    expect(dom.applySchedulesButton.classList.contains('is-locked')).toBe(
+      false,
+    );
+    expect(dom.applySchedulesButton.classList.contains('is-applying')).toBe(
+      false,
+    );
 
     updateApplySchedulesButtonState(dom, false, true, 2, true, false);
     expect(dom.applySchedulesButton.textContent).toBe('Toepassen');
@@ -304,7 +370,9 @@ describe('button and status rendering helpers', () => {
     updateApplySchedulesButtonState(dom, false, true, 2, true, true);
     expect(dom.applySchedulesButton.textContent).toBe('Bezig...');
     expect(dom.applySchedulesButton.disabled).toBe(true);
-    expect(dom.applySchedulesButton.classList.contains('is-applying')).toBe(true);
+    expect(dom.applySchedulesButton.classList.contains('is-applying')).toBe(
+      true,
+    );
   });
 
   it('updates scrape button disabled state', () => {

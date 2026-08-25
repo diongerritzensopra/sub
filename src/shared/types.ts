@@ -3,13 +3,14 @@
  */
 
 /** SAP My Timesheet canonical URL pattern used for matching and validation. */
-export const SAP_TIMESHEET_URL_PATTERN = 'p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my';
+export const SAP_TIMESHEET_URL_PATTERN =
+  'p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my';
 
 /** A single booked or to-be-booked hours entry. */
 export interface HoursEntry {
-  date: string;       // ISO date string: "YYYY-MM-DD"
-  project: string;    // Project name or code
-  hours: number;      // Hours logged (e.g. 7.5)
+  date: string; // ISO date string: "YYYY-MM-DD"
+  project: string; // Project name or code
+  hours: number; // Hours logged (e.g. 7.5)
 }
 
 export interface TimesheetTotals {
@@ -38,15 +39,22 @@ export interface CachedTimesheetSnapshot {
 }
 
 /** The days of the week, Monday-first. */
-export type Weekday = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+export type Weekday =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
 
 /** Planned hours for each day of the week. Zero means the day is skipped. */
 export type WeeklyHours = Record<Weekday, number>;
 
 /** A named, reusable weekly booking schedule for a single project code. */
 export interface WeeklySchedule {
-  id: string;          // Unique identifier (e.g. crypto.randomUUID())
-  label: string;       // Human-readable name for the schedule
+  id: string; // Unique identifier (e.g. crypto.randomUUID())
+  label: string; // Human-readable name for the schedule
   projectCode: string; // SAP project code to book against
   hoursPerWeekday: WeeklyHours;
 }
@@ -81,25 +89,25 @@ export interface SapTimesheetRecordedEntry {
 
 /** SAP UI5 model data for a single day in a project's timesheet. */
 export interface SapTimesheetDayEntry {
-  Date: number;           // Unix timestamp in milliseconds
-  ProjectCode: string;    // Project code (e.g., "C0007012.1.1")
-  Comment: string;        // User comment for the day
-  FullTime: string;       // Hours as "HH:MM"
-  Others: string;         // Other hours as "HH:MM"
-  IsWorkingDay: boolean;  // Whether it's a working day
-  IsOnLeave: boolean;     // Whether the person is on leave
-  IsHoliday: boolean;     // Whether it's a public holiday
-  IsWeekEnd: boolean;     // Whether it's a weekend
+  Date: number; // Unix timestamp in milliseconds
+  ProjectCode: string; // Project code (e.g., "C0007012.1.1")
+  Comment: string; // User comment for the day
+  FullTime: string; // Hours as "HH:MM"
+  Others: string; // Other hours as "HH:MM"
+  IsWorkingDay: boolean; // Whether it's a working day
+  IsOnLeave: boolean; // Whether the person is on leave
+  IsHoliday: boolean; // Whether it's a public holiday
+  IsWeekEnd: boolean; // Whether it's a weekend
   AvailabilityInHours: number; // Available capacity for the day — despite the name, the unit is minutes (e.g. 480 = 8 hours)
   FullTime_Entries: SapTimesheetRecordedEntry[]; // Detailed entry records
-  Others_Entries: SapTimesheetRecordedEntry[];   // Detailed entry records
+  Others_Entries: SapTimesheetRecordedEntry[]; // Detailed entry records
 }
 
 /** Totals data from SAP projectsmodel — totals for the current month. */
 export interface SapTimesheetTotals {
-  hoursToBePerformed: string;         // "HH:MM" format
-  totalActualWorkHours: string;       // "HH:MM" format
-  leaveHours: null;                   // Always null in the model
+  hoursToBePerformed: string; // "HH:MM" format
+  totalActualWorkHours: string; // "HH:MM" format
+  leaveHours: null; // Always null in the model
   // ... other fields omitted
 }
 
@@ -113,8 +121,8 @@ export interface SapUserDetail {
 
 /** A project within the SAP projectsmodel. */
 export interface SapProject {
-  WorkPackage: string;                // Project code, e.g., "C0007012.1.1"
-  WorkPackageName: string;            // Project name
+  WorkPackage: string; // Project code, e.g., "C0007012.1.1"
+  WorkPackageName: string; // Project name
   oTimeSheet: SapTimesheetDayEntry[]; // Days in this project
   EngagementProjectResource?: string;
   CostCenter?: string;
@@ -129,10 +137,10 @@ export interface SapProject {
 
 /** SAP projectsmodel getData() result shape. */
 export interface SapProjectsModelData {
-  oMonth: number;                     // 0–11 (0 = January)
-  oYear: number;                      // e.g., 2026
+  oMonth: number; // 0–11 (0 = January)
+  oYear: number; // e.g., 2026
   oCurrentProject: SapProject | null; // Currently selected project
-  oProjects: SapProject[];            // All available projects
+  oProjects: SapProject[]; // All available projects
   oTotals: {
     oStatus: string; // "U" editable/submittable, "S" locked
     oTotals: SapTimesheetTotals;
@@ -147,9 +155,7 @@ export interface CachedStatusMessage {
 }
 
 /** Union of all message types sent between extension components. */
-export type MessageType =
-  | 'SAP_BUSY_STATE_CHANGED'
-  | 'GET_SAP_BUSY_STATE';
+export type MessageType = 'SAP_BUSY_STATE_CHANGED' | 'GET_SAP_BUSY_STATE';
 
 export interface MessageRequest {
   type: MessageType;

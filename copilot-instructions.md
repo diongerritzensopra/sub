@@ -1,9 +1,23 @@
-# AGENTS.md
+# copilot-instructions.md
+
+## Agent Execution Rules
+
+**CRITICAL: Follow these rules consistently.**
+
+- Wait for explicit user confirmation to commit each completed change.
+- Prefix all commit messages for generated changes with `[AI]`.
+- Include both a `Prompt summary` and a `Step executed` summary in the commit message body, in that order, separated by one blank line (paraphrasing is allowed when intent is preserved).
+- Write the `Prompt summary` in imperative form.
+- Write the `Step executed` in past tense, reflecting the concrete changes made in response to the prompt.
+- Use only simple quotes and avoid backticks in commit messages to ensure terminal command compatibility.
+- Run Prettier on all files you create or edit. After creating or editing any file, run `npx prettier --write <file-path>` or `npx prettier --write src/` to format according to `.prettierrc`.
 
 ## Project Goal
+
 Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for helping with hour booking in SAP My Timesheet. Built with TypeScript + Vite + `@crxjs/vite-plugin`.
 
 ## Architecture (Current)
+
 - `src/popup/`: extension UI (`popup.html`, `popup.ts`, `popup.css`) triggers page analysis and renders cached/live snapshot data and saved schedules.
 - `src/content/content-script.ts`: runs on SAP My Timesheet and monitors busy state via polling so the service worker and popup can react to SAP readiness.
 - `src/background/service-worker.ts`: MV3 messaging hub; manages per-tab icon state (no-match / loading / ready) via `busyStateByTabId`, and handles `GET_SAP_BUSY_STATE` queries.
@@ -16,11 +30,13 @@ Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for he
 - `src/popup/schedule-apply.ts`: popup-side project navigation, per-schedule apply orchestration, and apply status message composition.
 
 ## Project Boundaries
+
 - The extension runs locally in the browser as a standard MV3 extension.
 - Cross-component communication goes through typed messages from `src/shared/types.ts`.
 - Keep runtime behavior focused on SAP My Timesheet analysis and autofill support.
 
 ## URL Targeting
+
 - Canonical SAP URL:
   - `https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my?sap-ui-app-id-hint=saas_approuter_mytimesheet`
 - Content script match pattern in `manifest.json` (host/path only; hash fragments are not supported by MV3 match patterns):
@@ -28,25 +44,21 @@ Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for he
 - If SAP routing changes, update `manifest.json` `content_scripts.matches` first.
 
 ## Developer Workflow
-| Task | Command |
-|------|---------|
-| Dev (HMR) | `npm run dev` |
-| Build | `npm run build` |
-| Test | `npm test` |
-| Test (watch) | `npm run test:watch` |
-| Coverage | `npm run test:coverage` |
-| Release | `npm run release` |
-| Package zip | `npm run package` |
 
-## Agent Execution Rules
-- Do not commit automatically after each generated or edited step; wait for explicit user confirmation to commit.
-- Commit messages for generated changes MUST start with `[AI]`.
-- The commit message body MUST include both a `Prompt summary` and a `Step executed` summary; order them as prompt first, then step, with one blank line between them (paraphrasing is allowed when intent is preserved).
-- `Prompt summary` MUST be written in imperative form.
-- `Step executed` MUST be written in past tense and MUST reflect the concrete changes made in response to the prompt.
-- Never use backticks in commit messages because they break terminal command execution.
+| Task           | Command                 |
+| -------------- | ----------------------- |
+| Dev (HMR)      | `npm run dev`           |
+| Build          | `npm run build`         |
+| Test           | `npm test`              |
+| Test (watch)   | `npm run test:watch`    |
+| Coverage       | `npm run test:coverage` |
+| Format         | `npm run format`        |
+| Format (check) | `npm run format:check`  |
+| Release        | `npm run release`       |
+| Package zip    | `npm run package`       |
 
 ## Conventions to Follow
+
 - Add new message kinds to `MessageType` before using them in popup/content scripts.
 - Keep DOM selectors in `content-script.ts` SAP-specific and evidence-based; the current content script only inspects the timesheet iframe and busy indicator.
 - SAP UI renders inside an `<iframe>`; popup-driven snapshot reading and autofill run in the SAP page's `MAIN` world through `chrome.scripting.executeScript` wrappers.
@@ -58,9 +70,7 @@ Chromium browser extension (Manifest V3) named `sub` ("snel uren boeken") for he
 - Keep tests next to source as `*.test.ts` (Vitest + jsdom via `vite.config.ts`).
 
 ## Maintenance Notes
-- Update this file when architecture, workflow, or SAP-specific targeting changes.
-- Prefer repository-specific instructions over generic advice.
-- Track planned/completed product features in `FEATURES.md`.
 
-## Active TODO Surface
-- i18n: Dutch and English UI text, language selector in popup, persisted language preference.
+- Update this file when architecture, workflow, or SAP-specific targeting changes.
+- Prefer repository-specific instructions to generic advice.
+- Track planned/completed product features in `FEATURES.md`.

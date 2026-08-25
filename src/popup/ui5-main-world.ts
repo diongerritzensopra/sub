@@ -35,15 +35,23 @@ export type Ui5SnapshotReadResult = {
 };
 
 export function ui5MainWorldReadSnapshot(): Ui5SnapshotReadResult {
-  const mapSapStatus = (status: string | undefined | null): TimesheetSnapshot['sapStatus'] => {
+  const mapSapStatus = (
+    status: string | undefined | null,
+  ): TimesheetSnapshot['sapStatus'] => {
     return (status ?? '').trim().toUpperCase() === 'U' ? 'editable' : 'locked';
   };
 
   type Ui5ProjectsDataModelLike = { getData?: () => SapProjectsModelData };
-  type Ui5TimesheetComponentLike = { getModel?: (name?: string) => Ui5ProjectsDataModelLike | undefined };
-  type Ui5Core = { byId?: (id: string) => Ui5TimesheetComponentLike | undefined };
+  type Ui5TimesheetComponentLike = {
+    getModel?: (name?: string) => Ui5ProjectsDataModelLike | undefined;
+  };
+  type Ui5Core = {
+    byId?: (id: string) => Ui5TimesheetComponentLike | undefined;
+  };
 
-  const parseTimeValue = (timeStr: string | null | undefined): number | null => {
+  const parseTimeValue = (
+    timeStr: string | null | undefined,
+  ): number | null => {
     const match = (timeStr ?? '').match(/^(-?\d+):(\d{2})$/);
     if (!match) {
       return null;
@@ -58,18 +66,26 @@ export function ui5MainWorldReadSnapshot(): Ui5SnapshotReadResult {
     return hours + minutes / 60;
   };
   const getUi5Core = (targetWindow: Window): Ui5Core | null => {
-    const uiWindow = targetWindow as Window & { sap?: { ui?: { getCore?: () => Ui5Core } } };
+    const uiWindow = targetWindow as Window & {
+      sap?: { ui?: { getCore?: () => Ui5Core } };
+    };
     return uiWindow.sap?.ui?.getCore?.() ?? null;
   };
-  const resolveTimesheetComponent = (sapCore: Ui5Core): Ui5TimesheetComponentLike | undefined => {
-    const totalsComponent = sapCore.byId?.('application-timesheet-my-component---idDetailTotals');
+  const resolveTimesheetComponent = (
+    sapCore: Ui5Core,
+  ): Ui5TimesheetComponentLike | undefined => {
+    const totalsComponent = sapCore.byId?.(
+      'application-timesheet-my-component---idDetailTotals',
+    );
     if (totalsComponent?.getModel) {
       return totalsComponent;
     }
 
     return sapCore.byId?.('application-timesheet-my-component---idDetail');
   };
-  const getProjectsModel = (targetWindow: Window): SapProjectsModelData | null => {
+  const getProjectsModel = (
+    targetWindow: Window,
+  ): SapProjectsModelData | null => {
     const sapCore = getUi5Core(targetWindow);
     if (!sapCore?.byId) {
       return null;
@@ -81,19 +97,25 @@ export function ui5MainWorldReadSnapshot(): Ui5SnapshotReadResult {
   };
 
   try {
-    const preferredFrame = document.querySelector<HTMLIFrameElement>('iframe[data-sap-ushell-active="true"], iframe[src*="ui5appruntime.html"], iframe[src*="#timesheet-my"]');
+    const preferredFrame = document.querySelector<HTMLIFrameElement>(
+      'iframe[data-sap-ushell-active="true"], iframe[src*="ui5appruntime.html"], iframe[src*="#timesheet-my"]',
+    );
     const timesheetWindow = preferredFrame?.contentWindow ?? window;
     const modelData = getProjectsModel(timesheetWindow);
     if (!modelData || !Array.isArray(modelData.oProjects)) {
       return {
         success: false,
-        error: 'SAP projectsmodel kon niet worden gelezen via de UI5 pagina-context.',
+        error:
+          'SAP projectsmodel kon niet worden gelezen via de UI5 pagina-context.',
       };
     }
 
-    const month = typeof modelData.oMonth === 'number' && modelData.oMonth >= 0 && modelData.oMonth <= 11
-      ? modelData.oMonth + 1
-      : null;
+    const month =
+      typeof modelData.oMonth === 'number' &&
+      modelData.oMonth >= 0 &&
+      modelData.oMonth <= 11
+        ? modelData.oMonth + 1
+        : null;
     const year = typeof modelData.oYear === 'number' ? modelData.oYear : null;
     const projectsByCode = new Map<string, string>();
 
@@ -127,21 +149,30 @@ export function ui5MainWorldReadSnapshot(): Ui5SnapshotReadResult {
         currentProjectCode,
         sapStatus: mapSapStatus(modelData.oTotals.oStatus),
         totals: {
-          worked: parseTimeValue(modelData.oTotals?.oTotals?.totalActualWorkHours),
-          toBePerformed: parseTimeValue(modelData.oTotals?.oTotals?.hoursToBePerformed),
+          worked: parseTimeValue(
+            modelData.oTotals?.oTotals?.totalActualWorkHours,
+          ),
+          toBePerformed: parseTimeValue(
+            modelData.oTotals?.oTotals?.hoursToBePerformed,
+          ),
         },
       },
     };
   } catch {
     return {
       success: false,
-      error: 'SAP projectsmodel kon niet worden gelezen via de UI5 pagina-context.',
+      error:
+        'SAP projectsmodel kon niet worden gelezen via de UI5 pagina-context.',
     };
   }
 }
 
-export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5AutofillResult> {
-  const parseIsoDate = (isoDate: string): { year: number; month: number; day: number } => {
+export async function ui5MainWorldAutofill(
+  args: Ui5AutofillArgs,
+): Promise<Ui5AutofillResult> {
+  const parseIsoDate = (
+    isoDate: string,
+  ): { year: number; month: number; day: number } => {
     const match = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (!match) {
       throw new Error(`Ongeldige ISO datum: ${isoDate}.`);
@@ -155,23 +186,37 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
   };
 
   const getUi5Core = (targetWindow: Window): Ui5Core | null => {
-    const uiWindow = targetWindow as Window & { sap?: { ui?: { getCore?: () => Ui5Core } } };
+    const uiWindow = targetWindow as Window & {
+      sap?: { ui?: { getCore?: () => Ui5Core } };
+    };
     return uiWindow.sap?.ui?.getCore?.() ?? null;
   };
 
-  const getModelDataForDate = (isoDate: string): SapTimesheetDayEntry | null => {
+  const getModelDataForDate = (
+    isoDate: string,
+  ): SapTimesheetDayEntry | null => {
     const dateParts = parseIsoDate(isoDate);
-    const dateObj = new Date(Date.UTC(dateParts.year, dateParts.month - 1, dateParts.day));
+    const dateObj = new Date(
+      Date.UTC(dateParts.year, dateParts.month - 1, dateParts.day),
+    );
     const timestamp = dateObj.getTime();
 
     // SAP model dates can be serialized around local midnight, so exact UTC timestamp
     // equality is unreliable. Use a wide tolerance around midnight to still map the
     // intended calendar day and keep AvailabilityInHours guards effective.
     const MODEL_DATE_MATCH_TOLERANCE_MS = 18 * 60 * 60 * 1000;
-    return monthData.find((entry) => Math.abs(entry.Date - timestamp) <= MODEL_DATE_MATCH_TOLERANCE_MS) ?? null;
+    return (
+      monthData.find(
+        (entry) =>
+          Math.abs(entry.Date - timestamp) <= MODEL_DATE_MATCH_TOLERANCE_MS,
+      ) ?? null
+    );
   };
 
-  const isNonWritableDayRow = (isoDate: string, requestedHours: number): boolean => {
+  const isNonWritableDayRow = (
+    isoDate: string,
+    requestedHours: number,
+  ): boolean => {
     const modelEntry = getModelDataForDate(isoDate);
     if (!modelEntry) {
       return true;
@@ -194,7 +239,10 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
   };
 
   type ODataModelLike = {
-    callFunction?: (path: string, parameters: ODataCallFunctionParameters) => void;
+    callFunction?: (
+      path: string,
+      parameters: ODataCallFunctionParameters,
+    ) => void;
   };
 
   type TotalsRefreshControllerLike = {
@@ -206,7 +254,9 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
     getModel?: (name?: string) => Ui5ProjectsDataModelLike | undefined;
     getController?: () => TotalsRefreshControllerLike;
   };
-  type Ui5Core = { byId?: (id: string) => Ui5TimesheetComponentLike | undefined };
+  type Ui5Core = {
+    byId?: (id: string) => Ui5TimesheetComponentLike | undefined;
+  };
 
   type PostTimeSheetGeneralCreateOrUpdate = {
     TimeSheetDataFields: {
@@ -244,10 +294,15 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
     TimeSheetIsReleasedOnSave: true;
   };
 
-  type PostTimeSheetGeneralRow = PostTimeSheetGeneralCreateOrUpdate | PostTimeSheetGeneralDelete;
+  type PostTimeSheetGeneralRow =
+    PostTimeSheetGeneralCreateOrUpdate | PostTimeSheetGeneralDelete;
 
-  const resolveTimesheetComponent = (sapCore: Ui5Core): Ui5TimesheetComponentLike | undefined => {
-    const totalsComponent = sapCore.byId?.('application-timesheet-my-component---idDetailTotals');
+  const resolveTimesheetComponent = (
+    sapCore: Ui5Core,
+  ): Ui5TimesheetComponentLike | undefined => {
+    const totalsComponent = sapCore.byId?.(
+      'application-timesheet-my-component---idDetailTotals',
+    );
     if (totalsComponent?.getModel) {
       return totalsComponent;
     }
@@ -255,7 +310,9 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
     return sapCore.byId?.('application-timesheet-my-component---idDetail');
   };
 
-  const getUi5ProjectsModelData = (targetWindow: Window): SapProjectsModelData | null => {
+  const getUi5ProjectsModelData = (
+    targetWindow: Window,
+  ): SapProjectsModelData | null => {
     const sapCore = getUi5Core(targetWindow);
     if (!sapCore?.byId) {
       return null;
@@ -267,16 +324,23 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
   };
 
   const getMonthData = (): SapTimesheetDayEntry[] => {
-    const preferredFrame = document.querySelector<HTMLIFrameElement>('iframe[data-sap-ushell-active="true"], iframe[src*="ui5appruntime.html"], iframe[src*="#timesheet-my"]');
+    const preferredFrame = document.querySelector<HTMLIFrameElement>(
+      'iframe[data-sap-ushell-active="true"], iframe[src*="ui5appruntime.html"], iframe[src*="#timesheet-my"]',
+    );
     const timesheetWindow = preferredFrame?.contentWindow ?? window;
     const modelData = getUi5ProjectsModelData(timesheetWindow);
     const currentProject = modelData?.oCurrentProject ?? null;
-    return Array.isArray(currentProject?.oTimeSheet) ? currentProject.oTimeSheet : [];
+    return Array.isArray(currentProject?.oTimeSheet)
+      ? currentProject.oTimeSheet
+      : [];
   };
 
   const monthData = getMonthData();
 
-  const resolveTimesheetDateValue = (isoDate: string, modelEntry: SapTimesheetDayEntry): string => {
+  const resolveTimesheetDateValue = (
+    isoDate: string,
+    modelEntry: SapTimesheetDayEntry,
+  ): string => {
     if (Number.isFinite(modelEntry.Date)) {
       return `/Date(${Math.trunc(modelEntry.Date)})/`;
     }
@@ -288,16 +352,19 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
   const callPostTimesheet = (
     postModel: ODataModelLike,
     urlParameters: Record<string, string>,
-  ): Promise<void> => new Promise((resolve, reject) => {
-    postModel.callFunction?.('/postTimeSheet', {
-      method: 'POST',
-      urlParameters,
-      success: () => resolve(),
-      error: (error) => reject(error),
+  ): Promise<void> =>
+    new Promise((resolve, reject) => {
+      postModel.callFunction?.('/postTimeSheet', {
+        method: 'POST',
+        urlParameters,
+        success: () => resolve(),
+        error: (error) => reject(error),
+      });
     });
-  });
 
-  const refreshTotalsModels = (controller: TotalsRefreshControllerLike | null): void => {
+  const refreshTotalsModels = (
+    controller: TotalsRefreshControllerLike | null,
+  ): void => {
     try {
       controller?._refreshTotalsModels?.();
     } catch {
@@ -327,7 +394,9 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
   };
 
   try {
-    const preferredFrame = document.querySelector<HTMLIFrameElement>('iframe[data-sap-ushell-active="true"], iframe[src*="ui5appruntime.html"], iframe[src*="#timesheet-my"]');
+    const preferredFrame = document.querySelector<HTMLIFrameElement>(
+      'iframe[data-sap-ushell-active="true"], iframe[src*="ui5appruntime.html"], iframe[src*="#timesheet-my"]',
+    );
     const timesheetWindow = preferredFrame?.contentWindow ?? window;
     const sapCore = getUi5Core(timesheetWindow);
     if (!sapCore?.byId) {
@@ -341,7 +410,9 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
     }
 
     const timesheetComponent = resolveTimesheetComponent(sapCore);
-    const projectsModel = timesheetComponent?.getModel?.('projectsmodel') as Ui5ProjectsDataModelLike | null;
+    const projectsModel = timesheetComponent?.getModel?.(
+      'projectsmodel',
+    ) as Ui5ProjectsDataModelLike | null;
     const projectsModelData = projectsModel?.getData?.() ?? null;
     if (!projectsModelData) {
       return {
@@ -353,7 +424,8 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
       };
     }
 
-    const currentProject: SapProject | null = projectsModelData.oCurrentProject ?? null;
+    const currentProject: SapProject | null =
+      projectsModelData.oCurrentProject ?? null;
     if (!currentProject) {
       return {
         appliedDaysCount: 0,
@@ -364,7 +436,9 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
       };
     }
 
-    const monthData = Array.isArray(currentProject.oTimeSheet) ? currentProject.oTimeSheet : [];
+    const monthData = Array.isArray(currentProject.oTimeSheet)
+      ? currentProject.oTimeSheet
+      : [];
     if (monthData.length === 0) {
       return {
         appliedDaysCount: 0,
@@ -382,40 +456,48 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
         failedDates: args.entries.map((entry) => entry.date),
         submissionAttempted: false,
         submissionConfirmed: false,
-        error: 'SAP OData model ondersteunt postTimeSheet niet in deze context.',
+        error:
+          'SAP OData model ondersteunt postTimeSheet niet in deze context.',
       };
     }
 
     const userDetail: SapUserDetail | undefined = projectsModelData.UserDetail;
-    const personWorkAgreement =
-      (userDetail?.PersonWorkAgreement ?? '').trim();
+    const personWorkAgreement = (userDetail?.PersonWorkAgreement ?? '').trim();
     const personWorkAgreementExternalID =
-      (userDetail?.PersonWorkAgreementExternalID ?? '').trim()
-      || (userDetail?.PersonExternalID ?? '').trim();
-    const companyCode =
-      (userDetail?.CompanyCode ?? '').trim();
+      (userDetail?.PersonWorkAgreementExternalID ?? '').trim() ||
+      (userDetail?.PersonExternalID ?? '').trim();
+    const companyCode = (userDetail?.CompanyCode ?? '').trim();
 
-    if (!personWorkAgreement || !personWorkAgreementExternalID || !companyCode) {
+    if (
+      !personWorkAgreement ||
+      !personWorkAgreementExternalID ||
+      !companyCode
+    ) {
       return {
         appliedDaysCount: 0,
         failedDates: args.entries.map((entry) => entry.date),
         submissionAttempted: false,
         submissionConfirmed: false,
-        error: 'Kan vereiste SAP identificatievelden niet bepalen voor postTimeSheet.',
+        error:
+          'Kan vereiste SAP identificatievelden niet bepalen voor postTimeSheet.',
       };
     }
 
-    const defaultControllingArea = (currentProject.CostCenterControllingArea ?? '').trim();
+    const defaultControllingArea = (
+      currentProject.CostCenterControllingArea ?? ''
+    ).trim();
     const defaultSenderCostCenter = (currentProject.CostCenter ?? '').trim();
-    const defaultActivityType = (currentProject.EngagementProjectResource ?? '').trim();
+    const defaultActivityType = (
+      currentProject.EngagementProjectResource ?? ''
+    ).trim();
     const defaultWbsElement = (currentProject.WorkPackage ?? '').trim();
     const defaultPurchaseOrder =
-      (currentProject.PurchaseOrderCalculated ?? '').trim()
-      || (currentProject.PurchaseOrder ?? '').trim();
+      (currentProject.PurchaseOrderCalculated ?? '').trim() ||
+      (currentProject.PurchaseOrder ?? '').trim();
     const defaultPurchaseOrderItem =
-      (currentProject.PurchaseOrderItemCalculated ?? '').trim()
-      || (currentProject.PurchaseOrderItem ?? '').trim()
-      || '00000';
+      (currentProject.PurchaseOrderItemCalculated ?? '').trim() ||
+      (currentProject.PurchaseOrderItem ?? '').trim() ||
+      '00000';
 
     const failedDates: string[] = [];
     let appliedDaysCount = 0;
@@ -438,7 +520,8 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
         continue;
       }
 
-      const existingFullTimeEntry: SapTimesheetRecordedEntry | undefined = dayEntry.FullTime_Entries[0];
+      const existingFullTimeEntry: SapTimesheetRecordedEntry | undefined =
+        dayEntry.FullTime_Entries[0];
       const isDeleteOperation = entry.hours === 0;
 
       if (isDeleteOperation) {
@@ -455,7 +538,9 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
         generalRows.push({
           TimeSheetOperation: 'D',
           TimeSheetRecord: existingFullTimeEntry.TimeSheetRecord,
-          PersonWorkAgreement: (existingFullTimeEntry.PersonWorkAgreement ?? personWorkAgreement).trim(),
+          PersonWorkAgreement: (
+            existingFullTimeEntry.PersonWorkAgreement ?? personWorkAgreement
+          ).trim(),
           TimeSheetIsReleasedOnSave: true,
         });
         appliedDaysCount += 1;
@@ -463,7 +548,10 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
       }
 
       const operation: 'C' | 'U' = existingFullTimeEntry ? 'U' : 'C';
-      if (operation === 'U' && !existingFullTimeEntry?.TimeSheetRecord?.trim()) {
+      if (
+        operation === 'U' &&
+        !existingFullTimeEntry?.TimeSheetRecord?.trim()
+      ) {
         failedDates.push(entry.date);
         continue;
       }
@@ -471,40 +559,70 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
       const row: PostTimeSheetGeneralCreateOrUpdate = {
         TimeSheetDataFields: {
           ControllingArea:
-            (existingFullTimeEntry?.TimeSheetDataFields?.ControllingArea ?? '').trim()
-            || defaultControllingArea
-            || 'A000',
+            (
+              existingFullTimeEntry?.TimeSheetDataFields?.ControllingArea ?? ''
+            ).trim() ||
+            defaultControllingArea ||
+            'A000',
           SenderCostCenter:
-            (existingFullTimeEntry?.TimeSheetDataFields?.SenderCostCenter ?? '').trim()
-            || defaultSenderCostCenter,
-          ReceiverCostCenter: (existingFullTimeEntry?.TimeSheetDataFields?.ReceiverCostCenter ?? '').trim(),
+            (
+              existingFullTimeEntry?.TimeSheetDataFields?.SenderCostCenter ?? ''
+            ).trim() || defaultSenderCostCenter,
+          ReceiverCostCenter: (
+            existingFullTimeEntry?.TimeSheetDataFields?.ReceiverCostCenter ?? ''
+          ).trim(),
           ActivityType:
-            (existingFullTimeEntry?.TimeSheetDataFields?.ActivityType ?? '').trim()
-            || defaultActivityType,
+            (
+              existingFullTimeEntry?.TimeSheetDataFields?.ActivityType ?? ''
+            ).trim() || defaultActivityType,
           WBSElement:
-            (existingFullTimeEntry?.TimeSheetDataFields?.WBSElement ?? '').trim()
-            || defaultWbsElement,
-          TimeSheetTaskType: (existingFullTimeEntry?.TimeSheetDataFields?.TimeSheetTaskType ?? '').trim(),
-          TimeSheetTaskLevel: (existingFullTimeEntry?.TimeSheetDataFields?.TimeSheetTaskLevel ?? '').trim(),
-          TimeSheetTaskComponent: (existingFullTimeEntry?.TimeSheetDataFields?.TimeSheetTaskComponent ?? '').trim(),
-          TimeSheetNote: (existingFullTimeEntry?.TimeSheetDataFields?.TimeSheetNote ?? '').trim(),
+            (
+              existingFullTimeEntry?.TimeSheetDataFields?.WBSElement ?? ''
+            ).trim() || defaultWbsElement,
+          TimeSheetTaskType: (
+            existingFullTimeEntry?.TimeSheetDataFields?.TimeSheetTaskType ?? ''
+          ).trim(),
+          TimeSheetTaskLevel: (
+            existingFullTimeEntry?.TimeSheetDataFields?.TimeSheetTaskLevel ?? ''
+          ).trim(),
+          TimeSheetTaskComponent: (
+            existingFullTimeEntry?.TimeSheetDataFields
+              ?.TimeSheetTaskComponent ?? ''
+          ).trim(),
+          TimeSheetNote: (
+            existingFullTimeEntry?.TimeSheetDataFields?.TimeSheetNote ?? ''
+          ).trim(),
           RecordedHours: normalizeNumberString(entry.hours),
           PurchaseOrder:
-            (existingFullTimeEntry?.TimeSheetDataFields?.PurchaseOrder ?? '').trim()
-            || defaultPurchaseOrder,
+            (
+              existingFullTimeEntry?.TimeSheetDataFields?.PurchaseOrder ?? ''
+            ).trim() || defaultPurchaseOrder,
           PurchaseOrderItem:
-            (existingFullTimeEntry?.TimeSheetDataFields?.PurchaseOrderItem ?? '').trim()
-            || defaultPurchaseOrderItem,
+            (
+              existingFullTimeEntry?.TimeSheetDataFields?.PurchaseOrderItem ??
+              ''
+            ).trim() || defaultPurchaseOrderItem,
           RecordedQuantity: normalizeNumberString(entry.hours),
           HoursUnitOfMeasure:
-            (existingFullTimeEntry?.TimeSheetDataFields?.HoursUnitOfMeasure ?? '').trim()
-            || 'H',
-          TimeSheetOvertimeCategory: (existingFullTimeEntry?.TimeSheetDataFields?.TimeSheetOvertimeCategory ?? '').trim(),
-          BillingControlCategory: (existingFullTimeEntry?.TimeSheetDataFields?.BillingControlCategory ?? '').trim(),
+            (
+              existingFullTimeEntry?.TimeSheetDataFields?.HoursUnitOfMeasure ??
+              ''
+            ).trim() || 'H',
+          TimeSheetOvertimeCategory: (
+            existingFullTimeEntry?.TimeSheetDataFields
+              ?.TimeSheetOvertimeCategory ?? ''
+          ).trim(),
+          BillingControlCategory: (
+            existingFullTimeEntry?.TimeSheetDataFields
+              ?.BillingControlCategory ?? ''
+          ).trim(),
         },
         CompanyCode: companyCode,
         TimeSheetOperation: operation,
-        PersonWorkAgreement: operation === 'U' ? (existingFullTimeEntry?.PersonWorkAgreement ?? '').trim() : '',
+        PersonWorkAgreement:
+          operation === 'U'
+            ? (existingFullTimeEntry?.PersonWorkAgreement ?? '').trim()
+            : '',
         TimeSheetDate: resolveTimesheetDateValue(entry.date, dayEntry),
         TimeSheetStatus: (existingFullTimeEntry?.TimeSheetStatus ?? '').trim(),
         TimeSheetIsExecutedInTestRun: false,
@@ -533,7 +651,8 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
           }),
         });
         // SAP exposes this private hook on the controller to refresh model totals/month data in-page.
-        const timesheetController = timesheetComponent?.getController?.() ?? null;
+        const timesheetController =
+          timesheetComponent?.getController?.() ?? null;
         refreshTotalsModels(timesheetController);
       } catch (error) {
         return {
@@ -562,4 +681,3 @@ export async function ui5MainWorldAutofill(args: Ui5AutofillArgs): Promise<Ui5Au
     };
   }
 }
-

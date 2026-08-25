@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { CachedStatusMessage, CachedTimesheetSnapshot, WeeklySchedule } from './types';
+import type {
+  CachedStatusMessage,
+  CachedTimesheetSnapshot,
+  WeeklySchedule,
+} from './types';
 import {
   clearCachedStatusMessage,
   clearCachedTimesheetSnapshot,
@@ -18,10 +22,12 @@ import {
 type StorageMap = Record<string, unknown>;
 
 const localState: StorageMap = {};
-const mockGet = vi.fn((keys: string[], callback: (result: StorageMap) => void) => {
-  const key = keys[0];
-  callback({ [key]: localState[key] });
-});
+const mockGet = vi.fn(
+  (keys: string[], callback: (result: StorageMap) => void) => {
+    const key = keys[0];
+    callback({ [key]: localState[key] });
+  },
+);
 const mockSet = vi.fn((values: StorageMap, callback: () => void) => {
   Object.assign(localState, values);
   callback();
@@ -69,18 +75,29 @@ describe('storage helpers', () => {
     const value = await getCachedTimesheetSnapshot();
 
     expect(value).toEqual(cache);
-    expect(mockSet).toHaveBeenCalledWith({ [STORAGE_KEYS.timesheetSnapshotCache]: cache }, expect.any(Function));
-    expect(mockGet).toHaveBeenCalledWith([STORAGE_KEYS.timesheetSnapshotCache], expect.any(Function));
+    expect(mockSet).toHaveBeenCalledWith(
+      { [STORAGE_KEYS.timesheetSnapshotCache]: cache },
+      expect.any(Function),
+    );
+    expect(mockGet).toHaveBeenCalledWith(
+      [STORAGE_KEYS.timesheetSnapshotCache],
+      expect.any(Function),
+    );
   });
 
   it('clears cached timesheet snapshot', async () => {
-    localState[STORAGE_KEYS.timesheetSnapshotCache] = { cachedAt: '2026-05-12T10:00:00.000Z' };
+    localState[STORAGE_KEYS.timesheetSnapshotCache] = {
+      cachedAt: '2026-05-12T10:00:00.000Z',
+    };
 
     await clearCachedTimesheetSnapshot();
     const value = await getCachedTimesheetSnapshot();
 
     expect(value).toBeUndefined();
-    expect(mockRemove).toHaveBeenCalledWith(STORAGE_KEYS.timesheetSnapshotCache, expect.any(Function));
+    expect(mockRemove).toHaveBeenCalledWith(
+      STORAGE_KEYS.timesheetSnapshotCache,
+      expect.any(Function),
+    );
   });
 });
 
@@ -102,8 +119,14 @@ describe('status message cache helpers', () => {
     const value = await getCachedStatusMessage();
 
     expect(value).toEqual(cache);
-    expect(mockSet).toHaveBeenCalledWith({ [STORAGE_KEYS.statusMessageCache]: cache }, expect.any(Function));
-    expect(mockGet).toHaveBeenCalledWith([STORAGE_KEYS.statusMessageCache], expect.any(Function));
+    expect(mockSet).toHaveBeenCalledWith(
+      { [STORAGE_KEYS.statusMessageCache]: cache },
+      expect.any(Function),
+    );
+    expect(mockGet).toHaveBeenCalledWith(
+      [STORAGE_KEYS.statusMessageCache],
+      expect.any(Function),
+    );
   });
 
   it('returns undefined when no cached status message is stored', async () => {
@@ -112,13 +135,19 @@ describe('status message cache helpers', () => {
   });
 
   it('clears cached status message', async () => {
-    localState[STORAGE_KEYS.statusMessageCache] = { message: 'test', cachedAt: '2026-08-04T10:00:00.000Z' };
+    localState[STORAGE_KEYS.statusMessageCache] = {
+      message: 'test',
+      cachedAt: '2026-08-04T10:00:00.000Z',
+    };
 
     await clearCachedStatusMessage();
     const value = await getCachedStatusMessage();
 
     expect(value).toBeUndefined();
-    expect(mockRemove).toHaveBeenCalledWith(STORAGE_KEYS.statusMessageCache, expect.any(Function));
+    expect(mockRemove).toHaveBeenCalledWith(
+      STORAGE_KEYS.statusMessageCache,
+      expect.any(Function),
+    );
   });
 });
 
@@ -164,7 +193,10 @@ describe('schedule storage helpers', () => {
     const schedules = await getSchedules();
 
     expect(schedules).toEqual([]);
-    expect(mockGet).toHaveBeenCalledWith([STORAGE_KEYS.projectSchedules], expect.any(Function));
+    expect(mockGet).toHaveBeenCalledWith(
+      [STORAGE_KEYS.projectSchedules],
+      expect.any(Function),
+    );
   });
 
   it('returns an empty array when stored schedules payload is malformed', async () => {
@@ -180,7 +212,10 @@ describe('schedule storage helpers', () => {
     const schedules = await getSchedules();
 
     expect(schedules).toEqual([scheduleA]);
-    expect(mockSet).toHaveBeenCalledWith({ [STORAGE_KEYS.projectSchedules]: [scheduleA] }, expect.any(Function));
+    expect(mockSet).toHaveBeenCalledWith(
+      { [STORAGE_KEYS.projectSchedules]: [scheduleA] },
+      expect.any(Function),
+    );
   });
 
   it('updates an existing schedule with the same id', async () => {
@@ -218,7 +253,11 @@ describe('isCacheStale', () => {
     return date.toISOString();
   }
 
-  function makeCache(month: number | null, year: number | null, cachedAt: string = makeRecentCacheTimestamp()): CachedTimesheetSnapshot {
+  function makeCache(
+    month: number | null,
+    year: number | null,
+    cachedAt: string = makeRecentCacheTimestamp(),
+  ): CachedTimesheetSnapshot {
     return {
       snapshot: {
         month,
@@ -233,34 +272,59 @@ describe('isCacheStale', () => {
   }
 
   it('returns false when cache month/year matches the current month/year', () => {
-    expect(isCacheStale(makeCache(5, 2026), { month: 5, year: 2026 })).toBe(false);
+    expect(isCacheStale(makeCache(5, 2026), { month: 5, year: 2026 })).toBe(
+      false,
+    );
   });
 
   it('returns true when cache month differs from current month', () => {
-    expect(isCacheStale(makeCache(4, 2026), { month: 5, year: 2026 })).toBe(true);
+    expect(isCacheStale(makeCache(4, 2026), { month: 5, year: 2026 })).toBe(
+      true,
+    );
   });
 
   it('returns true when cache year differs from current year', () => {
-    expect(isCacheStale(makeCache(5, 2025), { month: 5, year: 2026 })).toBe(true);
+    expect(isCacheStale(makeCache(5, 2025), { month: 5, year: 2026 })).toBe(
+      true,
+    );
   });
 
   it('returns false when cache has no month or year (undated snapshot is not stale)', () => {
-    expect(isCacheStale(makeCache(null, null), { month: 5, year: 2026 })).toBe(false);
+    expect(isCacheStale(makeCache(null, null), { month: 5, year: 2026 })).toBe(
+      false,
+    );
   });
 
   it('returns true when cachedAt is older than 3 months', () => {
     const now = new Date('2026-05-19T08:00:00.000Z');
-    expect(isCacheStale(makeCache(5, 2026, '2026-02-18T07:59:59.000Z'), { month: 5, year: 2026 }, now)).toBe(true);
+    expect(
+      isCacheStale(
+        makeCache(5, 2026, '2026-02-18T07:59:59.000Z'),
+        { month: 5, year: 2026 },
+        now,
+      ),
+    ).toBe(true);
   });
 
   it('returns false when cachedAt is within 3 months', () => {
     const now = new Date('2026-05-19T08:00:00.000Z');
-    expect(isCacheStale(makeCache(5, 2026, '2026-02-20T08:00:00.000Z'), { month: 5, year: 2026 }, now)).toBe(false);
+    expect(
+      isCacheStale(
+        makeCache(5, 2026, '2026-02-20T08:00:00.000Z'),
+        { month: 5, year: 2026 },
+        now,
+      ),
+    ).toBe(false);
   });
 
   it('returns true when cachedAt is invalid', () => {
     const now = new Date('2026-05-19T08:00:00.000Z');
-    expect(isCacheStale(makeCache(5, 2026, 'invalid-date'), { month: 5, year: 2026 }, now)).toBe(true);
+    expect(
+      isCacheStale(
+        makeCache(5, 2026, 'invalid-date'),
+        { month: 5, year: 2026 },
+        now,
+      ),
+    ).toBe(true);
   });
 });
-

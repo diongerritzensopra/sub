@@ -5,7 +5,9 @@
  * - Detect SAP busy state and notify the service worker
  */
 
-function resolveTimesheetFrame(rootDocument: Document): HTMLIFrameElement | null {
+function resolveTimesheetFrame(
+  rootDocument: Document,
+): HTMLIFrameElement | null {
   const preferredSelectors = [
     'iframe[data-sap-ushell-active="true"]',
     'iframe[src*="ui5appruntime.html"]',
@@ -29,7 +31,10 @@ const SAP_BUSY_INDICATOR_SELECTOR = '#sapUiBusyIndicator';
 const BUSY_STATE_POLL_INTERVAL_MS = 250;
 
 function notifyBusyState(busy: boolean): void {
-  chrome.runtime.sendMessage({ type: 'SAP_BUSY_STATE_CHANGED', payload: { busy } });
+  chrome.runtime.sendMessage({
+    type: 'SAP_BUSY_STATE_CHANGED',
+    payload: { busy },
+  });
 }
 
 export function isTimesheetReady(): boolean {
@@ -50,17 +55,22 @@ export function isTimesheetReady(): boolean {
     return false;
   }
 
-  const busyIndicator = iframeDocument.querySelector<HTMLElement>(SAP_BUSY_INDICATOR_SELECTOR);
+  const busyIndicator = iframeDocument.querySelector<HTMLElement>(
+    SAP_BUSY_INDICATOR_SELECTOR,
+  );
   if (!busyIndicator) {
     return false;
   }
 
-  const computedStyle = iframeDocument.defaultView?.getComputedStyle(busyIndicator);
+  const computedStyle =
+    iframeDocument.defaultView?.getComputedStyle(busyIndicator);
   const isHiddenByStyle =
-    computedStyle?.display === 'none'
-    || computedStyle?.visibility === 'hidden'
-    || computedStyle?.opacity === '0';
-  const isHiddenInline = busyIndicator.style.display === 'none' || busyIndicator.style.visibility === 'hidden';
+    computedStyle?.display === 'none' ||
+    computedStyle?.visibility === 'hidden' ||
+    computedStyle?.opacity === '0';
+  const isHiddenInline =
+    busyIndicator.style.display === 'none' ||
+    busyIndicator.style.visibility === 'hidden';
 
   return isHiddenByStyle || isHiddenInline;
 }
@@ -96,12 +106,17 @@ export function startBusyStateMonitor(): () => void {
 
     if (iframeDoc.readyState !== 'complete') return false;
 
-    const indicator = iframeDoc.querySelector<HTMLElement>(SAP_BUSY_INDICATOR_SELECTOR);
+    const indicator = iframeDoc.querySelector<HTMLElement>(
+      SAP_BUSY_INDICATOR_SELECTOR,
+    );
     if (!indicator) return false;
 
     busyObserver?.disconnect();
     busyObserver = new MutationObserver(emitBusyStateIfChanged);
-    busyObserver.observe(indicator, { attributes: true, attributeFilter: ['style'] });
+    busyObserver.observe(indicator, {
+      attributes: true,
+      attributeFilter: ['style'],
+    });
 
     if (setupIntervalId !== null) {
       window.clearInterval(setupIntervalId);
@@ -118,7 +133,10 @@ export function startBusyStateMonitor(): () => void {
     if (trySetupObserver()) return;
     emitBusyStateIfChanged();
     if (setupIntervalId === null) {
-      setupIntervalId = window.setInterval(trySetupObserver, BUSY_STATE_POLL_INTERVAL_MS);
+      setupIntervalId = window.setInterval(
+        trySetupObserver,
+        BUSY_STATE_POLL_INTERVAL_MS,
+      );
     }
   };
 
@@ -148,7 +166,9 @@ export function startBusyStateMonitor(): () => void {
 }
 
 // Skip monitor in jsdom tests to avoid unnecessary timers in test runtime.
-if (!(typeof navigator !== 'undefined' && navigator.userAgent.includes('jsdom'))) {
+if (!(
+  typeof navigator !== 'undefined' && navigator.userAgent.includes('jsdom')
+)) {
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', startBusyStateMonitor);
   } else {

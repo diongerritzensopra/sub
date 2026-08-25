@@ -15,7 +15,10 @@ function formatProjectWithCode(name: string, code: string): string {
   return `${trimmedName} [${code}]`;
 }
 
-function renderProjectsList(projectList: HTMLUListElement, projects: TimesheetSnapshot['projects']): void {
+function renderProjectsList(
+  projectList: HTMLUListElement,
+  projects: TimesheetSnapshot['projects'],
+): void {
   projectList.innerHTML = '';
   if (projects.length === 0) {
     const emptyItem = document.createElement('li');
@@ -52,10 +55,15 @@ export function renderSnapshot(
   isCachedData: boolean = false,
   snapshotTimestampIso: string | null = null,
 ): void {
-  dom.periodValue.textContent = snapshot.month && snapshot.year ? `${snapshot.month}/${snapshot.year}` : '-';
+  dom.periodValue.textContent =
+    snapshot.month && snapshot.year
+      ? `${snapshot.month}/${snapshot.year}`
+      : '-';
   renderProjectsList(dom.projectsValue, snapshot.projects);
   dom.workedHoursValue.textContent = formatHours(snapshot.totals.worked);
-  dom.toBePerformedHoursValue.textContent = formatHours(snapshot.totals.toBePerformed);
+  dom.toBePerformedHoursValue.textContent = formatHours(
+    snapshot.totals.toBePerformed,
+  );
 
   const scrapeStatus = dom.scrapeStatus;
   scrapeStatus.classList.add('subtle-indicator');
@@ -173,11 +181,20 @@ function renderScheduleListItem(
   });
 
   const content = document.createElement('div');
-  const projectDisplayLabel = formatProjectWithCode(projectNameByCode.get(schedule.projectCode) ?? '', schedule.projectCode);
+  const projectDisplayLabel = formatProjectWithCode(
+    projectNameByCode.get(schedule.projectCode) ?? '',
+    schedule.projectCode,
+  );
   content.className = 'schedule-content';
   content.setAttribute('role', 'checkbox');
-  content.setAttribute('aria-checked', selectedIds.has(schedule.id) ? 'true' : 'false');
-  content.setAttribute('aria-label', `Selecteren: ${schedule.label} — Project ${projectDisplayLabel}`);
+  content.setAttribute(
+    'aria-checked',
+    selectedIds.has(schedule.id) ? 'true' : 'false',
+  );
+  content.setAttribute(
+    'aria-label',
+    `Selecteren: ${schedule.label} — Project ${projectDisplayLabel}`,
+  );
   content.tabIndex = 0;
   content.addEventListener('keydown', (event) => {
     if (event.key === ' ' || event.key === 'Enter') {
@@ -193,7 +210,8 @@ function renderScheduleListItem(
   const meta = document.createElement('div');
   meta.className = 'schedule-meta';
   const metaName = document.createElement('span');
-  metaName.textContent = projectNameByCode.get(schedule.projectCode)?.trim() || 'Onbekend project';
+  metaName.textContent =
+    projectNameByCode.get(schedule.projectCode)?.trim() || 'Onbekend project';
   const metaCode = document.createElement('span');
   metaCode.textContent = schedule.projectCode;
   meta.appendChild(metaName);
@@ -287,7 +305,9 @@ export function showScheduleForm(
 
   const projectSelect = dom.scheduleProjectSelect;
   const formTitle = dom.scheduleFormTitle;
-  const submitBtn = dom.scheduleForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+  const submitBtn = dom.scheduleForm.querySelector(
+    'button[type="submit"]',
+  ) as HTMLButtonElement;
 
   projectSelect.innerHTML = '<option value="">-- Selecteer project --</option>';
   snapshot.projects.forEach(({ code, name }) => {
@@ -337,7 +357,10 @@ export function hideScheduleForm(dom: PopupDomRefs): void {
 /**
  * Update the "Add Schedule" button disabled state.
  */
-export function updateAddScheduleButtonState(dom: PopupDomRefs, hasSnapshot: boolean): void {
+export function updateAddScheduleButtonState(
+  dom: PopupDomRefs,
+  hasSnapshot: boolean,
+): void {
   dom.addScheduleButton.disabled = !hasSnapshot;
 }
 
@@ -371,7 +394,10 @@ export function updateApplySchedulesButtonState(
 /**
  * Set scrape button state (busy or ready).
  */
-export function setScrapeButtonState(dom: PopupDomRefs, isLoading: boolean): void {
+export function setScrapeButtonState(
+  dom: PopupDomRefs,
+  isLoading: boolean,
+): void {
   dom.btnScrape.disabled = isLoading;
 }
 
@@ -420,5 +446,3 @@ export function formatTimestampSuffix(timestampIso: string | null): string {
   }).format(date);
   return ` (${formatted})`;
 }
-
-
