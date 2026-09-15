@@ -15,8 +15,7 @@ function createSnapshot(
   return {
     month: 8,
     year: 2026,
-    projects: [],
-    generalHours: [],
+    targets: [],
     totals: {
       worked: 10,
       toBePerformed: 20,

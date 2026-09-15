@@ -4,11 +4,7 @@
  * Coordinates popup state, gateway calls, and rendering side effects.
  */
 
-import type {
-  TimesheetSnapshot,
-  WeeklySchedule,
-  WeeklyScheduleTarget,
-} from '../shared/types';
+import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
 import { expandWeeklyScheduleToMonthEntries } from '../shared/schedule-expansion';
 import { deleteSchedule, getSchedules, saveSchedule } from '../shared/storage';
@@ -163,35 +159,14 @@ export async function handleScheduleFormSubmit(
       Date.now().toString();
     const isEditing = Boolean(ctx.state.scheduleBeingEdited);
 
-    let target: WeeklyScheduleTarget;
-    if (selectedTarget.targetType === 'project') {
-      const project = ctx.state.currentSnapshot.projects.find(
-        (item) => item.code === selectedTarget.targetCode,
-      );
-      if (!project) {
-        ctx.setStatus('Geselecteerd schema-doel is niet meer beschikbaar.');
-        return;
-      }
-
-      target = {
-        targetType: 'project',
-        targetCode: selectedTarget.targetCode,
-        targetLabel: project.name.trim() || 'Onbekend project',
-      };
-    } else {
-      const generalHours = ctx.state.currentSnapshot.generalHours.find(
-        (item) => item.taskType === selectedTarget.targetCode,
-      );
-      if (!generalHours) {
-        ctx.setStatus('Geselecteerd schema-doel is niet meer beschikbaar.');
-        return;
-      }
-
-      target = {
-        targetType: 'general-hours',
-        targetCode: selectedTarget.targetCode,
-        targetLabel: generalHours.label.trim() || 'Onbekende algemene uren',
-      };
+    const target = ctx.state.currentSnapshot.targets.find(
+      (item) =>
+        item.targetType === selectedTarget.targetType &&
+        item.targetCode === selectedTarget.targetCode,
+    );
+    if (!target) {
+      ctx.setStatus('Geselecteerd schema-doel is niet meer beschikbaar.');
+      return;
     }
 
     const schedule: WeeklySchedule = {
@@ -247,28 +222,21 @@ export async function applySchedulesFromSelection(
   for (const schedule of schedulesToApply) {
     const targetLabel = getScheduleTargetDisplayName(schedule.target);
     const scheduleTarget = schedule.target;
-    if (scheduleTarget.targetType === 'project') {
-      const project = ctx.state.currentSnapshot.projects.find(
-        (item) => item.code === scheduleTarget.targetCode,
+    const isAvailable = ctx.state.currentSnapshot.targets.some(
+      (item) =>
+        item.targetType === scheduleTarget.targetType &&
+        item.targetCode === scheduleTarget.targetCode,
+    );
+    if (!isAvailable) {
+      const unavailableKindMessage =
+        scheduleTarget.targetType === 'project'
+          ? 'Project'
+          : 'Algemene uren type';
+      ctx.setStatus(
+        `Fout: ${unavailableKindMessage} "${targetLabel}" is niet beschikbaar in het SAP navigatiemenu.`,
+        true,
       );
-      if (!project) {
-        ctx.setStatus(
-          `Fout: Project "${targetLabel}" is niet beschikbaar in het SAP navigatiemenu.`,
-          true,
-        );
-        return;
-      }
-    } else {
-      const option = ctx.state.currentSnapshot.generalHours.find(
-        (item) => item.taskType === scheduleTarget.targetCode,
-      );
-      if (!option) {
-        ctx.setStatus(
-          `Fout: Algemene uren type "${targetLabel}" is niet beschikbaar in het SAP navigatiemenu.`,
-          true,
-        );
-        return;
-      }
+      return;
     }
   }
 
@@ -300,12 +268,7 @@ export async function applySchedulesFromSelection(
       const targetCode = schedule.target.targetCode;
       const targetLabel = getScheduleTargetDisplayName(schedule.target);
       try {
-        await navigateToProject(
-          activeTab.id,
-          month,
-          year,
-          targetCode,
-        );
+        await navigateToProject(activeTab.id, month, year, targetCode);
         const summary = await autofillScheduleEntries(
           activeTab.id,
           schedule,

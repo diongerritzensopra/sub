@@ -151,7 +151,7 @@ export function setupPopupDom(): void {
           <h2>Timesheet overzicht</h2>
           <ul id="summary-list">
             <li><strong>Periode:</strong> <span id="period-value">-</span></li>
-            <li><strong>Projecten:</strong> <ul id="projects-value" class="project-list"><li>-</li></ul></li>
+            <li><strong>Doelen:</strong> <ul id="projects-value" class="project-list"><li>-</li></ul></li>
             <li><strong>Uren gewerkt:</strong> <span id="worked-hours-value">-</span></li>
             <li><strong>Uren uit te voeren:</strong> <span id="to-be-performed-hours-value">-</span></li>
           </ul>
@@ -247,11 +247,23 @@ export function createSnapshot(
   return {
     month: 8,
     year: 2026,
-    projects: [
-      { code: 'C001', name: 'Project Alpha' },
-      { code: 'C002', name: '  ' },
+    targets: [
+      {
+        targetType: 'project',
+        targetCode: 'C001',
+        targetLabel: 'Project Alpha',
+      },
+      {
+        targetType: 'project',
+        targetCode: 'C002',
+        targetLabel: 'Onbekend project',
+      },
+      {
+        targetType: 'general-hours',
+        targetCode: 'MISC',
+        targetLabel: 'Commercial hours',
+      },
     ],
-    generalHours: [{ taskType: 'MISC', label: 'Commercial hours' }],
     totals: {
       worked: 12.5,
       toBePerformed: 30,
@@ -270,7 +282,11 @@ export function createSchedule(
   return {
     id,
     label: `Schema ${id}`,
-    target: { targetType: 'project', targetCode: projectCode, targetLabel: projectName },
+    target: {
+      targetType: 'project',
+      targetCode: projectCode,
+      targetLabel: projectName,
+    },
     hoursPerWeekday: {
       monday: 8,
       tuesday: 8,

@@ -1,20 +1,11 @@
-import type { WeeklyScheduleTarget } from '../shared/types';
+import type { TimesheetTarget } from '../shared/types';
 
-export function getScheduleTargetDisplayName(
-  target: WeeklyScheduleTarget,
-): string {
-  const trimmedName = target.targetLabel?.trim();
-  if (trimmedName) {
-    return trimmedName;
-  }
-
-  return target.targetType === 'project'
-    ? 'Onbekend project'
-    : 'Onbekende algemene uren';
+export function getScheduleTargetDisplayName(target: TimesheetTarget): string {
+  return target.targetLabel.trim();
 }
 
 export function encodeScheduleTargetSelectValue(
-  target: Pick<WeeklyScheduleTarget, 'targetType' | 'targetCode'>,
+  target: Pick<TimesheetTarget, 'targetType' | 'targetCode'>,
 ): string {
   return JSON.stringify({
     targetType: target.targetType,
@@ -24,13 +15,13 @@ export function encodeScheduleTargetSelectValue(
 
 export function decodeScheduleTargetSelectValue(
   value: string,
-): Pick<WeeklyScheduleTarget, 'targetType' | 'targetCode'> | null {
+): Pick<TimesheetTarget, 'targetType' | 'targetCode'> | null {
   if (!value) {
     return null;
   }
 
   try {
-    const parsed = JSON.parse(value) as Partial<WeeklyScheduleTarget>;
+    const parsed = JSON.parse(value) as Partial<TimesheetTarget>;
     if (
       (parsed.targetType === 'project' ||
         parsed.targetType === 'general-hours') &&
@@ -48,5 +39,3 @@ export function decodeScheduleTargetSelectValue(
 
   return null;
 }
-
-

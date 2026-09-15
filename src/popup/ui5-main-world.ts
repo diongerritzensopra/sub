@@ -117,8 +117,7 @@ export function ui5MainWorldReadSnapshot(): Ui5SnapshotReadResult {
     ) {
       return {
         success: false,
-        error:
-          'SAP projectsmodel bevat geen geldige algemene uren.',
+        error: 'SAP projectsmodel bevat geen geldige algemene uren.',
       };
     }
 
@@ -129,50 +128,85 @@ export function ui5MainWorldReadSnapshot(): Ui5SnapshotReadResult {
         ? modelData.oMonth + 1
         : null;
     const year = typeof modelData.oYear === 'number' ? modelData.oYear : null;
-    const projectsByCode = new Map<string, string>();
 
-    modelData.oProjects.forEach((project) => {
-      const code = project.WorkPackage.trim().toUpperCase();
-      if (!code) {
-        return;
-      }
-
-      const name = (project.WorkPackageName ?? '').trim();
-      const existingName = projectsByCode.get(code);
-      if (!projectsByCode.has(code) || (!existingName && name)) {
-        projectsByCode.set(code, name);
-      }
-    });
-
-    const projects = Array.from(projectsByCode.entries())
-      .map(([code, name]) => ({ code, name }))
-      .sort((left, right) => left.code.localeCompare(right.code));
-    const generalHoursByTaskType = new Map<string, string>();
-
+    const targets: TimesheetSnapshot['targets'] = [];
     modelData.oGeneralHours.forEach((option) => {
-      const taskType = option.TimeSheetTaskType.trim().toUpperCase();
-      if (!taskType) {
+      const targetCode = option.TimeSheetTaskType.trim().toUpperCase();
+      if (!targetCode) {
         return;
       }
 
-      const label = (option.TimeSheetTaskTypeText ?? '').trim();
-      const existingLabel = generalHoursByTaskType.get(taskType);
-      if (!generalHoursByTaskType.has(taskType) || (!existingLabel && label)) {
-        generalHoursByTaskType.set(taskType, label);
+      const rawTargetLabel = (option.TimeSheetTaskTypeText ?? '').trim();
+      const targetLabel = rawTargetLabel || 'Onbekende algemene uren';
+      const existingTarget = targets.find(
+        (target) =>
+          target.targetType === 'general-hours' &&
+          target.targetCode === targetCode,
+      );
+      if (!existingTarget) {
+        targets.push({
+          targetType: 'general-hours',
+          targetCode,
+          targetLabel,
+        });
+        return;
+      }
+
+      if (
+        existingTarget.targetLabel === 'Onbekende algemene uren' &&
+        rawTargetLabel
+      ) {
+        existingTarget.targetLabel = rawTargetLabel;
       }
     });
 
-    const generalHours = Array.from(generalHoursByTaskType.entries())
-      .map(([taskType, label]) => ({ taskType, label }))
-      .sort((left, right) => left.taskType.localeCompare(right.taskType));
-
-    if (generalHours.length === 0) {
+    if (targets.length === 0) {
       return {
         success: false,
-        error:
-          'SAP projectsmodel bevat geen geldige algemene uren.',
+        error: 'SAP projectsmodel bevat geen geldige algemene uren.',
       };
     }
+
+    modelData.oProjects.forEach((project) => {
+      const targetCode = project.WorkPackage.trim().toUpperCase();
+      if (!targetCode) {
+        return;
+      }
+
+      const rawTargetLabel = (project.WorkPackageName ?? '').trim();
+      const targetLabel = rawTargetLabel || 'Onbekend project';
+      const existingTarget = targets.find(
+        (target) =>
+          target.targetType === 'project' && target.targetCode === targetCode,
+      );
+      if (!existingTarget) {
+        targets.push({
+          targetType: 'project',
+          targetCode,
+          targetLabel,
+        });
+        return;
+      }
+
+      if (existingTarget.targetLabel === 'Onbekend project' && rawTargetLabel) {
+        existingTarget.targetLabel = rawTargetLabel;
+      }
+    });
+
+    targets.sort((left, right) => {
+      const byLabel = left.targetLabel.localeCompare(
+        right.targetLabel,
+        'nl-NL',
+        {
+          sensitivity: 'base',
+        },
+      );
+      if (byLabel !== 0) {
+        return byLabel;
+      }
+
+      return left.targetCode.localeCompare(right.targetCode);
+    });
 
     const currentProjectCode = modelData.oCurrentProject?.hasOwnProperty(
       'WorkPackage',
@@ -191,8 +225,7 @@ export function ui5MainWorldReadSnapshot(): Ui5SnapshotReadResult {
       snapshot: {
         month,
         year,
-        projects,
-        generalHours,
+        targets,
         currentProjectCode,
         sapStatus: mapSapStatus(modelData.oTotals.oStatus),
         totals: {

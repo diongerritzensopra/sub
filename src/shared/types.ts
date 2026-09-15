@@ -17,22 +17,16 @@ export interface TimesheetTotals {
   toBePerformed: number | null;
 }
 
-export interface TimesheetProjectOption {
-  code: string;
-  name: string;
-}
-
-/** A general-hours option exposed in the popup schedule form. */
-export interface GeneralHoursOption {
-  taskType: string; // TimeSheetTaskType code, e.g. "MISC"
-  label: string; // TimeSheetTaskTypeText, e.g. "Commercial hours"
+export interface TimesheetTarget {
+  targetType: 'project' | 'general-hours';
+  targetCode: string; // projectCode or taskType
+  targetLabel: string; // human-readable label for the target
 }
 
 export interface TimesheetSnapshot {
   month: number | null;
   year: number | null;
-  projects: TimesheetProjectOption[];
-  generalHours: GeneralHoursOption[];
+  targets: TimesheetTarget[];
   totals: TimesheetTotals;
   currentProjectCode: string | null;
   sapStatus: 'editable' | 'locked';
@@ -57,17 +51,11 @@ export type Weekday =
 /** Planned hours for each day of the week. Zero means the day is skipped. */
 export type WeeklyHours = Record<Weekday, number>;
 
-export interface WeeklyScheduleTarget {
-  targetType: 'project' | 'general-hours';
-  targetCode: string; // projectCode or taskType
-  targetLabel?: string; // human-readable label for the target
-}
-
 /** A named, reusable weekly booking schedule for a single project or general-hours target. */
 export interface WeeklySchedule {
   id: string; // Unique identifier (e.g. crypto.randomUUID())
   label: string; // Human-readable name for the schedule
-  target: WeeklyScheduleTarget;
+  target: TimesheetTarget;
   hoursPerWeekday: WeeklyHours;
 }
 

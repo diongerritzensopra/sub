@@ -120,8 +120,13 @@ function createSnapshot(
   return {
     month: 8,
     year: 2026,
-    projects: [{ code: 'C001', name: 'Project Alpha' }],
-    generalHours: [],
+    targets: [
+      {
+        targetType: 'project',
+        targetCode: 'C001',
+        targetLabel: 'Project Alpha',
+      },
+    ],
     totals: {
       worked: 10,
       toBePerformed: 20,
@@ -292,7 +297,18 @@ describe('handleScheduleFormSubmit', () => {
     const ctx = createContext({
       state: {
         currentSnapshot: createSnapshot({
-          generalHours: [{ taskType: 'MISC', label: 'Commercial hours' }],
+          targets: [
+            {
+              targetType: 'project',
+              targetCode: 'C001',
+              targetLabel: 'Project Alpha',
+            },
+            {
+              targetType: 'general-hours',
+              targetCode: 'MISC',
+              targetLabel: 'Commercial hours',
+            },
+          ],
         }),
       },
     });
@@ -426,7 +442,18 @@ describe('applySchedulesFromSelection', () => {
     const ctx = createContext({
       state: {
         currentSnapshot: createSnapshot({
-          generalHours: [{ taskType: 'MISC', label: 'Commercial hours' }],
+          targets: [
+            {
+              targetType: 'project',
+              targetCode: 'C001',
+              targetLabel: 'Project Alpha',
+            },
+            {
+              targetType: 'general-hours',
+              targetCode: 'MISC',
+              targetLabel: 'Commercial hours',
+            },
+          ],
         }),
       },
     });

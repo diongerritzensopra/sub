@@ -9,39 +9,28 @@ import {
   getScheduleTargetDisplayName,
 } from './schedule-target';
 
-function formatScheduleProjectOptionLabel(name: string, code: string): string {
-  const trimmedName = name.trim();
-  return trimmedName ? `${trimmedName} [${code}]` : code;
-}
-
 function formatScheduleTargetWithCode(name: string, code: string): string {
-  const trimmedName = name.trim() || 'Onbekend project';
-  return `${trimmedName} [${code}]`;
+  return `${name.trim()} [${code}]`;
 }
 
-function formatGeneralHoursOptionLabel(name: string, code: string): string {
-  const trimmedName = name.trim() || 'Onbekende algemene uren';
-  return `${trimmedName} [${code}]`;
-}
-
-function renderProjectsList(
+function renderTargetsList(
   projectList: HTMLUListElement,
-  projects: TimesheetSnapshot['projects'],
+  targets: TimesheetSnapshot['targets'],
 ): void {
   projectList.innerHTML = '';
-  if (projects.length === 0) {
+  if (targets.length === 0) {
     const emptyItem = document.createElement('li');
     emptyItem.textContent = '-';
     projectList.appendChild(emptyItem);
     return;
   }
 
-  projects.forEach((project) => {
+  targets.forEach((target) => {
     const item = document.createElement('li');
     const name = document.createElement('span');
-    name.textContent = project.name.trim() || 'Onbekend project';
+    name.textContent = getScheduleTargetDisplayName(target);
     const code = document.createElement('span');
-    code.textContent = project.code;
+    code.textContent = target.targetCode;
     item.appendChild(name);
     item.appendChild(document.createElement('br'));
     item.appendChild(code);
@@ -68,7 +57,7 @@ export function renderSnapshot(
     snapshot.month && snapshot.year
       ? `${snapshot.month}/${snapshot.year}`
       : '-';
-  renderProjectsList(dom.projectsValue, snapshot.projects);
+  renderTargetsList(dom.projectsValue, snapshot.targets);
   dom.workedHoursValue.textContent = formatHours(snapshot.totals.worked);
   dom.toBePerformedHoursValue.textContent = formatHours(
     snapshot.totals.toBePerformed,
@@ -322,19 +311,24 @@ export function showScheduleForm(
 
   const projectOptionsGroup = document.createElement('optgroup');
   projectOptionsGroup.label = 'Projecten';
-  snapshot.projects.forEach(({ code, name }) => {
-    if (!code) {
-      return;
-    }
+  snapshot.targets
+    .filter((target) => target.targetType === 'project')
+    .forEach((target) => {
+      if (!target.targetCode) {
+        return;
+      }
 
-    const option = document.createElement('option');
-    option.value = encodeScheduleTargetSelectValue({
-      targetType: 'project',
-      targetCode: code,
+      const option = document.createElement('option');
+      option.value = encodeScheduleTargetSelectValue({
+        targetType: 'project',
+        targetCode: target.targetCode,
+      });
+      option.textContent = formatScheduleTargetWithCode(
+        target.targetLabel,
+        target.targetCode,
+      );
+      projectOptionsGroup.appendChild(option);
     });
-    option.textContent = formatScheduleProjectOptionLabel(name, code);
-    projectOptionsGroup.appendChild(option);
-  });
 
   if (projectOptionsGroup.children.length > 0) {
     projectSelect.appendChild(projectOptionsGroup);
@@ -342,19 +336,24 @@ export function showScheduleForm(
 
   const generalHoursOptionsGroup = document.createElement('optgroup');
   generalHoursOptionsGroup.label = 'Algemene uren';
-  snapshot.generalHours.forEach(({ taskType, label }) => {
-    if (!taskType) {
-      return;
-    }
+  snapshot.targets
+    .filter((target) => target.targetType === 'general-hours')
+    .forEach((target) => {
+      if (!target.targetCode) {
+        return;
+      }
 
-    const option = document.createElement('option');
-    option.value = encodeScheduleTargetSelectValue({
-      targetType: 'general-hours',
-      targetCode: taskType,
+      const option = document.createElement('option');
+      option.value = encodeScheduleTargetSelectValue({
+        targetType: 'general-hours',
+        targetCode: target.targetCode,
+      });
+      option.textContent = formatScheduleTargetWithCode(
+        target.targetLabel,
+        target.targetCode,
+      );
+      generalHoursOptionsGroup.appendChild(option);
     });
-    option.textContent = formatGeneralHoursOptionLabel(label, taskType);
-    generalHoursOptionsGroup.appendChild(option);
-  });
 
   if (generalHoursOptionsGroup.children.length > 0) {
     projectSelect.appendChild(generalHoursOptionsGroup);
@@ -370,7 +369,9 @@ export function showScheduleForm(
     formTitle.textContent = 'Schema bewerken';
     submitBtn.textContent = 'Bijwerken';
     dom.scheduleLabelInput.value = scheduleToEdit.label;
-    projectSelect.value = encodeScheduleTargetSelectValue(scheduleToEdit.target);
+    projectSelect.value = encodeScheduleTargetSelectValue(
+      scheduleToEdit.target,
+    );
     Object.entries(scheduleToEdit.hoursPerWeekday).forEach(([day, hours]) => {
       if (day in dom.hoursInputs) {
         dom.hoursInputs[day].value = String(hours);

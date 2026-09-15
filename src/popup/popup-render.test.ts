@@ -73,9 +73,10 @@ describe('renderSnapshot', () => {
     expect(dom.workedHoursValue.textContent).toBe('12,5 u');
     expect(dom.toBePerformedHoursValue.textContent).toBe('30 u');
     expect(dom.summarySection.hidden).toBe(false);
-    expect(dom.projectsValue.querySelectorAll('li')).toHaveLength(2);
+    expect(dom.projectsValue.querySelectorAll('li')).toHaveLength(3);
     expect(dom.projectsValue.textContent).toContain('Project Alpha');
     expect(dom.projectsValue.textContent).toContain('Onbekend project');
+    expect(dom.projectsValue.textContent).toContain('Commercial hours');
   });
 
   it('renders missing period/totals and incomplete indicator', () => {
@@ -84,7 +85,7 @@ describe('renderSnapshot', () => {
       month: null,
       year: null,
       totals: { worked: null, toBePerformed: null },
-      projects: [],
+      targets: [],
     });
 
     renderSnapshot(dom, snapshot, false, false, null);
@@ -145,11 +146,11 @@ describe('renderSchedules', () => {
     expect(dom.schedulesList.children).toHaveLength(0);
   });
 
-  it('renders schedule rows and fallback project labels', () => {
+  it('renders schedule rows with provided target labels', () => {
     const dom = getPopupDomRefs(document);
     const schedules = [
       createSchedule('a', 'C001', 'Project Alpha'),
-      createSchedule('b', 'UNKNOWN', ''),
+      createSchedule('b', 'UNKNOWN', 'Onbekend project'),
     ];
 
     renderSchedules(
@@ -191,7 +192,9 @@ describe('renderSchedules', () => {
       vi.fn(),
     );
 
-    const item = dom.schedulesList.querySelector('.schedule-item') as HTMLLIElement;
+    const item = dom.schedulesList.querySelector(
+      '.schedule-item',
+    ) as HTMLLIElement;
     const content = item.querySelector('.schedule-content') as HTMLDivElement;
 
     item.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -199,7 +202,9 @@ describe('renderSchedules', () => {
     expect(item.classList.contains('schedule-item--selected')).toBe(true);
     expect(content.getAttribute('aria-checked')).toBe('true');
 
-    content.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    content.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+    );
     expect(onToggleSelection).toHaveBeenCalledTimes(2);
     expect(item.classList.contains('schedule-item--selected')).toBe(false);
     expect(content.getAttribute('aria-checked')).toBe('false');
@@ -220,7 +225,9 @@ describe('renderSchedules', () => {
       vi.fn(),
     );
 
-    const item = dom.schedulesList.querySelector('.schedule-item') as HTMLLIElement;
+    const item = dom.schedulesList.querySelector(
+      '.schedule-item',
+    ) as HTMLLIElement;
     const content = item.querySelector('.schedule-content') as HTMLDivElement;
     expect(item.textContent).toContain('Commercial hours');
     expect(item.textContent).toContain('MISC');
@@ -244,7 +251,9 @@ describe('renderSchedules', () => {
       onDeleteConfirm,
     );
 
-    const item = dom.schedulesList.querySelector('.schedule-item') as HTMLLIElement;
+    const item = dom.schedulesList.querySelector(
+      '.schedule-item',
+    ) as HTMLLIElement;
     const editButton = item.querySelector(
       '.schedule-edit-button',
     ) as HTMLButtonElement;
@@ -306,15 +315,24 @@ describe('schedule form rendering', () => {
     expect(submitBtn.textContent).toBe('Opslaan');
     expect(dom.scheduleLabelInput.value).toBe('');
     expect(dom.hoursInputs.monday.value).toBe('0');
-    expect(dom.scheduleProjectSelect.querySelectorAll('option')).toHaveLength(4);
-    expect(dom.scheduleProjectSelect.querySelectorAll('optgroup')).toHaveLength(2);
+    expect(dom.scheduleProjectSelect.querySelectorAll('option')).toHaveLength(
+      4,
+    );
+    expect(dom.scheduleProjectSelect.querySelectorAll('optgroup')).toHaveLength(
+      2,
+    );
     expect(dom.scheduleProjectSelect.options[1].value).toBe(
-      encodeScheduleTargetSelectValue({ targetType: 'project', targetCode: 'C001' }),
+      encodeScheduleTargetSelectValue({
+        targetType: 'project',
+        targetCode: 'C001',
+      }),
     );
     expect(dom.scheduleProjectSelect.options[1].textContent).toBe(
       'Project Alpha [C001]',
     );
-    expect(dom.scheduleProjectSelect.options[2].textContent).toBe('C002');
+    expect(dom.scheduleProjectSelect.options[2].textContent).toBe(
+      'Onbekend project [C002]',
+    );
     expect(dom.scheduleProjectSelect.options[3].value).toBe(
       encodeScheduleTargetSelectValue({
         targetType: 'general-hours',
@@ -341,7 +359,10 @@ describe('schedule form rendering', () => {
     expect(submitBtn.textContent).toBe('Bijwerken');
     expect(dom.scheduleLabelInput.value).toBe('Bestaand schema');
     expect(dom.scheduleProjectSelect.value).toBe(
-      encodeScheduleTargetSelectValue({ targetType: 'project', targetCode: 'C001' }),
+      encodeScheduleTargetSelectValue({
+        targetType: 'project',
+        targetCode: 'C001',
+      }),
     );
     expect(dom.hoursInputs.monday.value).toBe('6.5');
   });
@@ -409,7 +430,9 @@ describe('simple DOM state helpers', () => {
     updateApplySchedulesButtonState(dom, false, true, 2, true, true);
     expect(dom.applySchedulesButton.disabled).toBe(true);
     expect(dom.applySchedulesButton.textContent).toBe('Bezig...');
-    expect(dom.applySchedulesButton.classList.contains('is-applying')).toBe(true);
+    expect(dom.applySchedulesButton.classList.contains('is-applying')).toBe(
+      true,
+    );
   });
 
   it('updates scrape button and status message', () => {

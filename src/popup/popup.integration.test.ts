@@ -44,9 +44,12 @@ describe('popup integration tests', () => {
                 snapshot: {
                   month: 8,
                   year: 2026,
-                  projects: [],
-                  generalHours: [
-                    { taskType: 'MISC', label: 'Commercial hours' },
+                  targets: [
+                    {
+                      targetType: 'general-hours',
+                      targetCode: 'MISC',
+                      targetLabel: 'Commercial hours',
+                    },
                   ],
                   currentProjectCode: null,
                   totals: { worked: null, toBePerformed: null },
@@ -113,11 +116,23 @@ describe('popup integration tests', () => {
     const snapshot: TimesheetSnapshot = {
       month: 5,
       year: 2026,
-      projects: [
-        { code: 'ZMOCK_001.1.1', name: 'Mockproject' },
-        { code: 'ZTEST_42', name: 'Testproject 42' },
+      targets: [
+        {
+          targetType: 'project',
+          targetCode: 'ZMOCK_001.1.1',
+          targetLabel: 'Mockproject',
+        },
+        {
+          targetType: 'project',
+          targetCode: 'ZTEST_42',
+          targetLabel: 'Testproject 42',
+        },
+        {
+          targetType: 'general-hours',
+          targetCode: 'MISC',
+          targetLabel: 'Commercial hours',
+        },
       ],
-      generalHours: [{ taskType: 'MISC', label: 'Commercial hours' }],
       currentProjectCode: 'ZMOCK_001.1.1',
       totals: { worked: 120, toBePerformed: 160 },
       sapStatus: 'editable',
@@ -263,8 +278,18 @@ describe('popup integration tests', () => {
     const editableSnapshot: TimesheetSnapshot = {
       month: 8,
       year: 2026,
-      projects: [{ code: 'C001', name: 'Project Alpha' }],
-      generalHours: [{ taskType: 'MISC', label: 'Commercial hours' }],
+      targets: [
+        {
+          targetType: 'project',
+          targetCode: 'C001',
+          targetLabel: 'Project Alpha',
+        },
+        {
+          targetType: 'general-hours',
+          targetCode: 'MISC',
+          targetLabel: 'Commercial hours',
+        },
+      ],
       currentProjectCode: 'C001',
       totals: { worked: 10, toBePerformed: 20 },
       sapStatus: 'editable',
@@ -420,7 +445,7 @@ describe('popup integration tests', () => {
             target: {
               targetType: 'project',
               targetCode: 'C001',
-              name: 'Project Alpha',
+              targetLabel: 'Project Alpha',
             },
             hoursPerWeekday: {
               monday: 8,
@@ -534,8 +559,18 @@ describe('popup integration tests', () => {
       const snapshot: TimesheetSnapshot = {
         month: 8,
         year: 2026,
-        projects: [{ code: 'C001', name: 'Alpha' }],
-        generalHours: [{ taskType: 'MISC', label: 'Commercial hours' }],
+        targets: [
+          {
+            targetType: 'project',
+            targetCode: 'C001',
+            targetLabel: 'Alpha',
+          },
+          {
+            targetType: 'general-hours',
+            targetCode: 'MISC',
+            targetLabel: 'Commercial hours',
+          },
+        ],
         currentProjectCode: 'C001',
         totals: { worked: 0, toBePerformed: 0 },
         sapStatus: 'editable' as const,

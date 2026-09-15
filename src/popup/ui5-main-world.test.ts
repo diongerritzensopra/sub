@@ -6,7 +6,10 @@ import type {
   SapProjectsModelData,
   SapTimesheetDayEntry,
 } from '../shared/types';
-import { ui5MainWorldAutofill, ui5MainWorldReadSnapshot } from './ui5-main-world';
+import {
+  ui5MainWorldAutofill,
+  ui5MainWorldReadSnapshot,
+} from './ui5-main-world';
 
 function baseDay(
   date: string,
@@ -88,7 +91,9 @@ function createProjectsModelData(
   };
 }
 
-function installReadSnapshotContext(modelDataOrFactory: unknown | (() => unknown)): void {
+function installReadSnapshotContext(
+  modelDataOrFactory: unknown | (() => unknown),
+): void {
   (window as Window & { sap?: unknown }).sap = {
     ui: {
       getCore: () => ({
@@ -203,13 +208,27 @@ describe('ui5MainWorldReadSnapshot', () => {
       snapshot: {
         month: 7,
         year: 2026,
-        projects: [
-          { code: 'ZMOCK_001.1.1', name: 'Mockproject' },
-          { code: 'ZTEST_42', name: 'Testproject 42' },
-        ],
-        generalHours: [
-          { taskType: 'ADM', label: 'Administration' },
-          { taskType: 'MISC', label: 'Commercial hours' },
+        targets: [
+          {
+            targetType: 'general-hours',
+            targetCode: 'ADM',
+            targetLabel: 'Administration',
+          },
+          {
+            targetType: 'general-hours',
+            targetCode: 'MISC',
+            targetLabel: 'Commercial hours',
+          },
+          {
+            targetType: 'project',
+            targetCode: 'ZMOCK_001.1.1',
+            targetLabel: 'Mockproject',
+          },
+          {
+            targetType: 'project',
+            targetCode: 'ZTEST_42',
+            targetLabel: 'Testproject 42',
+          },
         ],
         currentProjectCode: 'ZTEST_42',
         sapStatus: 'editable',
