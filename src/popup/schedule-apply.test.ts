@@ -51,7 +51,11 @@ const BASE_URL =
 const BASE_SCHEDULE: WeeklySchedule = {
   id: 'schedule-1',
   label: 'Kantooruren',
-  projectCode: 'ZMOCK_001.1.1',
+  target: {
+    targetType: 'project',
+    targetCode: 'ZMOCK_001.1.1',
+    targetLabel: 'Mockproject',
+  },
   hoursPerWeekday: {
     monday: 8,
     tuesday: 8,
@@ -201,7 +205,11 @@ describe('buildApplyStatusMessage', () => {
           ...BASE_SCHEDULE,
           id: 'schedule-2',
           label: 'Deeltijd',
-          projectCode: 'ZTEST_42',
+          target: {
+            targetType: 'project',
+            targetCode: 'ZTEST_42',
+            targetLabel: 'Testproject 42',
+          },
         },
       ],
       8,
@@ -215,7 +223,7 @@ describe('buildApplyStatusMessage', () => {
       [
         "Schema's toegepast: Kantooruren, Deeltijd.",
         '8/10 dagen bijgewerkt.',
-        'Mislukt per project:',
+        'Mislukt per doel:',
         '- Mockproject: 2026-05-01, 2026-05-03.',
         'SAP bevestiging: ontvangen (2/2).',
       ].join('\n'),
@@ -354,8 +362,8 @@ describe('autofillScheduleEntries', () => {
 
   it('returns failed entries when UI5 autofill returns an error', async () => {
     const entries = [
-      { date: '2026-05-01', project: 'ZMOCK_001.1.1', hours: 8 },
-      { date: '2026-05-02', project: 'ZMOCK_001.1.1', hours: 0 },
+      { date: '2026-05-01', hours: 8 },
+      { date: '2026-05-02', hours: 0 },
     ];
     mockExpandWeeklyScheduleToMonthEntries.mockReturnValue(entries);
     mockAutofillEntriesViaUi5.mockResolvedValue({
@@ -380,7 +388,7 @@ describe('autofillScheduleEntries', () => {
 
   it('uses autofill error result as-is when provided', async () => {
     mockExpandWeeklyScheduleToMonthEntries.mockReturnValue([
-      { date: '2026-05-01', project: 'ZMOCK_001.1.1', hours: 8 },
+      { date: '2026-05-01', hours: 8 },
     ]);
     mockAutofillEntriesViaUi5.mockResolvedValue({
       appliedDaysCount: 0,
@@ -399,8 +407,8 @@ describe('autofillScheduleEntries', () => {
 
   it('maps successful UI5 autofill result into summary', async () => {
     const entries = [
-      { date: '2026-05-01', project: 'ZMOCK_001.1.1', hours: 8 },
-      { date: '2026-05-02', project: 'ZMOCK_001.1.1', hours: 0 },
+      { date: '2026-05-01', hours: 8 },
+      { date: '2026-05-02', hours: 0 },
     ];
     mockExpandWeeklyScheduleToMonthEntries.mockReturnValue(entries);
     mockAutofillEntriesViaUi5.mockResolvedValue({
@@ -428,8 +436,8 @@ describe('autofillScheduleEntries', () => {
 
   it('converts UI5 autofill error into full failure for the period', async () => {
     mockExpandWeeklyScheduleToMonthEntries.mockReturnValue([
-      { date: '2026-05-01', project: 'ZMOCK_001.1.1', hours: 8 },
-      { date: '2026-05-02', project: 'ZMOCK_001.1.1', hours: 0 },
+      { date: '2026-05-01', hours: 8 },
+      { date: '2026-05-02', hours: 0 },
     ]);
     mockAutofillEntriesViaUi5.mockResolvedValue({
       appliedDaysCount: 2,

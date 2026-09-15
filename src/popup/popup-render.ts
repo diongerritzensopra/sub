@@ -4,14 +4,23 @@
 
 import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 import type { PopupDomRefs } from './popup-dom';
+import {
+  encodeScheduleTargetSelectValue,
+  getScheduleTargetDisplayName,
+} from './schedule-target';
 
 function formatScheduleProjectOptionLabel(name: string, code: string): string {
   const trimmedName = name.trim();
   return trimmedName ? `${trimmedName} [${code}]` : code;
 }
 
-function formatProjectWithCode(name: string, code: string): string {
+function formatScheduleTargetWithCode(name: string, code: string): string {
   const trimmedName = name.trim() || 'Onbekend project';
+  return `${trimmedName} [${code}]`;
+}
+
+function formatGeneralHoursOptionLabel(name: string, code: string): string {
+  const trimmedName = name.trim() || 'Onbekende algemene uren';
   return `${trimmedName} [${code}]`;
 }
 
@@ -102,7 +111,6 @@ export function renderSnapshot(
  * @param dom DOM references
  * @param schedules Schedules to display
  * @param selectedIds Set of selected schedule IDs (for checkbox state)
- * @param projectNameByCode Map of project codes to names (for display)
  * @param onToggleSelection Callback when user toggles schedule selection
  * @param onEditClick Callback when user clicks edit button
  * @param onDeleteConfirm Callback when user confirms delete
@@ -111,7 +119,6 @@ export function renderSchedules(
   dom: PopupDomRefs,
   schedules: WeeklySchedule[],
   selectedIds: Set<string>,
-  projectNameByCode: Map<string, string>,
   onToggleSelection: (scheduleId: string) => void,
   onEditClick: (schedule: WeeklySchedule) => void,
   onDeleteConfirm: (scheduleId: string) => void,
@@ -132,7 +139,6 @@ export function renderSchedules(
       renderScheduleListItem(
         schedule,
         selectedIds,
-        projectNameByCode,
         onToggleSelection,
         onEditClick,
         onDeleteConfirm,
@@ -151,7 +157,6 @@ export function renderSchedules(
 function renderScheduleListItem(
   schedule: WeeklySchedule,
   selectedIds: Set<string>,
-  projectNameByCode: Map<string, string>,
   onToggleSelection: (scheduleId: string) => void,
   onEditClick: (schedule: WeeklySchedule) => void,
   onDeleteConfirm: (scheduleId: string) => void,
@@ -181,9 +186,13 @@ function renderScheduleListItem(
   });
 
   const content = document.createElement('div');
-  const projectDisplayLabel = formatProjectWithCode(
-    projectNameByCode.get(schedule.projectCode) ?? '',
-    schedule.projectCode,
+  const targetCode = schedule.target.targetCode;
+  const targetDisplayName = getScheduleTargetDisplayName(schedule.target);
+  const targetKindLabel =
+    schedule.target.targetType === 'project' ? 'Project' : 'Algemene uren';
+  const targetDisplayLabel = formatScheduleTargetWithCode(
+    targetDisplayName,
+    targetCode,
   );
   content.className = 'schedule-content';
   content.setAttribute('role', 'checkbox');
@@ -193,7 +202,7 @@ function renderScheduleListItem(
   );
   content.setAttribute(
     'aria-label',
-    `Selecteren: ${schedule.label} — Project ${projectDisplayLabel}`,
+    `Selecteren: ${schedule.label} — ${targetKindLabel} ${targetDisplayLabel}`,
   );
   content.tabIndex = 0;
   content.addEventListener('keydown', (event) => {
@@ -210,10 +219,9 @@ function renderScheduleListItem(
   const meta = document.createElement('div');
   meta.className = 'schedule-meta';
   const metaName = document.createElement('span');
-  metaName.textContent =
-    projectNameByCode.get(schedule.projectCode)?.trim() || 'Onbekend project';
+  metaName.textContent = targetDisplayName;
   const metaCode = document.createElement('span');
-  metaCode.textContent = schedule.projectCode;
+  metaCode.textContent = targetCode;
   meta.appendChild(metaName);
   meta.appendChild(document.createElement('br'));
   meta.appendChild(metaCode);
@@ -309,17 +317,48 @@ export function showScheduleForm(
     'button[type="submit"]',
   ) as HTMLButtonElement;
 
-  projectSelect.innerHTML = '<option value="">-- Selecteer project --</option>';
+  projectSelect.innerHTML =
+    '<option value="">-- Selecteer project of algemene uren --</option>';
+
+  const projectOptionsGroup = document.createElement('optgroup');
+  projectOptionsGroup.label = 'Projecten';
   snapshot.projects.forEach(({ code, name }) => {
     if (!code) {
       return;
     }
 
     const option = document.createElement('option');
-    option.value = code;
+    option.value = encodeScheduleTargetSelectValue({
+      targetType: 'project',
+      targetCode: code,
+    });
     option.textContent = formatScheduleProjectOptionLabel(name, code);
-    projectSelect.appendChild(option);
+    projectOptionsGroup.appendChild(option);
   });
+
+  if (projectOptionsGroup.children.length > 0) {
+    projectSelect.appendChild(projectOptionsGroup);
+  }
+
+  const generalHoursOptionsGroup = document.createElement('optgroup');
+  generalHoursOptionsGroup.label = 'Algemene uren';
+  snapshot.generalHours.forEach(({ taskType, label }) => {
+    if (!taskType) {
+      return;
+    }
+
+    const option = document.createElement('option');
+    option.value = encodeScheduleTargetSelectValue({
+      targetType: 'general-hours',
+      targetCode: taskType,
+    });
+    option.textContent = formatGeneralHoursOptionLabel(label, taskType);
+    generalHoursOptionsGroup.appendChild(option);
+  });
+
+  if (generalHoursOptionsGroup.children.length > 0) {
+    projectSelect.appendChild(generalHoursOptionsGroup);
+  }
 
   dom.scheduleLabelInput.value = '';
   Object.values(dom.hoursInputs).forEach((input) => {
@@ -331,7 +370,7 @@ export function showScheduleForm(
     formTitle.textContent = 'Schema bewerken';
     submitBtn.textContent = 'Bijwerken';
     dom.scheduleLabelInput.value = scheduleToEdit.label;
-    projectSelect.value = scheduleToEdit.projectCode;
+    projectSelect.value = encodeScheduleTargetSelectValue(scheduleToEdit.target);
     Object.entries(scheduleToEdit.hoursPerWeekday).forEach(([day, hours]) => {
       if (day in dom.hoursInputs) {
         dom.hoursInputs[day].value = String(hours);

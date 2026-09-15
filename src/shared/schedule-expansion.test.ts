@@ -7,7 +7,11 @@ function makeSchedule(overrides: Partial<WeeklySchedule> = {}): WeeklySchedule {
   return {
     id: 'schedule-1',
     label: 'Kantooruren',
-    projectCode: 'ZMOCK_001.1.1',
+    target: {
+      targetType: 'project',
+      targetCode: 'ZMOCK_001.1.1',
+      targetLabel: 'Mockproject',
+    },
     hoursPerWeekday: {
       monday: 8,
       tuesday: 8,
@@ -30,7 +34,6 @@ describe('expandWeeklyScheduleToMonthEntries', () => {
     expect(entries.length).toBe(31);
     expect(entries[0]).toEqual({
       date: '2026-05-01',
-      project: 'ZMOCK_001.1.1',
       hours: 8,
     });
     expect(entries[entries.length - 1]?.date).toBe('2026-05-31');
@@ -85,9 +88,6 @@ describe('expandWeeklyScheduleToMonthEntries', () => {
       entries.filter((entry) => entry.hours === 2).map((entry) => entry.date),
     ).toEqual(['2024-02-04', '2024-02-11', '2024-02-18', '2024-02-25']);
     expect(entries.filter((entry) => entry.hours === 0)).toHaveLength(25);
-    expect(entries.every((entry) => entry.project === 'ZMOCK_001.1.1')).toBe(
-      true,
-    );
   });
 
   it('skips days with negative hours and keeps zero-hour days', () => {
@@ -122,5 +122,35 @@ describe('expandWeeklyScheduleToMonthEntries', () => {
     expect(() => expandWeeklyScheduleToMonthEntries(schedule, 5, 100)).toThrow(
       'Year must be an integer between 1970 and 9999.',
     );
+  });
+
+  it('expands general-hours schedules with the same weekday rules', () => {
+    const schedule: WeeklySchedule = {
+      id: 'gh-1',
+      label: 'Commercial hours',
+      target: {
+        targetType: 'general-hours',
+        targetCode: 'MISC',
+        targetLabel: 'Commercial hours',
+      },
+      hoursPerWeekday: {
+        monday: 2,
+        tuesday: 2,
+        wednesday: 2,
+        thursday: 2,
+        friday: 2,
+        saturday: 0,
+        sunday: 0,
+      },
+    };
+
+    const entries = expandWeeklyScheduleToMonthEntries(schedule, 5, 2026);
+
+    expect(entries).toHaveLength(31);
+    expect(entries[0]).toEqual({
+      date: '2026-05-01',
+      hours: 2,
+    });
+    expect(entries.find((entry) => entry.date === '2026-05-02')?.hours).toBe(0);
   });
 });

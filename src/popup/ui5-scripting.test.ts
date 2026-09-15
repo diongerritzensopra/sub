@@ -69,6 +69,7 @@ describe('readTimesheetSnapshotViaUi5', () => {
       month: 5,
       year: 2026,
       projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
+      generalHours: [],
       currentProjectCode: 'ZMOCK_001.1.1',
       totals: { worked: 120, toBePerformed: 160 },
       sapStatus: 'editable',

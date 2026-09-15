@@ -18,17 +18,17 @@ Shared feature roadmap for `sub`.
 
 #### Implementation chunks
 
-- [ ] Chunk 1 - Shared types for general hours.
+- [x] Chunk 1 - Shared types for general hours.
     - Add typed interfaces for `oGeneralHours` entries in `src/shared/types.ts`.
     - Extend `TimesheetSnapshot` with general-hours options needed by the popup form.
     - Extend `WeeklySchedule` to represent schedule target type (`project` vs `general-hours`) and target identifier.
     - Add or update tests for the new shared type-driven schedule/storage behavior.
-- [ ] Chunk 2 - Snapshot read support.
+- [x] Chunk 2 - Snapshot read support.
     - Update `src/popup/ui5-main-world.ts` snapshot extraction to read and normalize `oGeneralHours` options.
     - Treat missing or empty `oGeneralHours` as an invalid/incomplete SAP data model and surface an error instead of
       continuing.
     - Add or update snapshot/UI5 tests covering successful extraction and the new error path.
-- [ ] Chunk 3 - Popup schedule form + list support.
+- [x] Chunk 3 - Popup schedule form + list support.
     - Update schedule create/edit UI to let users pick either a project target or a general-hours target.
     - Show the selected target type and label clearly in the saved schedule list.
     - Add or update popup tests for creating, editing, and rendering general-hours schedules.

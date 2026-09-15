@@ -8,6 +8,7 @@
  */
 
 import type {
+  SapGeneralHours,
   SapProject,
   SapProjectsModelData,
   SapTimesheetDayEntry,
@@ -110,6 +111,17 @@ export function ui5MainWorldReadSnapshot(): Ui5SnapshotReadResult {
       };
     }
 
+    if (
+      !Array.isArray(modelData.oGeneralHours) ||
+      modelData.oGeneralHours.length === 0
+    ) {
+      return {
+        success: false,
+        error:
+          'SAP projectsmodel bevat geen geldige algemene uren.',
+      };
+    }
+
     const month =
       typeof modelData.oMonth === 'number' &&
       modelData.oMonth >= 0 &&
@@ -135,10 +147,44 @@ export function ui5MainWorldReadSnapshot(): Ui5SnapshotReadResult {
     const projects = Array.from(projectsByCode.entries())
       .map(([code, name]) => ({ code, name }))
       .sort((left, right) => left.code.localeCompare(right.code));
+    const generalHoursByTaskType = new Map<string, string>();
 
-    const currentProjectCode = modelData.oCurrentProject?.WorkPackage
-      ? modelData.oCurrentProject.WorkPackage.trim().toUpperCase()
-      : null;
+    modelData.oGeneralHours.forEach((option) => {
+      const taskType = option.TimeSheetTaskType.trim().toUpperCase();
+      if (!taskType) {
+        return;
+      }
+
+      const label = (option.TimeSheetTaskTypeText ?? '').trim();
+      const existingLabel = generalHoursByTaskType.get(taskType);
+      if (!generalHoursByTaskType.has(taskType) || (!existingLabel && label)) {
+        generalHoursByTaskType.set(taskType, label);
+      }
+    });
+
+    const generalHours = Array.from(generalHoursByTaskType.entries())
+      .map(([taskType, label]) => ({ taskType, label }))
+      .sort((left, right) => left.taskType.localeCompare(right.taskType));
+
+    if (generalHours.length === 0) {
+      return {
+        success: false,
+        error:
+          'SAP projectsmodel bevat geen geldige algemene uren.',
+      };
+    }
+
+    const currentProjectCode = modelData.oCurrentProject?.hasOwnProperty(
+      'WorkPackage',
+    )
+      ? (
+          modelData.oCurrentProject as SapProject
+        ).WorkPackage.trim().toUpperCase()
+      : modelData.oCurrentProject?.hasOwnProperty('TimeSheetTaskType')
+        ? (
+            modelData.oCurrentProject as SapGeneralHours
+          ).TimeSheetTaskType.trim().toUpperCase()
+        : null;
 
     return {
       success: true,
@@ -146,6 +192,7 @@ export function ui5MainWorldReadSnapshot(): Ui5SnapshotReadResult {
         month,
         year,
         projects,
+        generalHours,
         currentProjectCode,
         sapStatus: mapSapStatus(modelData.oTotals.oStatus),
         totals: {
@@ -424,7 +471,7 @@ export async function ui5MainWorldAutofill(
       };
     }
 
-    const currentProject: SapProject | null =
+    const currentProject: SapProject | SapGeneralHours | null =
       projectsModelData.oCurrentProject ?? null;
     if (!currentProject) {
       return {
@@ -484,19 +531,25 @@ export async function ui5MainWorldAutofill(
     }
 
     const defaultControllingArea = (
-      currentProject.CostCenterControllingArea ?? ''
+      (currentProject as SapProject).CostCenterControllingArea ?? ''
     ).trim();
-    const defaultSenderCostCenter = (currentProject.CostCenter ?? '').trim();
+    const defaultSenderCostCenter = (
+      (currentProject as SapProject).CostCenter ?? ''
+    ).trim();
     const defaultActivityType = (
-      currentProject.EngagementProjectResource ?? ''
+      (currentProject as SapProject).EngagementProjectResource ?? ''
     ).trim();
-    const defaultWbsElement = (currentProject.WorkPackage ?? '').trim();
+    const defaultWbsElement = (
+      (currentProject as SapProject).WorkPackage ?? ''
+    ).trim();
     const defaultPurchaseOrder =
-      (currentProject.PurchaseOrderCalculated ?? '').trim() ||
-      (currentProject.PurchaseOrder ?? '').trim();
+      ((currentProject as SapProject).PurchaseOrderCalculated ?? '').trim() ||
+      ((currentProject as SapProject).PurchaseOrder ?? '').trim();
     const defaultPurchaseOrderItem =
-      (currentProject.PurchaseOrderItemCalculated ?? '').trim() ||
-      (currentProject.PurchaseOrderItem ?? '').trim() ||
+      (
+        (currentProject as SapProject).PurchaseOrderItemCalculated ?? ''
+      ).trim() ||
+      ((currentProject as SapProject).PurchaseOrderItem ?? '').trim() ||
       '00000';
 
     const failedDates: string[] = [];

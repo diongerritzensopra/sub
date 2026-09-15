@@ -48,6 +48,7 @@ import {
   setScrapeButtonState,
   updateApplySchedulesButtonState,
 } from './popup-render';
+import { encodeScheduleTargetSelectValue } from './schedule-target';
 
 vi.mock('../shared/storage', () => ({
   deleteSchedule: vi.fn(),
@@ -94,12 +95,13 @@ vi.mock('./popup-render', () => ({
 
 function createSchedule(
   id: string,
-  projectCode: string = 'C001',
+  targetCode: string = 'C001',
+  targetName: string = 'Project Alpha',
 ): WeeklySchedule {
   return {
     id,
     label: `Schema ${id}`,
-    projectCode,
+    target: { targetType: 'project', targetCode, targetLabel: targetName },
     hoursPerWeekday: {
       monday: 8,
       tuesday: 8,
@@ -119,6 +121,7 @@ function createSnapshot(
     month: 8,
     year: 2026,
     projects: [{ code: 'C001', name: 'Project Alpha' }],
+    generalHours: [],
     totals: {
       worked: 10,
       toBePerformed: 20,
@@ -130,7 +133,9 @@ function createSnapshot(
 }
 
 function createContext(
-  overrides: Partial<PopupActionsContext> = {},
+  overrides: Omit<Partial<PopupActionsContext>, 'state'> & {
+    state?: Partial<PopupActionsContext['state']>;
+  } = {},
 ): PopupActionsContext {
   setupPopupDom();
   const dom = getPopupDomRefs(document);
@@ -226,7 +231,7 @@ describe('renderCurrentSchedulesDisplay', () => {
 
     renderCurrentSchedulesDisplay(ctx);
 
-    const onToggleSelection = vi.mocked(renderSchedules).mock.calls[0][4];
+    const onToggleSelection = vi.mocked(renderSchedules).mock.calls[0][3];
     onToggleSelection('a');
     expect(ctx.state.selectedScheduleIds.has('a')).toBe(true);
 
@@ -255,10 +260,13 @@ describe('handleScheduleFormSubmit', () => {
     const ctx = createContext();
     ctx.dom.scheduleLabelInput.value = 'Nieuw schema';
     const projectOption = document.createElement('option');
-    projectOption.value = 'C001';
+    projectOption.value = encodeScheduleTargetSelectValue({
+      targetType: 'project',
+      targetCode: 'C001',
+    });
     projectOption.textContent = 'Project Alpha [C001]';
     ctx.dom.scheduleProjectSelect.appendChild(projectOption);
-    ctx.dom.scheduleProjectSelect.value = 'C001';
+    ctx.dom.scheduleProjectSelect.value = projectOption.value;
     ctx.dom.hoursInputs.monday.value = '6.5';
 
     await handleScheduleFormSubmit(ctx);
@@ -266,7 +274,11 @@ describe('handleScheduleFormSubmit', () => {
     expect(saveSchedule).toHaveBeenCalledTimes(1);
     const savedSchedule = vi.mocked(saveSchedule).mock.calls[0][0];
     expect(savedSchedule.label).toBe('Nieuw schema');
-    expect(savedSchedule.projectCode).toBe('C001');
+    expect(savedSchedule.target).toEqual({
+      targetType: 'project',
+      targetCode: 'C001',
+      targetLabel: 'Project Alpha',
+    });
     expect(savedSchedule.hoursPerWeekday.monday).toBe(6.5);
 
     expect(hideScheduleForm).toHaveBeenCalledWith(ctx.dom);
@@ -274,6 +286,35 @@ describe('handleScheduleFormSubmit', () => {
 
     vi.advanceTimersByTime(2000);
     expect(ctx.setStatus).toHaveBeenCalledWith('');
+  });
+
+  it('saves a general-hours schedule with the correct target metadata', async () => {
+    const ctx = createContext({
+      state: {
+        currentSnapshot: createSnapshot({
+          generalHours: [{ taskType: 'MISC', label: 'Commercial hours' }],
+        }),
+      },
+    });
+    ctx.dom.scheduleLabelInput.value = 'Commerciële uren';
+    const generalHoursOption = document.createElement('option');
+    generalHoursOption.value = encodeScheduleTargetSelectValue({
+      targetType: 'general-hours',
+      targetCode: 'MISC',
+    });
+    generalHoursOption.textContent = 'Commercial hours [MISC]';
+    ctx.dom.scheduleProjectSelect.appendChild(generalHoursOption);
+    ctx.dom.scheduleProjectSelect.value = generalHoursOption.value;
+    ctx.dom.hoursInputs.tuesday.value = '2';
+
+    await handleScheduleFormSubmit(ctx);
+
+    expect(saveSchedule).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(saveSchedule).mock.calls[0][0].target).toEqual({
+      targetType: 'general-hours',
+      targetCode: 'MISC',
+      targetLabel: 'Commercial hours',
+    });
   });
 });
 
@@ -379,6 +420,46 @@ describe('applySchedulesFromSelection', () => {
     expect(addFailedDatesForProject).toHaveBeenCalled();
     expect(ctx.setStatus).toHaveBeenCalledWith('Alles gelukt', true);
     expect(updateApplySchedulesButtonState).toHaveBeenCalledTimes(2);
+  });
+
+  it('navigates and applies a general-hours schedule using its target code', async () => {
+    const ctx = createContext({
+      state: {
+        currentSnapshot: createSnapshot({
+          generalHours: [{ taskType: 'MISC', label: 'Commercial hours' }],
+        }),
+      },
+    });
+    const schedule: WeeklySchedule = {
+      id: 'gh-1',
+      label: 'Algemene uren',
+      target: {
+        targetType: 'general-hours',
+        targetCode: 'MISC',
+        targetLabel: 'Commercial hours',
+      },
+      hoursPerWeekday: {
+        monday: 2,
+        tuesday: 2,
+        wednesday: 2,
+        thursday: 2,
+        friday: 2,
+        saturday: 0,
+        sunday: 0,
+      },
+    };
+    ctx.state.renderedSchedules = [schedule];
+
+    vi.mocked(getSchedulesToApply).mockReturnValue([schedule]);
+    vi.mocked(buildApplyStatusMessage).mockReturnValue(
+      'Algemene uren toegepast',
+    );
+
+    await applySchedulesFromSelection(ctx);
+
+    expect(navigateToProject).toHaveBeenCalledWith(1, 8, 2026, 'MISC');
+    expect(autofillScheduleEntries).toHaveBeenCalledWith(1, schedule, 8, 2026);
+    expect(ctx.setStatus).toHaveBeenCalledWith('Algemene uren toegepast', true);
   });
 
   it('adds schedule-level errors to the final status message', async () => {

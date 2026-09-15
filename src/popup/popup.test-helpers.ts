@@ -89,11 +89,11 @@ export function setupPopupDom(): void {
           <button id="btn-status-dismiss" type="button" title="Sluiten" hidden>×</button>
         </section>
         <section id="schedules-section">
-          <h2>Projectschema's</h2>
+          <h2>Schema's</h2>
           <button id="btn-add-schedule" type="button" disabled>Nieuw schema</button>
           <button id="btn-apply-schedules" type="button" disabled>Alles toepassen</button>
           <p id="schedules-empty">Nog geen schema's opgeslagen.</p>
-          <ul id="schedules-list" hidden aria-label="Selecteerbare projectschema's"></ul>
+          <ul id="schedules-list" hidden aria-label="Selecteerbare schema's"></ul>
         </section>
         <section id="schedule-form-section" hidden>
           <h2 id="schedule-form-title">Nieuw schema</h2>
@@ -103,9 +103,9 @@ export function setupPopupDom(): void {
               <input type="text" id="schedule-label" required>
             </div>
             <div class="form-group">
-              <label for="schedule-project">Project</label>
+              <label for="schedule-project">Project of algemene uren</label>
               <select id="schedule-project" required>
-                <option value="">-- Selecteer project --</option>
+                <option value="">-- Selecteer project of algemene uren --</option>
               </select>
             </div>
             <fieldset class="weekday-hours">
@@ -251,6 +251,7 @@ export function createSnapshot(
       { code: 'C001', name: 'Project Alpha' },
       { code: 'C002', name: '  ' },
     ],
+    generalHours: [{ taskType: 'MISC', label: 'Commercial hours' }],
     totals: {
       worked: 12.5,
       toBePerformed: 30,
@@ -264,17 +265,43 @@ export function createSnapshot(
 export function createSchedule(
   id: string,
   projectCode: string = 'C001',
+  projectName: string = 'Project Alpha',
 ): WeeklySchedule {
   return {
     id,
     label: `Schema ${id}`,
-    projectCode,
+    target: { targetType: 'project', targetCode: projectCode, targetLabel: projectName },
     hoursPerWeekday: {
       monday: 8,
       tuesday: 8,
       wednesday: 8,
       thursday: 8,
       friday: 8,
+      saturday: 0,
+      sunday: 0,
+    },
+  };
+}
+
+export function createGeneralHoursSchedule(
+  id: string,
+  taskType: string = 'MISC',
+  taskLabel: string = 'Commercial hours',
+): WeeklySchedule {
+  return {
+    id,
+    label: `Algemeen ${id}`,
+    target: {
+      targetType: 'general-hours',
+      targetCode: taskType,
+      targetLabel: taskLabel,
+    },
+    hoursPerWeekday: {
+      monday: 2,
+      tuesday: 2,
+      wednesday: 2,
+      thursday: 2,
+      friday: 2,
       saturday: 0,
       sunday: 0,
     },
