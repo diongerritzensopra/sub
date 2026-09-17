@@ -19,7 +19,6 @@ import {
   createSnapshot,
   setupPopupDom,
 } from './popup.test-helpers';
-import { encodeScheduleTargetSelectValue } from './schedule-target';
 
 beforeEach(() => {
   setupPopupDom();
@@ -322,10 +321,7 @@ describe('schedule form rendering', () => {
       2,
     );
     expect(dom.scheduleProjectSelect.options[1].value).toBe(
-      encodeScheduleTargetSelectValue({
-        targetType: 'project',
-        targetCode: 'C001',
-      }),
+      '{"targetType":"project","targetCode":"C001"}',
     );
     expect(dom.scheduleProjectSelect.options[1].textContent).toBe(
       'Project Alpha [C001]',
@@ -334,10 +330,7 @@ describe('schedule form rendering', () => {
       'Onbekend project [C002]',
     );
     expect(dom.scheduleProjectSelect.options[3].value).toBe(
-      encodeScheduleTargetSelectValue({
-        targetType: 'general-hours',
-        targetCode: 'MISC',
-      }),
+      '{"targetType":"general-hours","targetCode":"MISC"}',
     );
     expect(dom.scheduleProjectSelect.options[3].textContent).toBe(
       'Commercial hours [MISC]',
@@ -359,10 +352,7 @@ describe('schedule form rendering', () => {
     expect(submitBtn.textContent).toBe('Bijwerken');
     expect(dom.scheduleLabelInput.value).toBe('Bestaand schema');
     expect(dom.scheduleProjectSelect.value).toBe(
-      encodeScheduleTargetSelectValue({
-        targetType: 'project',
-        targetCode: 'C001',
-      }),
+      '{"targetType":"project","targetCode":"C001"}',
     );
     expect(dom.hoursInputs.monday.value).toBe('6.5');
   });
@@ -383,10 +373,7 @@ describe('schedule form rendering', () => {
     expect(dom.scheduleFormTitle.textContent).toBe('Schema bewerken');
     expect(submitBtn.textContent).toBe('Bijwerken');
     expect(dom.scheduleProjectSelect.value).toBe(
-      encodeScheduleTargetSelectValue({
-        targetType: 'general-hours',
-        targetCode: 'MISC',
-      }),
+      '{"targetType":"general-hours","targetCode":"MISC"}',
     );
   });
 });

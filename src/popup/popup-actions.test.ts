@@ -48,7 +48,6 @@ import {
   setScrapeButtonState,
   updateApplySchedulesButtonState,
 } from './popup-render';
-import { encodeScheduleTargetSelectValue } from './schedule-target';
 
 vi.mock('../shared/storage', () => ({
   deleteSchedule: vi.fn(),
@@ -265,10 +264,7 @@ describe('handleScheduleFormSubmit', () => {
     const ctx = createContext();
     ctx.dom.scheduleLabelInput.value = 'Nieuw schema';
     const projectOption = document.createElement('option');
-    projectOption.value = encodeScheduleTargetSelectValue({
-      targetType: 'project',
-      targetCode: 'C001',
-    });
+    projectOption.value = '{"targetType":"project","targetCode":"C001"}';
     projectOption.textContent = 'Project Alpha [C001]';
     ctx.dom.scheduleProjectSelect.appendChild(projectOption);
     ctx.dom.scheduleProjectSelect.value = projectOption.value;
@@ -314,10 +310,8 @@ describe('handleScheduleFormSubmit', () => {
     });
     ctx.dom.scheduleLabelInput.value = 'Commerciële uren';
     const generalHoursOption = document.createElement('option');
-    generalHoursOption.value = encodeScheduleTargetSelectValue({
-      targetType: 'general-hours',
-      targetCode: 'MISC',
-    });
+    generalHoursOption.value =
+      '{"targetType":"general-hours","targetCode":"MISC"}';
     generalHoursOption.textContent = 'Commercial hours [MISC]';
     ctx.dom.scheduleProjectSelect.appendChild(generalHoursOption);
     ctx.dom.scheduleProjectSelect.value = generalHoursOption.value;
