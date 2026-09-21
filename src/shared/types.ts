@@ -72,6 +72,8 @@ export interface SapTimesheetDataFields {
   TimeSheetNote?: string;
   PurchaseOrder?: string;
   PurchaseOrderItem?: string;
+  RecordedHours?: string;
+  RecordedQuantity?: string;
   HoursUnitOfMeasure?: string;
   TimeSheetOvertimeCategory?: string;
   BillingControlCategory?: string;
@@ -117,6 +119,8 @@ export interface SapUserDetail {
   PersonWorkAgreementExternalID?: string;
   PersonExternalID?: string;
   CompanyCode?: string;
+  ControllingArea?: string;
+  CostCenter?: string;
 }
 
 /** A project within the SAP projectsmodel. */
@@ -125,8 +129,7 @@ export interface SapProject {
   WorkPackageName: string; // Project name
   oTimeSheet: SapTimesheetDayEntry[]; // Days in this project
   EngagementProjectResource?: string;
-  CostCenter?: string;
-  CostCenterControllingArea?: string;
+  BillingControlCategory?: string;
   CompanyCode?: string;
   EmploymentInternalID?: string;
   PurchaseOrder?: string;

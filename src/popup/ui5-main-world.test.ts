@@ -41,10 +41,9 @@ function createProject(
     WorkPackageName: 'Mockproject',
     oTimeSheet: monthData,
     EngagementProjectResource: 'T001',
-    CostCenter: '10001234',
-    CostCenterControllingArea: 'A000',
     CompanyCode: '1000',
     EmploymentInternalID: '40001234',
+    BillingControlCategory: '',
     PurchaseOrder: '',
     PurchaseOrderItem: '00000',
     PurchaseOrderCalculated: '',
@@ -75,6 +74,8 @@ function createProjectsModelData(
       PersonWorkAgreement: '40001234',
       PersonWorkAgreementExternalID: '00045678',
       CompanyCode: '1000',
+      ControllingArea: 'A000',
+      CostCenter: '90392131',
     },
     oCurrentProject: createProject(),
     oProjects: [createProject()],
@@ -386,7 +387,9 @@ describe('ui5MainWorldAutofill', () => {
     installAutofillContext(
       createProjectsModelData({
         oMonth: 4,
-        oCurrentProject: createProject([baseDay('2026-05-01')]),
+        oCurrentProject: createProject([baseDay('2026-05-01')], {
+          BillingControlCategory: 'BC01',
+        }),
       }),
       callFunctionSpy,
       refreshSpy,
@@ -406,8 +409,33 @@ describe('ui5MainWorldAutofill', () => {
     const payload = JSON.parse(
       callFunctionSpy.mock.calls[0][1].urlParameters.payload,
     ) as { v_General: Array<any> };
-    expect(payload.v_General[0].TimeSheetOperation).toBe('C');
-    expect(payload.v_General[0].TimeSheetDataFields.RecordedHours).toBe('8');
+    expect(payload.v_General[0]).toMatchObject({
+      CompanyCode: '1000',
+      TimeSheetOperation: 'C',
+      PersonWorkAgreement: '',
+      TimeSheetDate: `/Date(${new Date('2026-05-01').getTime()})/`,
+      TimeSheetStatus: '20',
+      TimeSheetIsExecutedInTestRun: false,
+      TimeSheetIsReleasedOnSave: true,
+      TimeSheetDataFields: {
+        ControllingArea: 'A000',
+        SenderCostCenter: '90392131',
+        ReceiverCostCenter: '',
+        ActivityType: 'T001',
+        WBSElement: 'ZMOCK_001.1.1',
+        TimeSheetTaskType: '',
+        TimeSheetTaskLevel: '',
+        TimeSheetTaskComponent: '',
+        TimeSheetNote: '',
+        RecordedHours: '8',
+        PurchaseOrder: '',
+        PurchaseOrderItem: '00000',
+        RecordedQuantity: '8',
+        HoursUnitOfMeasure: 'H',
+        TimeSheetOvertimeCategory: '',
+        BillingControlCategory: 'BC01',
+      },
+    });
     expect(refreshSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -557,5 +585,164 @@ describe('ui5MainWorldAutofill', () => {
       submissionConfirmed: false,
       error: 'SAP OData model ondersteunt postTimeSheet niet in deze context.',
     });
+  });
+
+  it('populates TimeSheetTaskType for general-hours entries', async () => {
+    const callFunctionSpy = vi.fn((path: string, params: any) => {
+      expect(path).toBe('/postTimeSheet');
+      params.success?.();
+    });
+
+    installAutofillContext(
+      createProjectsModelData({
+        oMonth: 4,
+        oCurrentProject: createGeneralHours([baseDay('2026-05-01')]),
+      }),
+      callFunctionSpy,
+    );
+
+    const result = await ui5MainWorldAutofill({
+      entries: [{ date: '2026-05-01', hours: 8 }],
+    });
+
+    expect(result).toEqual({
+      appliedDaysCount: 1,
+      failedDates: [],
+      submissionAttempted: true,
+      submissionConfirmed: true,
+    });
+
+    // Verify that the general-hours task type is populated in the posting
+    const payload = JSON.parse(
+      callFunctionSpy.mock.calls[0][1].urlParameters.payload,
+    ) as { v_General: Array<any> };
+    expect(payload.v_General[0]).toMatchObject({
+      CompanyCode: '1000',
+      TimeSheetOperation: 'C',
+      PersonWorkAgreement: '',
+      TimeSheetDate: `/Date(${new Date('2026-05-01').getTime()})/`,
+      TimeSheetStatus: '20',
+      TimeSheetIsExecutedInTestRun: false,
+      TimeSheetIsReleasedOnSave: true,
+      TimeSheetDataFields: {
+        ControllingArea: 'A000',
+        SenderCostCenter: '',
+        ActivityType: '',
+        WBSElement: '',
+        TimeSheetTaskType: 'MISC',
+        TimeSheetTaskLevel: 'NONE',
+        TimeSheetTaskComponent: 'WORK',
+        TimeSheetNote: '',
+        RecordedHours: '8',
+        RecordedQuantity: '8',
+        HoursUnitOfMeasure: 'H',
+        TimeSheetOvertimeCategory: '',
+      },
+    });
+    expect(payload.v_General[0].TimeSheetDataFields).not.toHaveProperty(
+      'ReceiverCostCenter',
+    );
+    expect(payload.v_General[0].TimeSheetDataFields).not.toHaveProperty(
+      'PurchaseOrder',
+    );
+    expect(payload.v_General[0].TimeSheetDataFields).not.toHaveProperty(
+      'PurchaseOrderItem',
+    );
+    expect(payload.v_General[0].TimeSheetDataFields).not.toHaveProperty(
+      'BillingControlCategory',
+    );
+  });
+
+  it('handles general-hours update with existing task type preservation', async () => {
+    const callFunctionSpy = vi.fn((path: string, params: any) => {
+      expect(path).toBe('/postTimeSheet');
+      params.success?.();
+    });
+    const existingEntry = baseDay('2026-04-01', {
+      AvailabilityInHours: 480,
+      FullTime_Entries: [
+        {
+          TimeSheetRecord: 'RECORD-001',
+          PersonWorkAgreement: 'PWA-001',
+          TimeSheetDataFields: {
+            TimeSheetTaskType: 'MISC',
+            ControllingArea: 'A000',
+            SenderCostCenter: 'CC001',
+            ReceiverCostCenter: '',
+            ActivityType: '',
+            WBSElement: '',
+            TimeSheetTaskLevel: '',
+            TimeSheetTaskComponent: '',
+            TimeSheetNote: '',
+            PurchaseOrder: '',
+            PurchaseOrderItem: '00000',
+            RecordedHours: '8.00',
+            RecordedQuantity: '8.000',
+            HoursUnitOfMeasure: 'H',
+            TimeSheetOvertimeCategory: '',
+            BillingControlCategory: '',
+          },
+          TimeSheetStatus: '',
+        },
+      ],
+    });
+
+    installAutofillContext(
+      createProjectsModelData({
+        oMonth: 4,
+        oCurrentProject: createGeneralHours([existingEntry]),
+      }),
+      callFunctionSpy,
+    );
+
+    const result = await ui5MainWorldAutofill({
+      entries: [{ date: '2026-04-01', hours: 6 }],
+    });
+
+    expect(result).toEqual({
+      appliedDaysCount: 1,
+      failedDates: [],
+      submissionAttempted: true,
+      submissionConfirmed: true,
+    });
+
+    // Verify the update operation with the general-hours field shape.
+    const payload = JSON.parse(
+      callFunctionSpy.mock.calls[0][1].urlParameters.payload,
+    ) as { v_General: Array<any> };
+    expect(payload.v_General[0]).toMatchObject({
+      CompanyCode: '1000',
+      TimeSheetOperation: 'U',
+      PersonWorkAgreement: 'PWA-001',
+      TimeSheetDate: `/Date(${Date.UTC(2026, 3, 1)})/`,
+      TimeSheetStatus: '20',
+      TimeSheetIsExecutedInTestRun: false,
+      TimeSheetIsReleasedOnSave: true,
+      TimeSheetRecord: 'RECORD-001',
+      TimeSheetDataFields: {
+        ControllingArea: 'A000',
+        SenderCostCenter: '',
+        ReceiverCostCenter: '90392131',
+        ActivityType: '',
+        WBSElement: '',
+        TimeSheetTaskType: 'MISC',
+        TimeSheetTaskLevel: 'NONE',
+        TimeSheetTaskComponent: 'WORK',
+        TimeSheetNote: '',
+        RecordedHours: '6',
+        RecordedQuantity: '6',
+        HoursUnitOfMeasure: 'H',
+        TimeSheetOvertimeCategory: '',
+      },
+    });
+    expect(payload.v_General[0].TimeSheetDataFields).not.toHaveProperty(
+      'PurchaseOrder',
+    );
+    expect(payload.v_General[0].TimeSheetDataFields).not.toHaveProperty(
+      'PurchaseOrderItem',
+    );
+    expect(payload.v_General[0].TimeSheetDataFields).not.toHaveProperty(
+      'BillingControlCategory',
+    );
   });
 });

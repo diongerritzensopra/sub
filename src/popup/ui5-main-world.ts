@@ -342,7 +342,7 @@ export async function ui5MainWorldAutofill(
     TimeSheetDataFields: {
       ControllingArea: string;
       SenderCostCenter: string;
-      ReceiverCostCenter: string;
+      ReceiverCostCenter?: string;
       ActivityType: string;
       WBSElement: string;
       TimeSheetTaskType: string;
@@ -350,12 +350,12 @@ export async function ui5MainWorldAutofill(
       TimeSheetTaskComponent: string;
       TimeSheetNote: string;
       RecordedHours: string;
-      PurchaseOrder: string;
-      PurchaseOrderItem: string;
+      PurchaseOrder?: string;
+      PurchaseOrderItem?: string;
       RecordedQuantity: string;
       HoursUnitOfMeasure: string;
       TimeSheetOvertimeCategory: string;
-      BillingControlCategory: string;
+      BillingControlCategory?: string;
     };
     CompanyCode: string;
     TimeSheetOperation: 'C' | 'U';
@@ -473,6 +473,12 @@ export async function ui5MainWorldAutofill(
     return errorMessage.trim() || 'Posten van timesheet uren is mislukt.';
   };
 
+  const isSapGeneralHours = (
+    target: SapProject | SapGeneralHours,
+  ): target is SapGeneralHours => {
+    return Object.prototype.hasOwnProperty.call(target, 'TimeSheetTaskType');
+  };
+
   try {
     const preferredFrame = document.querySelector<HTMLIFrameElement>(
       'iframe[data-sap-ushell-active="true"], iframe[src*="ui5appruntime.html"], iframe[src*="#timesheet-my"]',
@@ -547,6 +553,8 @@ export async function ui5MainWorldAutofill(
       (userDetail?.PersonWorkAgreementExternalID ?? '').trim() ||
       (userDetail?.PersonExternalID ?? '').trim();
     const companyCode = (userDetail?.CompanyCode ?? '').trim();
+    const controllingArea = (userDetail?.ControllingArea ?? '').trim();
+    const costCenter = (userDetail?.CostCenter ?? '').trim();
 
     if (
       !personWorkAgreement ||
@@ -563,27 +571,26 @@ export async function ui5MainWorldAutofill(
       };
     }
 
-    const defaultControllingArea = (
-      (currentProject as SapProject).CostCenterControllingArea ?? ''
-    ).trim();
-    const defaultSenderCostCenter = (
-      (currentProject as SapProject).CostCenter ?? ''
-    ).trim();
-    const defaultActivityType = (
-      (currentProject as SapProject).EngagementProjectResource ?? ''
-    ).trim();
-    const defaultWbsElement = (
-      (currentProject as SapProject).WorkPackage ?? ''
-    ).trim();
-    const defaultPurchaseOrder =
-      ((currentProject as SapProject).PurchaseOrderCalculated ?? '').trim() ||
-      ((currentProject as SapProject).PurchaseOrder ?? '').trim();
-    const defaultPurchaseOrderItem =
-      (
-        (currentProject as SapProject).PurchaseOrderItemCalculated ?? ''
-      ).trim() ||
-      ((currentProject as SapProject).PurchaseOrderItem ?? '').trim() ||
-      '00000';
+    const isGeneralHours = isSapGeneralHours(currentProject);
+    const projectDefaults = isGeneralHours
+      ? null
+      : {
+          activityType: (currentProject.EngagementProjectResource ?? '').trim(),
+          wbsElement: (currentProject.WorkPackage ?? '').trim(),
+          purchaseOrder:
+            (currentProject.PurchaseOrderCalculated ?? '').trim() ||
+            (currentProject.PurchaseOrder ?? '').trim(),
+          purchaseOrderItem:
+            (currentProject.PurchaseOrderItemCalculated ?? '').trim() ||
+            (currentProject.PurchaseOrderItem ?? '').trim() ||
+            '00000',
+          billingControlCategory: (
+            currentProject.BillingControlCategory ?? ''
+          ).trim(),
+        };
+    const generalHoursTaskType = isGeneralHours
+      ? (currentProject.TimeSheetTaskType ?? '').trim()
+      : '';
 
     const failedDates: string[] = [];
     let appliedDaysCount = 0;
@@ -642,67 +649,97 @@ export async function ui5MainWorldAutofill(
         continue;
       }
 
+      const timeSheetDataFields: PostTimeSheetGeneralCreateOrUpdate['TimeSheetDataFields'] =
+        isGeneralHours
+          ? {
+              ControllingArea: controllingArea || 'A000',
+              SenderCostCenter: '',
+              ReceiverCostCenter: operation === 'U' ? costCenter : undefined,
+              ActivityType: '',
+              WBSElement: '',
+              TimeSheetTaskType: generalHoursTaskType,
+              TimeSheetTaskLevel: 'NONE',
+              TimeSheetTaskComponent: 'WORK',
+              TimeSheetNote: (
+                existingFullTimeEntry?.TimeSheetDataFields?.TimeSheetNote ?? ''
+              ).trim(),
+              RecordedHours: normalizeNumberString(entry.hours),
+              RecordedQuantity: normalizeNumberString(entry.hours),
+              HoursUnitOfMeasure:
+                (
+                  existingFullTimeEntry?.TimeSheetDataFields
+                    ?.HoursUnitOfMeasure ?? ''
+                ).trim() || 'H',
+              TimeSheetOvertimeCategory: (
+                existingFullTimeEntry?.TimeSheetDataFields
+                  ?.TimeSheetOvertimeCategory ?? ''
+              ).trim(),
+            }
+          : {
+              ControllingArea:
+                (
+                  existingFullTimeEntry?.TimeSheetDataFields?.ControllingArea ??
+                  ''
+                ).trim() ||
+                controllingArea ||
+                'A000',
+              SenderCostCenter:
+                (
+                  existingFullTimeEntry?.TimeSheetDataFields
+                    ?.SenderCostCenter ?? ''
+                ).trim() || costCenter,
+              ReceiverCostCenter: (
+                existingFullTimeEntry?.TimeSheetDataFields
+                  ?.ReceiverCostCenter ?? ''
+              ).trim(),
+              ActivityType:
+                (
+                  existingFullTimeEntry?.TimeSheetDataFields?.ActivityType ?? ''
+                ).trim() ||
+                projectDefaults?.activityType ||
+                '',
+              WBSElement:
+                (
+                  existingFullTimeEntry?.TimeSheetDataFields?.WBSElement ?? ''
+                ).trim() ||
+                projectDefaults?.wbsElement ||
+                '',
+              TimeSheetTaskType: '',
+              TimeSheetTaskLevel: '',
+              TimeSheetTaskComponent: '',
+              TimeSheetNote: (
+                existingFullTimeEntry?.TimeSheetDataFields?.TimeSheetNote ?? ''
+              ).trim(),
+              RecordedHours: normalizeNumberString(entry.hours),
+              PurchaseOrder:
+                (
+                  existingFullTimeEntry?.TimeSheetDataFields?.PurchaseOrder ??
+                  ''
+                ).trim() || projectDefaults?.purchaseOrder,
+              PurchaseOrderItem:
+                (
+                  existingFullTimeEntry?.TimeSheetDataFields
+                    ?.PurchaseOrderItem ?? ''
+                ).trim() || projectDefaults?.purchaseOrderItem,
+              RecordedQuantity: normalizeNumberString(entry.hours),
+              HoursUnitOfMeasure:
+                (
+                  existingFullTimeEntry?.TimeSheetDataFields
+                    ?.HoursUnitOfMeasure ?? ''
+                ).trim() || 'H',
+              TimeSheetOvertimeCategory: (
+                existingFullTimeEntry?.TimeSheetDataFields
+                  ?.TimeSheetOvertimeCategory ?? ''
+              ).trim(),
+              BillingControlCategory:
+                (
+                  existingFullTimeEntry?.TimeSheetDataFields
+                    ?.BillingControlCategory ?? ''
+                ).trim() || projectDefaults?.billingControlCategory,
+            };
+
       const row: PostTimeSheetGeneralCreateOrUpdate = {
-        TimeSheetDataFields: {
-          ControllingArea:
-            (
-              existingFullTimeEntry?.TimeSheetDataFields?.ControllingArea ?? ''
-            ).trim() ||
-            defaultControllingArea ||
-            'A000',
-          SenderCostCenter:
-            (
-              existingFullTimeEntry?.TimeSheetDataFields?.SenderCostCenter ?? ''
-            ).trim() || defaultSenderCostCenter,
-          ReceiverCostCenter: (
-            existingFullTimeEntry?.TimeSheetDataFields?.ReceiverCostCenter ?? ''
-          ).trim(),
-          ActivityType:
-            (
-              existingFullTimeEntry?.TimeSheetDataFields?.ActivityType ?? ''
-            ).trim() || defaultActivityType,
-          WBSElement:
-            (
-              existingFullTimeEntry?.TimeSheetDataFields?.WBSElement ?? ''
-            ).trim() || defaultWbsElement,
-          TimeSheetTaskType: (
-            existingFullTimeEntry?.TimeSheetDataFields?.TimeSheetTaskType ?? ''
-          ).trim(),
-          TimeSheetTaskLevel: (
-            existingFullTimeEntry?.TimeSheetDataFields?.TimeSheetTaskLevel ?? ''
-          ).trim(),
-          TimeSheetTaskComponent: (
-            existingFullTimeEntry?.TimeSheetDataFields
-              ?.TimeSheetTaskComponent ?? ''
-          ).trim(),
-          TimeSheetNote: (
-            existingFullTimeEntry?.TimeSheetDataFields?.TimeSheetNote ?? ''
-          ).trim(),
-          RecordedHours: normalizeNumberString(entry.hours),
-          PurchaseOrder:
-            (
-              existingFullTimeEntry?.TimeSheetDataFields?.PurchaseOrder ?? ''
-            ).trim() || defaultPurchaseOrder,
-          PurchaseOrderItem:
-            (
-              existingFullTimeEntry?.TimeSheetDataFields?.PurchaseOrderItem ??
-              ''
-            ).trim() || defaultPurchaseOrderItem,
-          RecordedQuantity: normalizeNumberString(entry.hours),
-          HoursUnitOfMeasure:
-            (
-              existingFullTimeEntry?.TimeSheetDataFields?.HoursUnitOfMeasure ??
-              ''
-            ).trim() || 'H',
-          TimeSheetOvertimeCategory: (
-            existingFullTimeEntry?.TimeSheetDataFields
-              ?.TimeSheetOvertimeCategory ?? ''
-          ).trim(),
-          BillingControlCategory: (
-            existingFullTimeEntry?.TimeSheetDataFields
-              ?.BillingControlCategory ?? ''
-          ).trim(),
-        },
+        TimeSheetDataFields: timeSheetDataFields,
         CompanyCode: companyCode,
         TimeSheetOperation: operation,
         PersonWorkAgreement:
@@ -710,7 +747,8 @@ export async function ui5MainWorldAutofill(
             ? (existingFullTimeEntry?.PersonWorkAgreement ?? '').trim()
             : '',
         TimeSheetDate: resolveTimesheetDateValue(entry.date, dayEntry),
-        TimeSheetStatus: (existingFullTimeEntry?.TimeSheetStatus ?? '').trim(),
+        TimeSheetStatus:
+          (existingFullTimeEntry?.TimeSheetStatus ?? '').trim() || '20',
         TimeSheetIsExecutedInTestRun: false,
         TimeSheetIsReleasedOnSave: true,
       };
