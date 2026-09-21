@@ -9,7 +9,6 @@ export const SAP_TIMESHEET_URL_PATTERN =
 /** A single booked or to-be-booked hours entry. */
 export interface HoursEntry {
   date: string; // ISO date string: "YYYY-MM-DD"
-  project: string; // Project name or code
   hours: number; // Hours logged (e.g. 7.5)
 }
 
@@ -18,15 +17,16 @@ export interface TimesheetTotals {
   toBePerformed: number | null;
 }
 
-export interface TimesheetProjectOption {
-  code: string;
-  name: string;
+export interface TimesheetTarget {
+  targetType: 'project' | 'general-hours';
+  targetCode: string; // projectCode or taskType
+  targetLabel: string; // human-readable label for the target
 }
 
 export interface TimesheetSnapshot {
   month: number | null;
   year: number | null;
-  projects: TimesheetProjectOption[];
+  targets: TimesheetTarget[];
   totals: TimesheetTotals;
   currentProjectCode: string | null;
   sapStatus: 'editable' | 'locked';
@@ -51,11 +51,11 @@ export type Weekday =
 /** Planned hours for each day of the week. Zero means the day is skipped. */
 export type WeeklyHours = Record<Weekday, number>;
 
-/** A named, reusable weekly booking schedule for a single project code. */
+/** A named, reusable weekly booking schedule for a single project or general-hours target. */
 export interface WeeklySchedule {
   id: string; // Unique identifier (e.g. crypto.randomUUID())
   label: string; // Human-readable name for the schedule
-  projectCode: string; // SAP project code to book against
+  target: TimesheetTarget;
   hoursPerWeekday: WeeklyHours;
 }
 
@@ -72,6 +72,8 @@ export interface SapTimesheetDataFields {
   TimeSheetNote?: string;
   PurchaseOrder?: string;
   PurchaseOrderItem?: string;
+  RecordedHours?: string;
+  RecordedQuantity?: string;
   HoursUnitOfMeasure?: string;
   TimeSheetOvertimeCategory?: string;
   BillingControlCategory?: string;
@@ -117,6 +119,8 @@ export interface SapUserDetail {
   PersonWorkAgreementExternalID?: string;
   PersonExternalID?: string;
   CompanyCode?: string;
+  ControllingArea?: string;
+  CostCenter?: string;
 }
 
 /** A project within the SAP projectsmodel. */
@@ -125,8 +129,7 @@ export interface SapProject {
   WorkPackageName: string; // Project name
   oTimeSheet: SapTimesheetDayEntry[]; // Days in this project
   EngagementProjectResource?: string;
-  CostCenter?: string;
-  CostCenterControllingArea?: string;
+  BillingControlCategory?: string;
   CompanyCode?: string;
   EmploymentInternalID?: string;
   PurchaseOrder?: string;
@@ -135,12 +138,20 @@ export interface SapProject {
   PurchaseOrderItemCalculated?: string;
 }
 
+/** A general-hours timesheet category from the SAP projectsmodel. */
+export interface SapGeneralHours {
+  TimeSheetTaskType: string; // task type code, e.g. "MISC"
+  TimeSheetTaskTypeText: string; // human-readable label, e.g. "Commercial hours"
+  oTimeSheet: SapTimesheetDayEntry[];
+}
+
 /** SAP projectsmodel getData() result shape. */
 export interface SapProjectsModelData {
   oMonth: number; // 0–11 (0 = January)
   oYear: number; // e.g., 2026
-  oCurrentProject: SapProject | null; // Currently selected project
+  oCurrentProject: SapProject | SapGeneralHours | null; // Currently selected project
   oProjects: SapProject[]; // All available projects
+  oGeneralHours: SapGeneralHours[]; // General-hours timesheet categories
   oTotals: {
     oStatus: string; // "U" editable/submittable, "S" locked
     oTotals: SapTimesheetTotals;

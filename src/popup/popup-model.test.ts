@@ -15,7 +15,7 @@ function createSnapshot(
   return {
     month: 8,
     year: 2026,
-    projects: [],
+    targets: [],
     totals: {
       worked: 10,
       toBePerformed: 20,
@@ -30,7 +30,11 @@ function createSchedule(id: string): WeeklySchedule {
   return {
     id,
     label: `Schema ${id}`,
-    projectCode: `P-${id}`,
+    target: {
+      targetType: 'project',
+      targetCode: `P-${id}`,
+      targetLabel: `Project ${id.toUpperCase()}`,
+    },
     hoursPerWeekday: {
       monday: 8,
       tuesday: 8,

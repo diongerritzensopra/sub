@@ -60,7 +60,13 @@ describe('storage helpers', () => {
       snapshot: {
         month: 5,
         year: 2026,
-        projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
+        targets: [
+          {
+            targetType: 'project',
+            targetCode: 'ZMOCK_001.1.1',
+            targetLabel: 'Mockproject',
+          },
+        ],
         currentProjectCode: 'ZMOCK_001.1.1',
         totals: {
           worked: 120,
@@ -155,7 +161,11 @@ describe('schedule storage helpers', () => {
   const scheduleA: WeeklySchedule = {
     id: 'schedule-a',
     label: 'Project A - 32h',
-    projectCode: 'ZMOCK_001.1.1',
+    target: {
+      targetType: 'project',
+      targetCode: 'ZMOCK_001.1.1',
+      targetLabel: 'Mockproject',
+    },
     hoursPerWeekday: {
       monday: 8,
       tuesday: 8,
@@ -170,13 +180,36 @@ describe('schedule storage helpers', () => {
   const scheduleB: WeeklySchedule = {
     id: 'schedule-b',
     label: 'Project B - 40h',
-    projectCode: 'ZTEST_42',
+    target: {
+      targetType: 'project',
+      targetCode: 'ZTEST_42',
+      targetLabel: 'Testproject 42',
+    },
     hoursPerWeekday: {
       monday: 8,
       tuesday: 8,
       wednesday: 8,
       thursday: 8,
       friday: 8,
+      saturday: 0,
+      sunday: 0,
+    },
+  };
+
+  const scheduleC: WeeklySchedule = {
+    id: 'schedule-c',
+    label: 'Commercial hours - 10h',
+    target: {
+      targetType: 'general-hours',
+      targetCode: 'MISC',
+      targetLabel: 'Commercial hours',
+    },
+    hoursPerWeekday: {
+      monday: 2,
+      tuesday: 2,
+      wednesday: 2,
+      thursday: 2,
+      friday: 2,
       saturday: 0,
       sunday: 0,
     },
@@ -244,6 +277,52 @@ describe('schedule storage helpers', () => {
 
     expect(schedules).toEqual([scheduleB]);
   });
+
+  it('stores and retrieves a general-hours schedule', async () => {
+    await saveSchedule(scheduleC);
+    const schedules = await getSchedules();
+
+    expect(schedules).toEqual([scheduleC]);
+    expect(schedules[0]?.target).toEqual({
+      targetType: 'general-hours',
+      targetCode: 'MISC',
+      targetLabel: 'Commercial hours',
+    });
+  });
+
+  it('stores a mix of project and general-hours schedules', async () => {
+    await saveSchedule(scheduleA);
+    await saveSchedule(scheduleC);
+    const schedules = await getSchedules();
+
+    expect(schedules).toHaveLength(2);
+    expect(schedules[0]?.target.targetType).toBe('project');
+    expect(schedules[1]?.target.targetType).toBe('general-hours');
+  });
+
+  it('updates an existing general-hours schedule with the same id', async () => {
+    const updatedScheduleC: WeeklySchedule = {
+      ...scheduleC,
+      label: 'Commercial hours - updated',
+      hoursPerWeekday: { ...scheduleC.hoursPerWeekday, monday: 4 },
+    };
+
+    await saveSchedule(scheduleC);
+    await saveSchedule(updatedScheduleC);
+    const schedules = await getSchedules();
+
+    expect(schedules).toEqual([updatedScheduleC]);
+  });
+
+  it('deletes a general-hours schedule by id and keeps the others', async () => {
+    await saveSchedule(scheduleA);
+    await saveSchedule(scheduleC);
+
+    await deleteSchedule(scheduleC.id);
+    const schedules = await getSchedules();
+
+    expect(schedules).toEqual([scheduleA]);
+  });
 });
 
 describe('isCacheStale', () => {
@@ -262,7 +341,7 @@ describe('isCacheStale', () => {
       snapshot: {
         month,
         year,
-        projects: [],
+        targets: [],
         currentProjectCode: null,
         totals: { worked: null, toBePerformed: null },
         sapStatus: 'editable',

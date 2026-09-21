@@ -44,7 +44,13 @@ describe('popup integration tests', () => {
                 snapshot: {
                   month: 8,
                   year: 2026,
-                  projects: [],
+                  targets: [
+                    {
+                      targetType: 'general-hours',
+                      targetCode: 'MISC',
+                      targetLabel: 'Commercial hours',
+                    },
+                  ],
                   currentProjectCode: null,
                   totals: { worked: null, toBePerformed: null },
                   sapStatus: 'editable',
@@ -83,14 +89,19 @@ describe('popup integration tests', () => {
   });
 
   describe('apply flow resilience', () => {
-    const makeSchedule = (
+    const makeProjectSchedule = (
       id: string,
       label: string,
       projectCode: string,
+      targetName: string,
     ): WeeklySchedule => ({
       id,
       label,
-      projectCode,
+      target: {
+        targetType: 'project',
+        targetCode: projectCode,
+        targetLabel: targetName,
+      },
       hoursPerWeekday: {
         monday: 8,
         tuesday: 0,
@@ -105,9 +116,22 @@ describe('popup integration tests', () => {
     const snapshot: TimesheetSnapshot = {
       month: 5,
       year: 2026,
-      projects: [
-        { code: 'ZMOCK_001.1.1', name: 'Mockproject' },
-        { code: 'ZTEST_42', name: 'Testproject 42' },
+      targets: [
+        {
+          targetType: 'project',
+          targetCode: 'ZMOCK_001.1.1',
+          targetLabel: 'Mockproject',
+        },
+        {
+          targetType: 'project',
+          targetCode: 'ZTEST_42',
+          targetLabel: 'Testproject 42',
+        },
+        {
+          targetType: 'general-hours',
+          targetCode: 'MISC',
+          targetLabel: 'Commercial hours',
+        },
       ],
       currentProjectCode: 'ZMOCK_001.1.1',
       totals: { worked: 120, toBePerformed: 160 },
@@ -123,8 +147,13 @@ describe('popup integration tests', () => {
     it('continues with remaining schedules and reports accumulated errors when one navigation fails', async () => {
       const storedValues: Record<string, unknown> = {
         [STORAGE_KEYS.projectSchedules]: [
-          makeSchedule('s1', 'Kantooruren', 'ZMOCK_001.1.1'),
-          makeSchedule('s2', 'Deeltijd', 'ZTEST_42'),
+          makeProjectSchedule(
+            's1',
+            'Kantooruren',
+            'ZMOCK_001.1.1',
+            'Mockproject',
+          ),
+          makeProjectSchedule('s2', 'Deeltijd', 'ZTEST_42', 'Testproject 42'),
         ],
       };
       mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
@@ -197,7 +226,12 @@ describe('popup integration tests', () => {
     it('applies without navigation when already on the same project page', async () => {
       const storedValues: Record<string, unknown> = {
         [STORAGE_KEYS.projectSchedules]: [
-          makeSchedule('s1', 'Kantooruren', 'ZMOCK_001.1.1'),
+          makeProjectSchedule(
+            's1',
+            'Kantooruren',
+            'ZMOCK_001.1.1',
+            'Mockproject',
+          ),
         ],
       };
       mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
@@ -244,7 +278,18 @@ describe('popup integration tests', () => {
     const editableSnapshot: TimesheetSnapshot = {
       month: 8,
       year: 2026,
-      projects: [{ code: 'C001', name: 'Project Alpha' }],
+      targets: [
+        {
+          targetType: 'project',
+          targetCode: 'C001',
+          targetLabel: 'Project Alpha',
+        },
+        {
+          targetType: 'general-hours',
+          targetCode: 'MISC',
+          targetLabel: 'Commercial hours',
+        },
+      ],
       currentProjectCode: 'C001',
       totals: { worked: 10, toBePerformed: 20 },
       sapStatus: 'editable',
@@ -397,7 +442,11 @@ describe('popup integration tests', () => {
           {
             id: 'e1',
             label: 'Test',
-            projectCode: 'C001',
+            target: {
+              targetType: 'project',
+              targetCode: 'C001',
+              targetLabel: 'Project Alpha',
+            },
             hoursPerWeekday: {
               monday: 8,
               tuesday: 0,
@@ -507,10 +556,21 @@ describe('popup integration tests', () => {
 
     it('showScheduleForm wrapper sets state and opens the form', async () => {
       const { showScheduleForm } = await import('./popup');
-      const snapshot = {
+      const snapshot: TimesheetSnapshot = {
         month: 8,
         year: 2026,
-        projects: [{ code: 'C001', name: 'Alpha' }],
+        targets: [
+          {
+            targetType: 'project',
+            targetCode: 'C001',
+            targetLabel: 'Alpha',
+          },
+          {
+            targetType: 'general-hours',
+            targetCode: 'MISC',
+            targetLabel: 'Commercial hours',
+          },
+        ],
         currentProjectCode: 'C001',
         totals: { worked: 0, toBePerformed: 0 },
         sapStatus: 'editable' as const,

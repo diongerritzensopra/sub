@@ -128,9 +128,9 @@ function buildFailedDatesLines(
     return [];
   }
 
-  const lines = ['Mislukt per project:'];
-  failedDatesByProject.forEach((dates, projectName) => {
-    lines.push(`- ${projectName}: ${uniqueSortedDates(dates).join(', ')}.`);
+  const lines = ['Mislukt per doel:'];
+  failedDatesByProject.forEach((dates, targetName) => {
+    lines.push(`- ${targetName}: ${uniqueSortedDates(dates).join(', ')}.`);
   });
 
   return lines;

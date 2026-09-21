@@ -34,35 +34,13 @@ import {
   setScrapeButtonState,
   updateApplySchedulesButtonState,
 } from './popup-render';
+import {
+  decodeScheduleTargetSelectValue,
+  getScheduleTargetDisplayName,
+} from './schedule-target';
 
 const LOCKED_TIMESHEET_MESSAGE =
   'De timesheet is vergrendeld. Uren boeken en indienen is uitgeschakeld.';
-
-function getProjectNameByCode(
-  snapshot: TimesheetSnapshot | null,
-): Map<string, string> {
-  if (!snapshot) {
-    return new Map();
-  }
-
-  return new Map(
-    snapshot.projects.map((project) => [
-      project.code,
-      project.name.trim() || 'Onbekend project',
-    ]),
-  );
-}
-
-function resolveProjectName(
-  snapshot: TimesheetSnapshot,
-  projectCode: string,
-): string {
-  return (
-    snapshot.projects
-      .find((project) => project.code === projectCode)
-      ?.name.trim() || 'Onbekend project'
-  );
-}
 
 export type PopupActionsContext = {
   dom: PopupDomRefs;
@@ -104,7 +82,6 @@ function renderSchedulesFromState(ctx: PopupActionsContext): void {
     ctx.dom,
     ctx.state.renderedSchedules,
     ctx.state.selectedScheduleIds,
-    getProjectNameByCode(ctx.state.currentSnapshot),
     (scheduleId) => {
       if (ctx.state.selectedScheduleIds.has(scheduleId)) {
         ctx.state.selectedScheduleIds.delete(scheduleId);
@@ -151,10 +128,16 @@ export async function handleScheduleFormSubmit(
   }
 
   const label = ctx.dom.scheduleLabelInput.value.trim();
-  const projectCode = ctx.dom.scheduleProjectSelect.value;
+  const encodedTargetValue = ctx.dom.scheduleProjectSelect.value;
 
-  if (!label || !projectCode) {
+  if (!label || !encodedTargetValue) {
     ctx.setStatus('Vul alstublieft alle vereiste velden in.');
+    return;
+  }
+
+  const selectedTarget = decodeScheduleTargetSelectValue(encodedTargetValue);
+  if (!selectedTarget) {
+    ctx.setStatus('Geselecteerd schema-doel is ongeldig.');
     return;
   }
 
@@ -176,10 +159,20 @@ export async function handleScheduleFormSubmit(
       Date.now().toString();
     const isEditing = Boolean(ctx.state.scheduleBeingEdited);
 
+    const target = ctx.state.currentSnapshot.targets.find(
+      (item) =>
+        item.targetType === selectedTarget.targetType &&
+        item.targetCode === selectedTarget.targetCode,
+    );
+    if (!target) {
+      ctx.setStatus('Geselecteerd schema-doel is niet meer beschikbaar.');
+      return;
+    }
+
     const schedule: WeeklySchedule = {
       id: scheduleId,
       label,
-      projectCode,
+      target,
       hoursPerWeekday,
     };
 
@@ -227,16 +220,20 @@ export async function applySchedulesFromSelection(
   }
 
   for (const schedule of schedulesToApply) {
-    const project = ctx.state.currentSnapshot.projects.find(
-      (item) => item.code === schedule.projectCode,
+    const targetLabel = getScheduleTargetDisplayName(schedule.target);
+    const scheduleTarget = schedule.target;
+    const isAvailable = ctx.state.currentSnapshot.targets.some(
+      (item) =>
+        item.targetType === scheduleTarget.targetType &&
+        item.targetCode === scheduleTarget.targetCode,
     );
-    if (!project) {
-      const projectName = resolveProjectName(
-        ctx.state.currentSnapshot,
-        schedule.projectCode,
-      );
+    if (!isAvailable) {
+      const unavailableKindMessage =
+        scheduleTarget.targetType === 'project'
+          ? 'Project'
+          : 'Algemene uren type';
       ctx.setStatus(
-        `Fout: Project "${projectName}" is niet beschikbaar in het SAP navigatiemenu.`,
+        `Fout: ${unavailableKindMessage} "${targetLabel}" is niet beschikbaar in het SAP navigatiemenu.`,
         true,
       );
       return;
@@ -268,29 +265,22 @@ export async function applySchedulesFromSelection(
     const scheduleErrors: string[] = [];
 
     for (const schedule of schedulesToApply) {
+      const targetCode = schedule.target.targetCode;
+      const targetLabel = getScheduleTargetDisplayName(schedule.target);
       try {
-        await navigateToProject(
-          activeTab.id,
-          month,
-          year,
-          schedule.projectCode,
-        );
+        await navigateToProject(activeTab.id, month, year, targetCode);
         const summary = await autofillScheduleEntries(
           activeTab.id,
           schedule,
           month,
           year,
         );
-        const projectName = resolveProjectName(
-          ctx.state.currentSnapshot,
-          schedule.projectCode,
-        );
 
         totalDaysCount += summary.totalDaysCount;
         appliedDaysCount += summary.appliedDaysCount;
         addFailedDatesForProject(
           failedDatesByProject,
-          projectName,
+          targetLabel,
           summary.failedDates,
         );
         if (summary.submissionAttempted) {
@@ -300,13 +290,9 @@ export async function applySchedulesFromSelection(
           submissionConfirmedCount += 1;
         }
         if (summary.error) {
-          scheduleErrors.push(`${projectName}: ${summary.error}`);
+          scheduleErrors.push(`${targetLabel}: ${summary.error}`);
         }
       } catch (error) {
-        const projectName = resolveProjectName(
-          ctx.state.currentSnapshot,
-          schedule.projectCode,
-        );
         const scheduleEntries = expandWeeklyScheduleToMonthEntries(
           schedule,
           month,
@@ -315,10 +301,10 @@ export async function applySchedulesFromSelection(
         totalDaysCount += scheduleEntries.length;
         addFailedDatesForProject(
           failedDatesByProject,
-          projectName,
+          targetLabel,
           scheduleEntries.map((entry) => entry.date),
         );
-        scheduleErrors.push(`${projectName}: ${(error as Error).message}`);
+        scheduleErrors.push(`${targetLabel}: ${(error as Error).message}`);
       }
     }
 

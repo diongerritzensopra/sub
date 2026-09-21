@@ -8,6 +8,7 @@
  */
 
 import type {
+  SapGeneralHours,
   SapProject,
   SapProjectsModelData,
   SapTimesheetDayEntry,
@@ -110,6 +111,16 @@ export function ui5MainWorldReadSnapshot(): Ui5SnapshotReadResult {
       };
     }
 
+    if (
+      !Array.isArray(modelData.oGeneralHours) ||
+      modelData.oGeneralHours.length === 0
+    ) {
+      return {
+        success: false,
+        error: 'SAP projectsmodel bevat geen geldige algemene uren.',
+      };
+    }
+
     const month =
       typeof modelData.oMonth === 'number' &&
       modelData.oMonth >= 0 &&
@@ -117,35 +128,104 @@ export function ui5MainWorldReadSnapshot(): Ui5SnapshotReadResult {
         ? modelData.oMonth + 1
         : null;
     const year = typeof modelData.oYear === 'number' ? modelData.oYear : null;
-    const projectsByCode = new Map<string, string>();
 
-    modelData.oProjects.forEach((project) => {
-      const code = project.WorkPackage.trim().toUpperCase();
-      if (!code) {
+    const targets: TimesheetSnapshot['targets'] = [];
+    modelData.oGeneralHours.forEach((option) => {
+      const targetCode = option.TimeSheetTaskType.trim().toUpperCase();
+      if (!targetCode) {
         return;
       }
 
-      const name = (project.WorkPackageName ?? '').trim();
-      const existingName = projectsByCode.get(code);
-      if (!projectsByCode.has(code) || (!existingName && name)) {
-        projectsByCode.set(code, name);
+      const rawTargetLabel = (option.TimeSheetTaskTypeText ?? '').trim();
+      const targetLabel = rawTargetLabel || 'Onbekende algemene uren';
+      const existingTarget = targets.find(
+        (target) =>
+          target.targetType === 'general-hours' &&
+          target.targetCode === targetCode,
+      );
+      if (!existingTarget) {
+        targets.push({
+          targetType: 'general-hours',
+          targetCode,
+          targetLabel,
+        });
+        return;
+      }
+
+      if (
+        existingTarget.targetLabel === 'Onbekende algemene uren' &&
+        rawTargetLabel
+      ) {
+        existingTarget.targetLabel = rawTargetLabel;
       }
     });
 
-    const projects = Array.from(projectsByCode.entries())
-      .map(([code, name]) => ({ code, name }))
-      .sort((left, right) => left.code.localeCompare(right.code));
+    if (targets.length === 0) {
+      return {
+        success: false,
+        error: 'SAP projectsmodel bevat geen geldige algemene uren.',
+      };
+    }
 
-    const currentProjectCode = modelData.oCurrentProject?.WorkPackage
-      ? modelData.oCurrentProject.WorkPackage.trim().toUpperCase()
-      : null;
+    modelData.oProjects.forEach((project) => {
+      const targetCode = project.WorkPackage.trim().toUpperCase();
+      if (!targetCode) {
+        return;
+      }
+
+      const rawTargetLabel = (project.WorkPackageName ?? '').trim();
+      const targetLabel = rawTargetLabel || 'Onbekend project';
+      const existingTarget = targets.find(
+        (target) =>
+          target.targetType === 'project' && target.targetCode === targetCode,
+      );
+      if (!existingTarget) {
+        targets.push({
+          targetType: 'project',
+          targetCode,
+          targetLabel,
+        });
+        return;
+      }
+
+      if (existingTarget.targetLabel === 'Onbekend project' && rawTargetLabel) {
+        existingTarget.targetLabel = rawTargetLabel;
+      }
+    });
+
+    targets.sort((left, right) => {
+      const byLabel = left.targetLabel.localeCompare(
+        right.targetLabel,
+        'nl-NL',
+        {
+          sensitivity: 'base',
+        },
+      );
+      if (byLabel !== 0) {
+        return byLabel;
+      }
+
+      return left.targetCode.localeCompare(right.targetCode);
+    });
+
+    const currentProjectCode = modelData.oCurrentProject?.hasOwnProperty(
+      'WorkPackage',
+    )
+      ? (
+          modelData.oCurrentProject as SapProject
+        ).WorkPackage.trim().toUpperCase()
+      : modelData.oCurrentProject?.hasOwnProperty('TimeSheetTaskType')
+        ? (
+            modelData.oCurrentProject as SapGeneralHours
+          ).TimeSheetTaskType.trim().toUpperCase()
+        : null;
 
     return {
       success: true,
       snapshot: {
         month,
         year,
-        projects,
+        targets,
         currentProjectCode,
         sapStatus: mapSapStatus(modelData.oTotals.oStatus),
         totals: {
@@ -262,7 +342,7 @@ export async function ui5MainWorldAutofill(
     TimeSheetDataFields: {
       ControllingArea: string;
       SenderCostCenter: string;
-      ReceiverCostCenter: string;
+      ReceiverCostCenter?: string;
       ActivityType: string;
       WBSElement: string;
       TimeSheetTaskType: string;
@@ -270,12 +350,12 @@ export async function ui5MainWorldAutofill(
       TimeSheetTaskComponent: string;
       TimeSheetNote: string;
       RecordedHours: string;
-      PurchaseOrder: string;
-      PurchaseOrderItem: string;
+      PurchaseOrder?: string;
+      PurchaseOrderItem?: string;
       RecordedQuantity: string;
       HoursUnitOfMeasure: string;
       TimeSheetOvertimeCategory: string;
-      BillingControlCategory: string;
+      BillingControlCategory?: string;
     };
     CompanyCode: string;
     TimeSheetOperation: 'C' | 'U';
@@ -393,6 +473,12 @@ export async function ui5MainWorldAutofill(
     return errorMessage.trim() || 'Posten van timesheet uren is mislukt.';
   };
 
+  const isSapGeneralHours = (
+    target: SapProject | SapGeneralHours,
+  ): target is SapGeneralHours => {
+    return Object.prototype.hasOwnProperty.call(target, 'TimeSheetTaskType');
+  };
+
   try {
     const preferredFrame = document.querySelector<HTMLIFrameElement>(
       'iframe[data-sap-ushell-active="true"], iframe[src*="ui5appruntime.html"], iframe[src*="#timesheet-my"]',
@@ -424,7 +510,7 @@ export async function ui5MainWorldAutofill(
       };
     }
 
-    const currentProject: SapProject | null =
+    const currentProject: SapProject | SapGeneralHours | null =
       projectsModelData.oCurrentProject ?? null;
     if (!currentProject) {
       return {
@@ -467,6 +553,8 @@ export async function ui5MainWorldAutofill(
       (userDetail?.PersonWorkAgreementExternalID ?? '').trim() ||
       (userDetail?.PersonExternalID ?? '').trim();
     const companyCode = (userDetail?.CompanyCode ?? '').trim();
+    const controllingArea = (userDetail?.ControllingArea ?? '').trim();
+    const costCenter = (userDetail?.CostCenter ?? '').trim();
 
     if (
       !personWorkAgreement ||
@@ -483,21 +571,26 @@ export async function ui5MainWorldAutofill(
       };
     }
 
-    const defaultControllingArea = (
-      currentProject.CostCenterControllingArea ?? ''
-    ).trim();
-    const defaultSenderCostCenter = (currentProject.CostCenter ?? '').trim();
-    const defaultActivityType = (
-      currentProject.EngagementProjectResource ?? ''
-    ).trim();
-    const defaultWbsElement = (currentProject.WorkPackage ?? '').trim();
-    const defaultPurchaseOrder =
-      (currentProject.PurchaseOrderCalculated ?? '').trim() ||
-      (currentProject.PurchaseOrder ?? '').trim();
-    const defaultPurchaseOrderItem =
-      (currentProject.PurchaseOrderItemCalculated ?? '').trim() ||
-      (currentProject.PurchaseOrderItem ?? '').trim() ||
-      '00000';
+    const isGeneralHours = isSapGeneralHours(currentProject);
+    const projectDefaults = isGeneralHours
+      ? null
+      : {
+          activityType: (currentProject.EngagementProjectResource ?? '').trim(),
+          wbsElement: (currentProject.WorkPackage ?? '').trim(),
+          purchaseOrder:
+            (currentProject.PurchaseOrderCalculated ?? '').trim() ||
+            (currentProject.PurchaseOrder ?? '').trim(),
+          purchaseOrderItem:
+            (currentProject.PurchaseOrderItemCalculated ?? '').trim() ||
+            (currentProject.PurchaseOrderItem ?? '').trim() ||
+            '00000',
+          billingControlCategory: (
+            currentProject.BillingControlCategory ?? ''
+          ).trim(),
+        };
+    const generalHoursTaskType = isGeneralHours
+      ? (currentProject.TimeSheetTaskType ?? '').trim()
+      : '';
 
     const failedDates: string[] = [];
     let appliedDaysCount = 0;
@@ -556,67 +649,97 @@ export async function ui5MainWorldAutofill(
         continue;
       }
 
+      const timeSheetDataFields: PostTimeSheetGeneralCreateOrUpdate['TimeSheetDataFields'] =
+        isGeneralHours
+          ? {
+              ControllingArea: controllingArea || 'A000',
+              SenderCostCenter: '',
+              ReceiverCostCenter: operation === 'U' ? costCenter : undefined,
+              ActivityType: '',
+              WBSElement: '',
+              TimeSheetTaskType: generalHoursTaskType,
+              TimeSheetTaskLevel: 'NONE',
+              TimeSheetTaskComponent: 'WORK',
+              TimeSheetNote: (
+                existingFullTimeEntry?.TimeSheetDataFields?.TimeSheetNote ?? ''
+              ).trim(),
+              RecordedHours: normalizeNumberString(entry.hours),
+              RecordedQuantity: normalizeNumberString(entry.hours),
+              HoursUnitOfMeasure:
+                (
+                  existingFullTimeEntry?.TimeSheetDataFields
+                    ?.HoursUnitOfMeasure ?? ''
+                ).trim() || 'H',
+              TimeSheetOvertimeCategory: (
+                existingFullTimeEntry?.TimeSheetDataFields
+                  ?.TimeSheetOvertimeCategory ?? ''
+              ).trim(),
+            }
+          : {
+              ControllingArea:
+                (
+                  existingFullTimeEntry?.TimeSheetDataFields?.ControllingArea ??
+                  ''
+                ).trim() ||
+                controllingArea ||
+                'A000',
+              SenderCostCenter:
+                (
+                  existingFullTimeEntry?.TimeSheetDataFields
+                    ?.SenderCostCenter ?? ''
+                ).trim() || costCenter,
+              ReceiverCostCenter: (
+                existingFullTimeEntry?.TimeSheetDataFields
+                  ?.ReceiverCostCenter ?? ''
+              ).trim(),
+              ActivityType:
+                (
+                  existingFullTimeEntry?.TimeSheetDataFields?.ActivityType ?? ''
+                ).trim() ||
+                projectDefaults?.activityType ||
+                '',
+              WBSElement:
+                (
+                  existingFullTimeEntry?.TimeSheetDataFields?.WBSElement ?? ''
+                ).trim() ||
+                projectDefaults?.wbsElement ||
+                '',
+              TimeSheetTaskType: '',
+              TimeSheetTaskLevel: '',
+              TimeSheetTaskComponent: '',
+              TimeSheetNote: (
+                existingFullTimeEntry?.TimeSheetDataFields?.TimeSheetNote ?? ''
+              ).trim(),
+              RecordedHours: normalizeNumberString(entry.hours),
+              PurchaseOrder:
+                (
+                  existingFullTimeEntry?.TimeSheetDataFields?.PurchaseOrder ??
+                  ''
+                ).trim() || projectDefaults?.purchaseOrder,
+              PurchaseOrderItem:
+                (
+                  existingFullTimeEntry?.TimeSheetDataFields
+                    ?.PurchaseOrderItem ?? ''
+                ).trim() || projectDefaults?.purchaseOrderItem,
+              RecordedQuantity: normalizeNumberString(entry.hours),
+              HoursUnitOfMeasure:
+                (
+                  existingFullTimeEntry?.TimeSheetDataFields
+                    ?.HoursUnitOfMeasure ?? ''
+                ).trim() || 'H',
+              TimeSheetOvertimeCategory: (
+                existingFullTimeEntry?.TimeSheetDataFields
+                  ?.TimeSheetOvertimeCategory ?? ''
+              ).trim(),
+              BillingControlCategory:
+                (
+                  existingFullTimeEntry?.TimeSheetDataFields
+                    ?.BillingControlCategory ?? ''
+                ).trim() || projectDefaults?.billingControlCategory,
+            };
+
       const row: PostTimeSheetGeneralCreateOrUpdate = {
-        TimeSheetDataFields: {
-          ControllingArea:
-            (
-              existingFullTimeEntry?.TimeSheetDataFields?.ControllingArea ?? ''
-            ).trim() ||
-            defaultControllingArea ||
-            'A000',
-          SenderCostCenter:
-            (
-              existingFullTimeEntry?.TimeSheetDataFields?.SenderCostCenter ?? ''
-            ).trim() || defaultSenderCostCenter,
-          ReceiverCostCenter: (
-            existingFullTimeEntry?.TimeSheetDataFields?.ReceiverCostCenter ?? ''
-          ).trim(),
-          ActivityType:
-            (
-              existingFullTimeEntry?.TimeSheetDataFields?.ActivityType ?? ''
-            ).trim() || defaultActivityType,
-          WBSElement:
-            (
-              existingFullTimeEntry?.TimeSheetDataFields?.WBSElement ?? ''
-            ).trim() || defaultWbsElement,
-          TimeSheetTaskType: (
-            existingFullTimeEntry?.TimeSheetDataFields?.TimeSheetTaskType ?? ''
-          ).trim(),
-          TimeSheetTaskLevel: (
-            existingFullTimeEntry?.TimeSheetDataFields?.TimeSheetTaskLevel ?? ''
-          ).trim(),
-          TimeSheetTaskComponent: (
-            existingFullTimeEntry?.TimeSheetDataFields
-              ?.TimeSheetTaskComponent ?? ''
-          ).trim(),
-          TimeSheetNote: (
-            existingFullTimeEntry?.TimeSheetDataFields?.TimeSheetNote ?? ''
-          ).trim(),
-          RecordedHours: normalizeNumberString(entry.hours),
-          PurchaseOrder:
-            (
-              existingFullTimeEntry?.TimeSheetDataFields?.PurchaseOrder ?? ''
-            ).trim() || defaultPurchaseOrder,
-          PurchaseOrderItem:
-            (
-              existingFullTimeEntry?.TimeSheetDataFields?.PurchaseOrderItem ??
-              ''
-            ).trim() || defaultPurchaseOrderItem,
-          RecordedQuantity: normalizeNumberString(entry.hours),
-          HoursUnitOfMeasure:
-            (
-              existingFullTimeEntry?.TimeSheetDataFields?.HoursUnitOfMeasure ??
-              ''
-            ).trim() || 'H',
-          TimeSheetOvertimeCategory: (
-            existingFullTimeEntry?.TimeSheetDataFields
-              ?.TimeSheetOvertimeCategory ?? ''
-          ).trim(),
-          BillingControlCategory: (
-            existingFullTimeEntry?.TimeSheetDataFields
-              ?.BillingControlCategory ?? ''
-          ).trim(),
-        },
+        TimeSheetDataFields: timeSheetDataFields,
         CompanyCode: companyCode,
         TimeSheetOperation: operation,
         PersonWorkAgreement:
@@ -624,7 +747,8 @@ export async function ui5MainWorldAutofill(
             ? (existingFullTimeEntry?.PersonWorkAgreement ?? '').trim()
             : '',
         TimeSheetDate: resolveTimesheetDateValue(entry.date, dayEntry),
-        TimeSheetStatus: (existingFullTimeEntry?.TimeSheetStatus ?? '').trim(),
+        TimeSheetStatus:
+          (existingFullTimeEntry?.TimeSheetStatus ?? '').trim() || '20',
         TimeSheetIsExecutedInTestRun: false,
         TimeSheetIsReleasedOnSave: true,
       };

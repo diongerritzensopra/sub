@@ -68,7 +68,13 @@ describe('readTimesheetSnapshotViaUi5', () => {
     const snapshot: TimesheetSnapshot = {
       month: 5,
       year: 2026,
-      projects: [{ code: 'ZMOCK_001.1.1', name: 'Mockproject' }],
+      targets: [
+        {
+          targetType: 'project',
+          targetCode: 'ZMOCK_001.1.1',
+          targetLabel: 'Mockproject',
+        },
+      ],
       currentProjectCode: 'ZMOCK_001.1.1',
       totals: { worked: 120, toBePerformed: 160 },
       sapStatus: 'editable',

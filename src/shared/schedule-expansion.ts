@@ -55,7 +55,6 @@ export function expandWeeklyScheduleToMonthEntries(
 
     entries.push({
       date: formatIsoDateUTC(year, month, day),
-      project: schedule.projectCode,
       hours: plannedHours,
     });
   }

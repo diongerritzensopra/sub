@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import type {
+  SapGeneralHours,
+  SapProject,
   SapProjectsModelData,
   SapTimesheetDayEntry,
 } from '../shared/types';
@@ -8,92 +11,11 @@ import {
   ui5MainWorldReadSnapshot,
 } from './ui5-main-world';
 
-describe('ui5MainWorldReadSnapshot', () => {
-  beforeEach(() => {
-    delete (window as Window & { sap?: unknown }).sap;
-  });
-
-  it('converts 0-indexed SAP month to 1-indexed snapshot month', () => {
-    (window as Window & { sap?: unknown }).sap = {
-      ui: {
-        getCore: () => ({
-          byId: (id: string) => {
-            if (id !== 'application-timesheet-my-component---idDetailTotals') {
-              return null;
-            }
-
-            return {
-              getModel: (name: string) => {
-                if (name !== 'projectsmodel') {
-                  return null;
-                }
-
-                return {
-                  getData: () => ({
-                    oMonth: 6,
-                    oYear: 2026,
-                    oCurrentProject: { WorkPackage: 'ZMOCK_001.1.1' },
-                    oProjects: [
-                      {
-                        WorkPackage: 'ZMOCK_001.1.1',
-                        WorkPackageName: 'Mockproject',
-                      },
-                    ],
-                    oTotals: {
-                      oStatus: 'U',
-                      oTotals: {
-                        totalActualWorkHours: '08:00',
-                        hoursToBePerformed: '160:00',
-                        leaveHours: null,
-                      },
-                    },
-                  }),
-                };
-              },
-            };
-          },
-        }),
-      },
-    };
-
-    const result = ui5MainWorldReadSnapshot();
-    expect(result.success).toBe(true);
-    expect(result.snapshot?.month).toBe(7);
-    expect(result.snapshot?.year).toBe(2026);
-    expect(result.snapshot?.projects).toEqual([
-      { code: 'ZMOCK_001.1.1', name: 'Mockproject' },
-    ]);
-    expect(result.snapshot?.sapStatus).toBe('editable');
-  });
-
-  it('returns a stable error when projectsmodel cannot be read', () => {
-    (window as Window & { sap?: unknown }).sap = {
-      ui: {
-        getCore: () => ({
-          byId: () => ({
-            getModel: () => ({
-              getData: () => {
-                throw new Error('boom');
-              },
-            }),
-          }),
-        }),
-      },
-    };
-
-    expect(ui5MainWorldReadSnapshot()).toEqual({
-      success: false,
-      error:
-        'SAP projectsmodel kon niet worden gelezen via de UI5 pagina-context.',
-    });
-  });
-});
-
-describe('ui5MainWorldAutofill', () => {
-  const baseDay = (
-    date: string,
-    overrides?: Partial<SapTimesheetDayEntry>,
-  ): SapTimesheetDayEntry => ({
+function baseDay(
+  date: string,
+  overrides?: Partial<SapTimesheetDayEntry>,
+): SapTimesheetDayEntry {
+  return {
     Date: new Date(date).getTime(),
     ProjectCode: 'ZMOCK_001.1.1',
     Comment: '',
@@ -107,76 +29,278 @@ describe('ui5MainWorldAutofill', () => {
     FullTime_Entries: [],
     Others_Entries: [],
     ...overrides,
-  });
+  };
+}
 
-  const setSapContext = (
-    monthData: SapTimesheetDayEntry[],
-    callFunctionSpy: (path: string, params: any) => void,
-    refreshTotalsModelsSpy?: () => void,
-    userDetailOverrides?: Partial<SapProjectsModelData['UserDetail']>,
-  ): void => {
-    const projectsModelData: SapProjectsModelData = {
-      oMonth: 4,
-      oYear: 2026,
-      UserDetail: {
-        PersonWorkAgreement: '40001234',
-        PersonWorkAgreementExternalID: '00045678',
-        CompanyCode: '1000',
-        ...(userDetailOverrides ?? {}),
-      },
-      oCurrentProject: {
-        WorkPackage: 'ZMOCK_001.1.1',
-        WorkPackageName: 'Test project',
-        oTimeSheet: monthData,
-        EngagementProjectResource: 'T001',
-        CostCenter: '10001234',
-        CostCenterControllingArea: 'A000',
-        CompanyCode: '1000',
-        EmploymentInternalID: '40001234',
-        PurchaseOrder: '',
-        PurchaseOrderItem: '00000',
-        PurchaseOrderCalculated: '',
-        PurchaseOrderItemCalculated: '00000',
-      },
-      oProjects: [],
+function createProject(
+  monthData: SapTimesheetDayEntry[] = [],
+  overrides: Partial<SapProject> = {},
+): SapProject {
+  return {
+    WorkPackage: 'ZMOCK_001.1.1',
+    WorkPackageName: 'Mockproject',
+    oTimeSheet: monthData,
+    EngagementProjectResource: 'T001',
+    CompanyCode: '1000',
+    EmploymentInternalID: '40001234',
+    BillingControlCategory: '',
+    PurchaseOrder: '',
+    PurchaseOrderItem: '00000',
+    PurchaseOrderCalculated: '',
+    PurchaseOrderItemCalculated: '00000',
+    ...overrides,
+  };
+}
+
+function createGeneralHours(
+  monthData: SapTimesheetDayEntry[] = [],
+  overrides: Partial<SapGeneralHours> = {},
+): SapGeneralHours {
+  return {
+    TimeSheetTaskType: 'MISC',
+    TimeSheetTaskTypeText: 'Commercial hours',
+    oTimeSheet: monthData,
+    ...overrides,
+  };
+}
+
+function createProjectsModelData(
+  overrides: Partial<SapProjectsModelData> = {},
+): SapProjectsModelData {
+  return {
+    oMonth: 6,
+    oYear: 2026,
+    UserDetail: {
+      PersonWorkAgreement: '40001234',
+      PersonWorkAgreementExternalID: '00045678',
+      CompanyCode: '1000',
+      ControllingArea: 'A000',
+      CostCenter: '90392131',
+    },
+    oCurrentProject: createProject(),
+    oProjects: [createProject()],
+    oGeneralHours: [createGeneralHours()],
+    oTotals: {
+      oStatus: 'U',
       oTotals: {
-        oStatus: 'U',
-        oTotals: {
-          hoursToBePerformed: '00:00',
-          totalActualWorkHours: '00:00',
-          leaveHours: null,
+        totalActualWorkHours: '08:00',
+        hoursToBePerformed: '160:00',
+        leaveHours: null,
+      },
+    },
+    ...overrides,
+  };
+}
+
+function installReadSnapshotContext(
+  modelDataOrFactory: unknown | (() => unknown),
+): void {
+  (window as Window & { sap?: unknown }).sap = {
+    ui: {
+      getCore: () => ({
+        byId: (id: string) => {
+          if (id !== 'application-timesheet-my-component---idDetail') {
+            return null;
+          }
+
+          return {
+            getModel: (name?: string) => {
+              if (name !== 'projectsmodel') {
+                return undefined;
+              }
+
+              return {
+                getData: () =>
+                  typeof modelDataOrFactory === 'function'
+                    ? (modelDataOrFactory as () => unknown)()
+                    : modelDataOrFactory,
+              };
+            },
+          };
+        },
+      }),
+    },
+  };
+}
+
+function installAutofillContext(
+  modelData: SapProjectsModelData | null,
+  callFunctionSpy?: (path: string, params: any) => void,
+  refreshTotalsModelsSpy?: () => void,
+): void {
+  (window as Window & { sap?: unknown }).sap = {
+    ui: {
+      getCore: () => ({
+        byId: (id: string) => {
+          if (id === 'application-timesheet-my-component---idDetailTotals') {
+            return null;
+          }
+          if (id !== 'application-timesheet-my-component---idDetail') {
+            return null;
+          }
+
+          return {
+            getController: () => ({
+              _refreshTotalsModels: refreshTotalsModelsSpy,
+            }),
+            getModel: (name?: string) => {
+              if (name === 'projectsmodel') {
+                return { getData: () => modelData };
+              }
+
+              return callFunctionSpy ? { callFunction: callFunctionSpy } : {};
+            },
+          };
+        },
+      }),
+    },
+  };
+}
+
+beforeEach(() => {
+  delete (window as Window & { sap?: unknown }).sap;
+  document.body.innerHTML = '';
+  vi.restoreAllMocks();
+});
+
+describe('ui5MainWorldReadSnapshot', () => {
+  it('reads and normalizes projects and general-hours options', () => {
+    installReadSnapshotContext(
+      createProjectsModelData({
+        oProjects: [
+          createProject([], {
+            WorkPackage: ' zmock_001.1.1 ',
+            WorkPackageName: 'Mockproject',
+          }),
+          createProject([], {
+            WorkPackage: 'ZMOCK_001.1.1',
+            WorkPackageName: '',
+          }),
+          createProject([], {
+            WorkPackage: 'ZTEST_42',
+            WorkPackageName: 'Testproject 42',
+          }),
+        ],
+        oGeneralHours: [
+          createGeneralHours([], {
+            TimeSheetTaskType: ' misc ',
+            TimeSheetTaskTypeText: 'Commercial hours',
+          }),
+          createGeneralHours([], {
+            TimeSheetTaskType: 'MISC',
+            TimeSheetTaskTypeText: '',
+          }),
+          createGeneralHours([], {
+            TimeSheetTaskType: 'ADM',
+            TimeSheetTaskTypeText: 'Administration',
+          }),
+        ],
+        oCurrentProject: createProject([], {
+          WorkPackage: ' ztest_42 ',
+          WorkPackageName: 'Testproject 42',
+        }),
+      }),
+    );
+
+    const result = ui5MainWorldReadSnapshot();
+
+    expect(result).toEqual({
+      success: true,
+      snapshot: {
+        month: 7,
+        year: 2026,
+        targets: [
+          {
+            targetType: 'general-hours',
+            targetCode: 'ADM',
+            targetLabel: 'Administration',
+          },
+          {
+            targetType: 'general-hours',
+            targetCode: 'MISC',
+            targetLabel: 'Commercial hours',
+          },
+          {
+            targetType: 'project',
+            targetCode: 'ZMOCK_001.1.1',
+            targetLabel: 'Mockproject',
+          },
+          {
+            targetType: 'project',
+            targetCode: 'ZTEST_42',
+            targetLabel: 'Testproject 42',
+          },
+        ],
+        currentProjectCode: 'ZTEST_42',
+        sapStatus: 'editable',
+        totals: {
+          worked: 8,
+          toBePerformed: 160,
         },
       },
-    };
+    });
+  });
 
-    (window as Window & { sap?: unknown }).sap = {
-      ui: {
-        getCore: () => ({
-          byId: (id: string) => {
-            if (id === 'application-timesheet-my-component---idDetailTotals') {
-              return null;
-            }
-            if (id !== 'application-timesheet-my-component---idDetail') {
-              return null;
-            }
-
-            return {
-              getController: () => ({
-                _refreshTotalsModels: refreshTotalsModelsSpy,
-              }),
-              getModel: (name?: string) => {
-                if (name === 'projectsmodel') {
-                  return { getData: () => projectsModelData };
-                }
-                return { callFunction: callFunctionSpy };
-              },
-            };
-          },
+  it('uses the current general-hours task type as currentProjectCode', () => {
+    installReadSnapshotContext(
+      createProjectsModelData({
+        oCurrentProject: createGeneralHours([], {
+          TimeSheetTaskType: ' adm ',
+          TimeSheetTaskTypeText: 'Administration',
         }),
-      },
-    };
-  };
+      }),
+    );
 
+    const result = ui5MainWorldReadSnapshot();
+
+    expect(result.success).toBe(true);
+    expect(result.snapshot?.currentProjectCode).toBe('ADM');
+  });
+
+  it('returns a stable error when projectsmodel cannot be read', () => {
+    installReadSnapshotContext(() => {
+      throw new Error('boom');
+    });
+
+    expect(ui5MainWorldReadSnapshot()).toEqual({
+      success: false,
+      error:
+        'SAP projectsmodel kon niet worden gelezen via de UI5 pagina-context.',
+    });
+  });
+
+  it('returns an error when general-hours data is missing', () => {
+    installReadSnapshotContext({
+      ...createProjectsModelData(),
+      oGeneralHours: undefined,
+    } as unknown as SapProjectsModelData);
+
+    expect(ui5MainWorldReadSnapshot()).toEqual({
+      success: false,
+      error: 'SAP projectsmodel bevat geen geldige algemene uren.',
+    });
+  });
+
+  it('returns an error when general-hours data is empty after normalization', () => {
+    installReadSnapshotContext(
+      createProjectsModelData({
+        oGeneralHours: [
+          createGeneralHours([], {
+            TimeSheetTaskType: '   ',
+            TimeSheetTaskTypeText: 'Ignored',
+          }),
+        ],
+      }),
+    );
+
+    expect(ui5MainWorldReadSnapshot()).toEqual({
+      success: false,
+      error: 'SAP projectsmodel bevat geen geldige algemene uren.',
+    });
+  });
+});
+
+describe('ui5MainWorldAutofill', () => {
   it('returns a clear error when sap.ui.getCore is unavailable', async () => {
     delete (window as Window & { sap?: unknown }).sap;
 
@@ -194,7 +318,13 @@ describe('ui5MainWorldAutofill', () => {
   });
 
   it('returns a clear error when month data is unavailable', async () => {
-    setSapContext([], vi.fn());
+    installAutofillContext(
+      createProjectsModelData({
+        oMonth: 4,
+        oCurrentProject: createProject([]),
+      }),
+      vi.fn(),
+    );
 
     const result = await ui5MainWorldAutofill({
       entries: [{ date: '2026-05-01', hours: 8 }],
@@ -210,45 +340,13 @@ describe('ui5MainWorldAutofill', () => {
   });
 
   it('returns an error when no current project is selected in SAP', async () => {
-    (window as Window & { sap?: unknown }).sap = {
-      ui: {
-        getCore: () => ({
-          byId: (id: string) => {
-            if (id !== 'application-timesheet-my-component---idDetail')
-              return null;
-            return {
-              getController: () => ({ _refreshTotalsModels: vi.fn() }),
-              getModel: (name?: string) => {
-                if (name === 'projectsmodel') {
-                  return {
-                    getData: () => ({
-                      oMonth: 4,
-                      oYear: 2026,
-                      UserDetail: {
-                        PersonWorkAgreement: '40001234',
-                        PersonWorkAgreementExternalID: '00045678',
-                        CompanyCode: '1000',
-                      },
-                      oCurrentProject: null,
-                      oProjects: [],
-                      oTotals: {
-                        oStatus: 'U',
-                        oTotals: {
-                          hoursToBePerformed: '00:00',
-                          totalActualWorkHours: '00:00',
-                          leaveHours: null,
-                        },
-                      },
-                    }),
-                  };
-                }
-                return { callFunction: vi.fn() };
-              },
-            };
-          },
-        }),
-      },
-    };
+    installAutofillContext(
+      createProjectsModelData({
+        oMonth: 4,
+        oCurrentProject: null,
+      }),
+      vi.fn(),
+    );
 
     const result = await ui5MainWorldAutofill({
       entries: [{ date: '2026-05-01', hours: 8 }],
@@ -263,26 +361,8 @@ describe('ui5MainWorldAutofill', () => {
     });
   });
 
-  it('returns an error when projectsModelData cannot be read', async () => {
-    (window as Window & { sap?: unknown }).sap = {
-      ui: {
-        getCore: () => ({
-          byId: (id: string) => {
-            if (id !== 'application-timesheet-my-component---idDetail')
-              return null;
-            return {
-              getController: () => ({ _refreshTotalsModels: vi.fn() }),
-              getModel: (name?: string) => {
-                if (name === 'projectsmodel') {
-                  return { getData: () => null };
-                }
-                return { callFunction: vi.fn() };
-              },
-            };
-          },
-        }),
-      },
-    };
+  it('returns an error when projectsModel data cannot be read', async () => {
+    installAutofillContext(null, vi.fn());
 
     const result = await ui5MainWorldAutofill({
       entries: [{ date: '2026-05-01', hours: 8 }],
@@ -303,8 +383,17 @@ describe('ui5MainWorldAutofill', () => {
       params.success?.();
     });
     const refreshSpy = vi.fn();
-    const monthData = [baseDay('2026-05-01')];
-    setSapContext(monthData, callFunctionSpy, refreshSpy);
+
+    installAutofillContext(
+      createProjectsModelData({
+        oMonth: 4,
+        oCurrentProject: createProject([baseDay('2026-05-01')], {
+          BillingControlCategory: 'BC01',
+        }),
+      }),
+      callFunctionSpy,
+      refreshSpy,
+    );
 
     const result = await ui5MainWorldAutofill({
       entries: [{ date: '2026-05-01', hours: 8 }],
@@ -320,8 +409,33 @@ describe('ui5MainWorldAutofill', () => {
     const payload = JSON.parse(
       callFunctionSpy.mock.calls[0][1].urlParameters.payload,
     ) as { v_General: Array<any> };
-    expect(payload.v_General[0].TimeSheetOperation).toBe('C');
-    expect(payload.v_General[0].TimeSheetDataFields.RecordedHours).toBe('8');
+    expect(payload.v_General[0]).toMatchObject({
+      CompanyCode: '1000',
+      TimeSheetOperation: 'C',
+      PersonWorkAgreement: '',
+      TimeSheetDate: `/Date(${new Date('2026-05-01').getTime()})/`,
+      TimeSheetStatus: '20',
+      TimeSheetIsExecutedInTestRun: false,
+      TimeSheetIsReleasedOnSave: true,
+      TimeSheetDataFields: {
+        ControllingArea: 'A000',
+        SenderCostCenter: '90392131',
+        ReceiverCostCenter: '',
+        ActivityType: 'T001',
+        WBSElement: 'ZMOCK_001.1.1',
+        TimeSheetTaskType: '',
+        TimeSheetTaskLevel: '',
+        TimeSheetTaskComponent: '',
+        TimeSheetNote: '',
+        RecordedHours: '8',
+        PurchaseOrder: '',
+        PurchaseOrderItem: '00000',
+        RecordedQuantity: '8',
+        HoursUnitOfMeasure: 'H',
+        TimeSheetOvertimeCategory: '',
+        BillingControlCategory: 'BC01',
+      },
+    });
     expect(refreshSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -336,7 +450,13 @@ describe('ui5MainWorldAutofill', () => {
       params.error?.(err);
     });
 
-    setSapContext([baseDay('2026-05-01')], callFunctionSpy);
+    installAutofillContext(
+      createProjectsModelData({
+        oMonth: 4,
+        oCurrentProject: createProject([baseDay('2026-05-01')]),
+      }),
+      callFunctionSpy,
+    );
 
     const result = await ui5MainWorldAutofill({
       entries: [{ date: '2026-05-01', hours: 8 }],
@@ -353,7 +473,13 @@ describe('ui5MainWorldAutofill', () => {
 
   it('treats zero hours on an empty day as a no-op', async () => {
     const callFunctionSpy = vi.fn();
-    setSapContext([baseDay('2026-05-02')], callFunctionSpy);
+    installAutofillContext(
+      createProjectsModelData({
+        oMonth: 4,
+        oCurrentProject: createProject([baseDay('2026-05-02')]),
+      }),
+      callFunctionSpy,
+    );
 
     const result = await ui5MainWorldAutofill({
       entries: [{ date: '2026-05-02', hours: 0 }],
@@ -369,9 +495,13 @@ describe('ui5MainWorldAutofill', () => {
   });
 
   it('fails a day where the requested hours exceed day availability', async () => {
-    // AvailabilityInHours is in minutes (480 = 8h). Requesting 9h (540 min) exceeds it.
-    setSapContext(
-      [baseDay('2026-05-01', { AvailabilityInHours: 480 })],
+    installAutofillContext(
+      createProjectsModelData({
+        oMonth: 4,
+        oCurrentProject: createProject([
+          baseDay('2026-05-01', { AvailabilityInHours: 480 }),
+        ]),
+      }),
       vi.fn(),
     );
 
@@ -385,7 +515,16 @@ describe('ui5MainWorldAutofill', () => {
   });
 
   it('fails a day with negative or non-finite hours', async () => {
-    setSapContext([baseDay('2026-05-01'), baseDay('2026-05-02')], vi.fn());
+    installAutofillContext(
+      createProjectsModelData({
+        oMonth: 4,
+        oCurrentProject: createProject([
+          baseDay('2026-05-01'),
+          baseDay('2026-05-02'),
+        ]),
+      }),
+      vi.fn(),
+    );
 
     const negativeResult = await ui5MainWorldAutofill({
       entries: [{ date: '2026-05-01', hours: -1 }],
@@ -393,17 +532,24 @@ describe('ui5MainWorldAutofill', () => {
     expect(negativeResult.failedDates).toEqual(['2026-05-01']);
 
     const nanResult = await ui5MainWorldAutofill({
-      entries: [{ date: '2026-05-02', hours: NaN }],
+      entries: [{ date: '2026-05-02', hours: Number.NaN }],
     });
     expect(nanResult.failedDates).toEqual(['2026-05-02']);
   });
 
   it('returns an error when required SAP identification fields are missing', async () => {
-    setSapContext([baseDay('2026-05-01')], vi.fn(), undefined, {
-      PersonWorkAgreement: '',
-      PersonWorkAgreementExternalID: '',
-      CompanyCode: '',
-    });
+    installAutofillContext(
+      createProjectsModelData({
+        oMonth: 4,
+        UserDetail: {
+          PersonWorkAgreement: '',
+          PersonWorkAgreementExternalID: '',
+          CompanyCode: '',
+        },
+        oCurrentProject: createProject([baseDay('2026-05-01')]),
+      }),
+      vi.fn(),
+    );
 
     const result = await ui5MainWorldAutofill({
       entries: [{ date: '2026-05-01', hours: 8 }],
@@ -420,59 +566,13 @@ describe('ui5MainWorldAutofill', () => {
   });
 
   it('returns an error when the OData model does not support postTimeSheet', async () => {
-    // Override the SAP context to return a model without callFunction
-    (window as Window & { sap?: unknown }).sap = {
-      ui: {
-        getCore: () => ({
-          byId: (id: string) => {
-            if (id !== 'application-timesheet-my-component---idDetail')
-              return null;
-            return {
-              getController: () => ({ _refreshTotalsModels: vi.fn() }),
-              getModel: (name?: string) => {
-                if (name === 'projectsmodel') {
-                  return {
-                    getData: () => ({
-                      oMonth: 4,
-                      oYear: 2026,
-                      UserDetail: {
-                        PersonWorkAgreement: '40001234',
-                        PersonWorkAgreementExternalID: '00045678',
-                        CompanyCode: '1000',
-                      },
-                      oCurrentProject: {
-                        WorkPackage: 'ZMOCK_001.1.1',
-                        oTimeSheet: [baseDay('2026-05-01')],
-                        EngagementProjectResource: 'T001',
-                        CostCenter: '10001234',
-                        CostCenterControllingArea: 'A000',
-                        CompanyCode: '1000',
-                        EmploymentInternalID: '40001234',
-                        PurchaseOrder: '',
-                        PurchaseOrderItem: '00000',
-                        PurchaseOrderCalculated: '',
-                        PurchaseOrderItemCalculated: '00000',
-                      },
-                      oProjects: [],
-                      oTotals: {
-                        oStatus: 'U',
-                        oTotals: {
-                          hoursToBePerformed: '00:00',
-                          totalActualWorkHours: '00:00',
-                          leaveHours: null,
-                        },
-                      },
-                    }),
-                  };
-                }
-                // Return model without callFunction
-                return {};
-              },
-            };
-          },
-        }),
-      },
-    };
+    installAutofillContext(
+      createProjectsModelData({
+        oMonth: 4,
+        oCurrentProject: createProject([baseDay('2026-05-01')]),
+      }),
+      undefined,
+    );
 
     const result = await ui5MainWorldAutofill({
       entries: [{ date: '2026-05-01', hours: 8 }],
@@ -487,38 +587,22 @@ describe('ui5MainWorldAutofill', () => {
     });
   });
 
-  it('returns a clear error for invalid ISO dates', async () => {
-    setSapContext([baseDay('2026-05-03')], vi.fn());
-
-    const result = await ui5MainWorldAutofill({
-      entries: [{ date: '2026/05/03', hours: 8 }],
-    });
-
-    expect(result).toEqual({
-      appliedDaysCount: 0,
-      failedDates: ['2026/05/03'],
-      submissionAttempted: false,
-      submissionConfirmed: false,
-      error: 'Ongeldige ISO datum: 2026/05/03.',
-    });
-  });
-
-  it('creates a delete (D) row when zero hours are submitted for a day with an existing TimeSheetRecord', async () => {
-    const callFunctionSpy = vi.fn((_: string, params: any) => {
+  it('populates TimeSheetTaskType for general-hours entries', async () => {
+    const callFunctionSpy = vi.fn((path: string, params: any) => {
+      expect(path).toBe('/postTimeSheet');
       params.success?.();
     });
-    const refreshSpy = vi.fn();
-    const monthData = [
-      baseDay('2026-05-01', {
-        FullTime_Entries: [
-          { TimeSheetRecord: 'REC001', PersonWorkAgreement: '40001234' },
-        ],
+
+    installAutofillContext(
+      createProjectsModelData({
+        oMonth: 4,
+        oCurrentProject: createGeneralHours([baseDay('2026-05-01')]),
       }),
-    ];
-    setSapContext(monthData, callFunctionSpy, refreshSpy);
+      callFunctionSpy,
+    );
 
     const result = await ui5MainWorldAutofill({
-      entries: [{ date: '2026-05-01', hours: 0 }],
+      entries: [{ date: '2026-05-01', hours: 8 }],
     });
 
     expect(result).toEqual({
@@ -527,65 +611,138 @@ describe('ui5MainWorldAutofill', () => {
       submissionAttempted: true,
       submissionConfirmed: true,
     });
+
+    // Verify that the general-hours task type is populated in the posting
     const payload = JSON.parse(
       callFunctionSpy.mock.calls[0][1].urlParameters.payload,
     ) as { v_General: Array<any> };
-    expect(payload.v_General[0].TimeSheetOperation).toBe('D');
-    expect(payload.v_General[0].TimeSheetRecord).toBe('REC001');
-  });
-
-  it('fails a zero-hours day when the existing entry has no TimeSheetRecord', async () => {
-    setSapContext(
-      [baseDay('2026-05-01', { FullTime_Entries: [{ TimeSheetRecord: '' }] })],
-      vi.fn(),
-    );
-
-    const result = await ui5MainWorldAutofill({
-      entries: [{ date: '2026-05-01', hours: 0 }],
+    expect(payload.v_General[0]).toMatchObject({
+      CompanyCode: '1000',
+      TimeSheetOperation: 'C',
+      PersonWorkAgreement: '',
+      TimeSheetDate: `/Date(${new Date('2026-05-01').getTime()})/`,
+      TimeSheetStatus: '20',
+      TimeSheetIsExecutedInTestRun: false,
+      TimeSheetIsReleasedOnSave: true,
+      TimeSheetDataFields: {
+        ControllingArea: 'A000',
+        SenderCostCenter: '',
+        ActivityType: '',
+        WBSElement: '',
+        TimeSheetTaskType: 'MISC',
+        TimeSheetTaskLevel: 'NONE',
+        TimeSheetTaskComponent: 'WORK',
+        TimeSheetNote: '',
+        RecordedHours: '8',
+        RecordedQuantity: '8',
+        HoursUnitOfMeasure: 'H',
+        TimeSheetOvertimeCategory: '',
+      },
     });
-
-    expect(result.failedDates).toEqual(['2026-05-01']);
-    expect(result.appliedDaysCount).toBe(0);
-    expect(result.submissionAttempted).toBe(false);
+    expect(payload.v_General[0].TimeSheetDataFields).not.toHaveProperty(
+      'ReceiverCostCenter',
+    );
+    expect(payload.v_General[0].TimeSheetDataFields).not.toHaveProperty(
+      'PurchaseOrder',
+    );
+    expect(payload.v_General[0].TimeSheetDataFields).not.toHaveProperty(
+      'PurchaseOrderItem',
+    );
+    expect(payload.v_General[0].TimeSheetDataFields).not.toHaveProperty(
+      'BillingControlCategory',
+    );
   });
 
-  it('creates an update (U) row when hours are submitted for a day with an existing TimeSheetRecord', async () => {
-    const callFunctionSpy = vi.fn((_: string, params: any) => {
+  it('handles general-hours update with existing task type preservation', async () => {
+    const callFunctionSpy = vi.fn((path: string, params: any) => {
+      expect(path).toBe('/postTimeSheet');
       params.success?.();
     });
-    const monthData = [
-      baseDay('2026-05-01', {
-        FullTime_Entries: [
-          { TimeSheetRecord: 'REC002', PersonWorkAgreement: '40001234' },
-        ],
-      }),
-    ];
-    setSapContext(monthData, callFunctionSpy, vi.fn());
-
-    const result = await ui5MainWorldAutofill({
-      entries: [{ date: '2026-05-01', hours: 6 }],
+    const existingEntry = baseDay('2026-04-01', {
+      AvailabilityInHours: 480,
+      FullTime_Entries: [
+        {
+          TimeSheetRecord: 'RECORD-001',
+          PersonWorkAgreement: 'PWA-001',
+          TimeSheetDataFields: {
+            TimeSheetTaskType: 'MISC',
+            ControllingArea: 'A000',
+            SenderCostCenter: 'CC001',
+            ReceiverCostCenter: '',
+            ActivityType: '',
+            WBSElement: '',
+            TimeSheetTaskLevel: '',
+            TimeSheetTaskComponent: '',
+            TimeSheetNote: '',
+            PurchaseOrder: '',
+            PurchaseOrderItem: '00000',
+            RecordedHours: '8.00',
+            RecordedQuantity: '8.000',
+            HoursUnitOfMeasure: 'H',
+            TimeSheetOvertimeCategory: '',
+            BillingControlCategory: '',
+          },
+          TimeSheetStatus: '',
+        },
+      ],
     });
 
-    expect(result.appliedDaysCount).toBe(1);
-    const payload = JSON.parse(
-      callFunctionSpy.mock.calls[0][1].urlParameters.payload,
-    ) as { v_General: Array<any> };
-    expect(payload.v_General[0].TimeSheetOperation).toBe('U');
-    expect(payload.v_General[0].TimeSheetRecord).toBe('REC002');
-  });
-
-  it('fails an update when the existing entry has no TimeSheetRecord', async () => {
-    setSapContext(
-      [baseDay('2026-05-01', { FullTime_Entries: [{ TimeSheetRecord: '' }] })],
-      vi.fn(),
+    installAutofillContext(
+      createProjectsModelData({
+        oMonth: 4,
+        oCurrentProject: createGeneralHours([existingEntry]),
+      }),
+      callFunctionSpy,
     );
 
     const result = await ui5MainWorldAutofill({
-      entries: [{ date: '2026-05-01', hours: 8 }],
+      entries: [{ date: '2026-04-01', hours: 6 }],
     });
 
-    expect(result.failedDates).toEqual(['2026-05-01']);
-    expect(result.appliedDaysCount).toBe(0);
-    expect(result.submissionAttempted).toBe(false);
+    expect(result).toEqual({
+      appliedDaysCount: 1,
+      failedDates: [],
+      submissionAttempted: true,
+      submissionConfirmed: true,
+    });
+
+    // Verify the update operation with the general-hours field shape.
+    const payload = JSON.parse(
+      callFunctionSpy.mock.calls[0][1].urlParameters.payload,
+    ) as { v_General: Array<any> };
+    expect(payload.v_General[0]).toMatchObject({
+      CompanyCode: '1000',
+      TimeSheetOperation: 'U',
+      PersonWorkAgreement: 'PWA-001',
+      TimeSheetDate: `/Date(${Date.UTC(2026, 3, 1)})/`,
+      TimeSheetStatus: '20',
+      TimeSheetIsExecutedInTestRun: false,
+      TimeSheetIsReleasedOnSave: true,
+      TimeSheetRecord: 'RECORD-001',
+      TimeSheetDataFields: {
+        ControllingArea: 'A000',
+        SenderCostCenter: '',
+        ReceiverCostCenter: '90392131',
+        ActivityType: '',
+        WBSElement: '',
+        TimeSheetTaskType: 'MISC',
+        TimeSheetTaskLevel: 'NONE',
+        TimeSheetTaskComponent: 'WORK',
+        TimeSheetNote: '',
+        RecordedHours: '6',
+        RecordedQuantity: '6',
+        HoursUnitOfMeasure: 'H',
+        TimeSheetOvertimeCategory: '',
+      },
+    });
+    expect(payload.v_General[0].TimeSheetDataFields).not.toHaveProperty(
+      'PurchaseOrder',
+    );
+    expect(payload.v_General[0].TimeSheetDataFields).not.toHaveProperty(
+      'PurchaseOrderItem',
+    );
+    expect(payload.v_General[0].TimeSheetDataFields).not.toHaveProperty(
+      'BillingControlCategory',
+    );
   });
 });

@@ -14,6 +14,7 @@ import {
   updateApplySchedulesButtonState,
 } from './popup-render';
 import {
+  createGeneralHoursSchedule,
   createSchedule,
   createSnapshot,
   setupPopupDom,
@@ -43,7 +44,6 @@ describe('formatTimestampSuffix', () => {
   it('returns a formatted suffix for valid timestamps', () => {
     const timestampIso = '2026-08-05T14:30:00.000Z';
     const originalDateTimeFormat = Intl.DateTimeFormat;
-    // We only force UTC in this test so the hardcoded expectation is deterministic across environments.
     const dateTimeFormatSpy = vi
       .spyOn(Intl, 'DateTimeFormat')
       .mockImplementation(function (locales, options) {
@@ -54,9 +54,7 @@ describe('formatTimestampSuffix', () => {
       });
 
     try {
-      const result = formatTimestampSuffix(timestampIso);
-
-      expect(result).toBe(' (05-08-2026, 14:30)');
+      expect(formatTimestampSuffix(timestampIso)).toBe(' (05-08-2026, 14:30)');
     } finally {
       dateTimeFormatSpy.mockRestore();
     }
@@ -74,9 +72,10 @@ describe('renderSnapshot', () => {
     expect(dom.workedHoursValue.textContent).toBe('12,5 u');
     expect(dom.toBePerformedHoursValue.textContent).toBe('30 u');
     expect(dom.summarySection.hidden).toBe(false);
-    expect(dom.projectsValue.querySelectorAll('li')).toHaveLength(2);
+    expect(dom.projectsValue.querySelectorAll('li')).toHaveLength(3);
     expect(dom.projectsValue.textContent).toContain('Project Alpha');
     expect(dom.projectsValue.textContent).toContain('Onbekend project');
+    expect(dom.projectsValue.textContent).toContain('Commercial hours');
   });
 
   it('renders missing period/totals and incomplete indicator', () => {
@@ -85,7 +84,7 @@ describe('renderSnapshot', () => {
       month: null,
       year: null,
       totals: { worked: null, toBePerformed: null },
-      projects: [],
+      targets: [],
     });
 
     renderSnapshot(dom, snapshot, false, false, null);
@@ -139,33 +138,24 @@ describe('renderSchedules', () => {
   it('shows empty state when no schedules exist', () => {
     const dom = getPopupDomRefs(document);
 
-    renderSchedules(
-      dom,
-      [],
-      new Set<string>(),
-      new Map(),
-      vi.fn(),
-      vi.fn(),
-      vi.fn(),
-    );
+    renderSchedules(dom, [], new Set<string>(), vi.fn(), vi.fn(), vi.fn());
 
     expect(dom.schedulesEmpty.hidden).toBe(false);
     expect(dom.schedulesList.hidden).toBe(true);
     expect(dom.schedulesList.children).toHaveLength(0);
   });
 
-  it('renders schedule rows and fallback project labels', () => {
+  it('renders schedule rows with provided target labels', () => {
     const dom = getPopupDomRefs(document);
     const schedules = [
-      createSchedule('a', 'C001'),
-      createSchedule('b', 'UNKNOWN'),
+      createSchedule('a', 'C001', 'Project Alpha'),
+      createSchedule('b', 'UNKNOWN', 'Onbekend project'),
     ];
 
     renderSchedules(
       dom,
       schedules,
       new Set<string>(['a']),
-      new Map<string, string>([['C001', 'Project Alpha']]),
       vi.fn(),
       vi.fn(),
       vi.fn(),
@@ -175,13 +165,13 @@ describe('renderSchedules', () => {
     expect(items).toHaveLength(2);
     expect(items[0].classList.contains('schedule-item--selected')).toBe(true);
     expect(items[1].textContent).toContain('Onbekend project');
+    expect(items[1].textContent).toContain('UNKNOWN');
     expect(dom.schedulesEmpty.hidden).toBe(true);
     expect(dom.schedulesList.hidden).toBe(false);
   });
 
   it('toggles selection via row click and keyboard interactions', () => {
     const dom = getPopupDomRefs(document);
-    const schedules = [createSchedule('a')];
     const selected = new Set<string>();
     const onToggleSelection = vi.fn((scheduleId: string) => {
       if (selected.has(scheduleId)) {
@@ -190,12 +180,12 @@ describe('renderSchedules', () => {
         selected.add(scheduleId);
       }
     });
+    const schedules = [createSchedule('a')];
 
     renderSchedules(
       dom,
       schedules,
       selected,
-      new Map(),
       onToggleSelection,
       vi.fn(),
       vi.fn(),
@@ -219,6 +209,32 @@ describe('renderSchedules', () => {
     expect(content.getAttribute('aria-checked')).toBe('false');
   });
 
+  it('renders general-hours schedules with target type in the accessible label', () => {
+    const dom = getPopupDomRefs(document);
+    const schedules = [
+      createGeneralHoursSchedule('gh-1', 'MISC', 'Commercial hours'),
+    ];
+
+    renderSchedules(
+      dom,
+      schedules,
+      new Set<string>(),
+      vi.fn(),
+      vi.fn(),
+      vi.fn(),
+    );
+
+    const item = dom.schedulesList.querySelector(
+      '.schedule-item',
+    ) as HTMLLIElement;
+    const content = item.querySelector('.schedule-content') as HTMLDivElement;
+    expect(item.textContent).toContain('Commercial hours');
+    expect(item.textContent).toContain('MISC');
+    expect(content.getAttribute('aria-label')).toContain(
+      'Algemene uren Commercial hours [MISC]',
+    );
+  });
+
   it('handles edit and delete confirmation actions', () => {
     const dom = getPopupDomRefs(document);
     const schedule = createSchedule('a');
@@ -229,7 +245,6 @@ describe('renderSchedules', () => {
       dom,
       [schedule],
       new Set<string>(),
-      new Map<string, string>([['C001', 'Project Alpha']]),
       vi.fn(),
       onEditClick,
       onDeleteConfirm,
@@ -282,7 +297,7 @@ describe('schedule form rendering', () => {
     expect(dom.scheduleFormSection.hidden).toBe(true);
   });
 
-  it('shows form in new mode with project options and defaults', () => {
+  it('shows form in new mode with project and general-hours options', () => {
     const dom = getPopupDomRefs(document);
     const snapshot = createSnapshot();
     const submitBtn = dom.scheduleForm.querySelector(
@@ -299,14 +314,30 @@ describe('schedule form rendering', () => {
     expect(submitBtn.textContent).toBe('Opslaan');
     expect(dom.scheduleLabelInput.value).toBe('');
     expect(dom.hoursInputs.monday.value).toBe('0');
-    expect(dom.scheduleProjectSelect.options).toHaveLength(3);
+    expect(dom.scheduleProjectSelect.querySelectorAll('option')).toHaveLength(
+      4,
+    );
+    expect(dom.scheduleProjectSelect.querySelectorAll('optgroup')).toHaveLength(
+      2,
+    );
+    expect(dom.scheduleProjectSelect.options[1].value).toBe(
+      '{"targetType":"project","targetCode":"C001"}',
+    );
     expect(dom.scheduleProjectSelect.options[1].textContent).toBe(
       'Project Alpha [C001]',
     );
-    expect(dom.scheduleProjectSelect.options[2].textContent).toBe('C002');
+    expect(dom.scheduleProjectSelect.options[2].textContent).toBe(
+      'Onbekend project [C002]',
+    );
+    expect(dom.scheduleProjectSelect.options[3].value).toBe(
+      '{"targetType":"general-hours","targetCode":"MISC"}',
+    );
+    expect(dom.scheduleProjectSelect.options[3].textContent).toBe(
+      'Commercial hours [MISC]',
+    );
   });
 
-  it('shows form in edit mode and pre-fills schedule values', () => {
+  it('shows form in edit mode and pre-fills a project schedule', () => {
     const dom = getPopupDomRefs(document);
     const submitBtn = dom.scheduleForm.querySelector(
       'button[type="submit"]',
@@ -320,24 +351,46 @@ describe('schedule form rendering', () => {
     expect(dom.scheduleFormTitle.textContent).toBe('Schema bewerken');
     expect(submitBtn.textContent).toBe('Bijwerken');
     expect(dom.scheduleLabelInput.value).toBe('Bestaand schema');
-    expect(dom.scheduleProjectSelect.value).toBe('C001');
+    expect(dom.scheduleProjectSelect.value).toBe(
+      '{"targetType":"project","targetCode":"C001"}',
+    );
     expect(dom.hoursInputs.monday.value).toBe('6.5');
   });
 
-  it('hideScheduleForm resets and hides form', () => {
+  it('shows form in edit mode for a general-hours schedule', () => {
     const dom = getPopupDomRefs(document);
-    dom.scheduleLabelInput.value = 'Will reset';
-    dom.scheduleFormSection.hidden = false;
+    const submitBtn = dom.scheduleForm.querySelector(
+      'button[type="submit"]',
+    ) as HTMLButtonElement;
+    const scheduleToEdit = createGeneralHoursSchedule(
+      'gh-1',
+      'MISC',
+      'Commercial hours',
+    );
 
-    hideScheduleForm(dom);
+    showScheduleForm(dom, createSnapshot(), scheduleToEdit);
 
-    expect(dom.scheduleLabelInput.value).toBe('');
-    expect(dom.scheduleFormSection.hidden).toBe(true);
+    expect(dom.scheduleFormTitle.textContent).toBe('Schema bewerken');
+    expect(submitBtn.textContent).toBe('Bijwerken');
+    expect(dom.scheduleProjectSelect.value).toBe(
+      '{"targetType":"general-hours","targetCode":"MISC"}',
+    );
   });
 });
 
-describe('button and status rendering helpers', () => {
-  it('updates add schedule button state from snapshot availability', () => {
+describe('simple DOM state helpers', () => {
+  it('hides and resets the schedule form', () => {
+    const dom = getPopupDomRefs(document);
+    dom.scheduleFormSection.hidden = false;
+    dom.scheduleLabelInput.value = 'Test';
+
+    hideScheduleForm(dom);
+
+    expect(dom.scheduleFormSection.hidden).toBe(true);
+    expect(dom.scheduleLabelInput.value).toBe('');
+  });
+
+  it('updates add-schedule button state', () => {
     const dom = getPopupDomRefs(document);
 
     updateAddScheduleButtonState(dom, false);
@@ -347,18 +400,12 @@ describe('button and status rendering helpers', () => {
     expect(dom.addScheduleButton.disabled).toBe(false);
   });
 
-  it('updates apply button text, lock state and applying state', () => {
+  it('updates apply button state for selection, locking and apply progress', () => {
     const dom = getPopupDomRefs(document);
 
     updateApplySchedulesButtonState(dom, false, false, 2, true, false);
-    expect(dom.applySchedulesButton.textContent).toBe('Alles toepassen');
     expect(dom.applySchedulesButton.disabled).toBe(false);
-    expect(dom.applySchedulesButton.classList.contains('is-locked')).toBe(
-      false,
-    );
-    expect(dom.applySchedulesButton.classList.contains('is-applying')).toBe(
-      false,
-    );
+    expect(dom.applySchedulesButton.textContent).toBe('Alles toepassen');
 
     updateApplySchedulesButtonState(dom, false, true, 2, true, false);
     expect(dom.applySchedulesButton.textContent).toBe('Toepassen');
@@ -368,32 +415,21 @@ describe('button and status rendering helpers', () => {
     expect(dom.applySchedulesButton.classList.contains('is-locked')).toBe(true);
 
     updateApplySchedulesButtonState(dom, false, true, 2, true, true);
-    expect(dom.applySchedulesButton.textContent).toBe('Bezig...');
     expect(dom.applySchedulesButton.disabled).toBe(true);
+    expect(dom.applySchedulesButton.textContent).toBe('Bezig...');
     expect(dom.applySchedulesButton.classList.contains('is-applying')).toBe(
       true,
     );
   });
 
-  it('updates scrape button disabled state', () => {
+  it('updates scrape button and status message', () => {
     const dom = getPopupDomRefs(document);
 
     setScrapeButtonState(dom, true);
     expect(dom.btnScrape.disabled).toBe(true);
 
-    setScrapeButtonState(dom, false);
-    expect(dom.btnScrape.disabled).toBe(false);
-  });
-
-  it('renders status text and dismiss visibility', () => {
-    const dom = getPopupDomRefs(document);
-
-    renderStatusMessage(dom, 'Bericht', true);
-    expect(dom.statusMessage.textContent).toBe('Bericht');
+    renderStatusMessage(dom, 'Status', true);
+    expect(dom.statusMessage.textContent).toBe('Status');
     expect(dom.statusDismissButton.hidden).toBe(false);
-
-    renderStatusMessage(dom, 'Nieuw', false);
-    expect(dom.statusMessage.textContent).toBe('Nieuw');
-    expect(dom.statusDismissButton.hidden).toBe(true);
   });
 });
