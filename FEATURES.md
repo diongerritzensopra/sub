@@ -54,10 +54,18 @@ Shared feature roadmap for `sub`.
 
 #### Implementation chunks
 
-- [ ] Chunk 1 - Popup layout planning.
+- [x] Chunk 1 - Popup layout planning.
     - Brainstorm the popup layout with Copilot.
     - Define the target information architecture, section order, and primary/secondary actions.
     - Capture the agreed structure and UX goals before changing code.
+    - Output: Agreed section order top-to-bottom: header (title + refresh) → snapshot summary (trimmed to period,
+      worked hours, and to-be-performed hours; project list removed) → status/error messages → schedules list →
+      schedule form (shown only when adding/editing). Apply behavior change: remove "Alles toepassen" (apply-all)
+      functionality; the button becomes "Toepassen" only and requires an explicit schedule selection. Each schedule
+      row gains its own apply result state (applying/success/error) instead of relying solely on the global status
+      message. Visual grouping stays light-weight (spacing + subtle divider lines, no card/border/shadow treatment).
+      No dedicated SAP-status badge/indicator; existing button states (refresh icon busy state, apply button
+      disabled/amber-locked) remain the sole readiness indicators.
 - [ ] Chunk 2 - Popup DOM/render structure.
     - Refactor the popup markup/rendering so the UI is grouped into deliberate sections instead of a single continuous
       flow.
