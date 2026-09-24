@@ -18,6 +18,23 @@
       </header>
 
       <main>
+        <section hidden id="summary-section">
+          <h2>Timesheet overzicht</h2>
+          <ul id="summary-list">
+            <li><strong>Periode:</strong> <span id="period-value">-</span></li>
+            <li>
+              <strong>Uren gewerkt:</strong>
+              <span id="worked-hours-value">-</span>
+            </li>
+            <li>
+              <strong>Uren uit te voeren:</strong>
+              <span id="to-be-performed-hours-value">-</span>
+            </li>
+          </ul>
+          <p class="subtle-indicator" hidden id="scrape-status"></p>
+          <p class="subtle-indicator" hidden id="data-origin-indicator"></p>
+        </section>
+
         <section id="status-section">
           <p id="status-message">
             Klik op het vernieuwingspictogram om te beginnen.
@@ -39,7 +56,7 @@
             Nieuw schema
           </button>
           <button disabled id="btn-apply-schedules" type="button">
-            Alles toepassen
+            Toepassen
           </button>
           <p id="schedules-empty">Nog geen schema's opgeslagen.</p>
           <ul
@@ -144,29 +161,6 @@
               <button id="schedule-form-cancel" type="button">Annuleren</button>
             </div>
           </form>
-        </section>
-
-        <section hidden id="summary-section">
-          <h2>Timesheet overzicht</h2>
-          <ul id="summary-list">
-            <li><strong>Periode:</strong> <span id="period-value">-</span></li>
-            <li>
-              <strong>Doelen:</strong>
-              <ul class="project-list" id="projects-value">
-                <li>-</li>
-              </ul>
-            </li>
-            <li>
-              <strong>Uren gewerkt:</strong>
-              <span id="worked-hours-value">-</span>
-            </li>
-            <li>
-              <strong>Uren uit te voeren:</strong>
-              <span id="to-be-performed-hours-value">-</span>
-            </li>
-          </ul>
-          <p class="subtle-indicator" hidden id="scrape-status"></p>
-          <p class="subtle-indicator" hidden id="data-origin-indicator"></p>
         </section>
       </main>
     </div>

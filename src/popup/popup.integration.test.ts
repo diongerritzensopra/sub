@@ -208,6 +208,9 @@ describe('popup integration tests', () => {
       const applyButton = document.getElementById(
         'btn-apply-schedules',
       ) as HTMLButtonElement;
+      document
+        .querySelectorAll<HTMLLIElement>('#schedules-list .schedule-item')
+        .forEach((item) => item.click());
       applyButton.click();
       await flushAsyncWork();
 
@@ -253,6 +256,9 @@ describe('popup integration tests', () => {
       const applyButton = document.getElementById(
         'btn-apply-schedules',
       ) as HTMLButtonElement;
+      document
+        .querySelectorAll<HTMLLIElement>('#schedules-list .schedule-item')
+        .forEach((item) => item.click());
       applyButton.click();
       await flushAsyncWork();
 

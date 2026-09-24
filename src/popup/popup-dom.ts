@@ -8,7 +8,6 @@ export type PopupDomRefs = {
   statusDismissButton: HTMLButtonElement;
   summarySection: HTMLElement;
   periodValue: HTMLSpanElement;
-  projectsValue: HTMLUListElement;
   workedHoursValue: HTMLSpanElement;
   toBePerformedHoursValue: HTMLSpanElement;
   scrapeStatus: HTMLSpanElement;
@@ -58,10 +57,6 @@ export function getPopupDomRefs(document: Document): PopupDomRefs {
       'summary-section',
     ),
     periodValue: getRequiredElement<HTMLSpanElement>(document, 'period-value'),
-    projectsValue: getRequiredElement<HTMLUListElement>(
-      document,
-      'projects-value',
-    ),
     workedHoursValue: getRequiredElement<HTMLSpanElement>(
       document,
       'worked-hours-value',

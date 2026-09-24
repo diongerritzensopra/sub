@@ -66,7 +66,7 @@ Shared feature roadmap for `sub`.
       message. Visual grouping stays light-weight (spacing + subtle divider lines, no card/border/shadow treatment).
       No dedicated SAP-status badge/indicator; existing button states (refresh icon busy state, apply button
       disabled/amber-locked) remain the sole readiness indicators.
-- [ ] Chunk 2 - Popup DOM/render structure.
+- [x] Chunk 2 - Popup DOM/render structure.
     - Refactor the popup markup/rendering so the UI is grouped into deliberate sections instead of a single continuous
       flow.
     - Ensure status, snapshot details, schedules, and apply controls each have clear structure and headings.

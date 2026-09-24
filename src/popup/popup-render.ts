@@ -13,33 +13,8 @@ function formatScheduleTargetWithCode(name: string, code: string): string {
   return `${name.trim()} [${code}]`;
 }
 
-function renderTargetsList(
-  projectList: HTMLUListElement,
-  targets: TimesheetSnapshot['targets'],
-): void {
-  projectList.innerHTML = '';
-  if (targets.length === 0) {
-    const emptyItem = document.createElement('li');
-    emptyItem.textContent = '-';
-    projectList.appendChild(emptyItem);
-    return;
-  }
-
-  targets.forEach((target) => {
-    const item = document.createElement('li');
-    const name = document.createElement('span');
-    name.textContent = getScheduleTargetDisplayName(target);
-    const code = document.createElement('span');
-    code.textContent = target.targetCode;
-    item.appendChild(name);
-    item.appendChild(document.createElement('br'));
-    item.appendChild(code);
-    projectList.appendChild(item);
-  });
-}
-
 /**
- * Render the snapshot summary (period, projects, hours totals, data origin).
+ * Render the snapshot summary (period, hours totals, data origin).
  * @param dom DOM references
  * @param snapshot Current snapshot to display
  * @param hasAllData Whether snapshot is complete (affects "incomplete" warning)
@@ -57,7 +32,6 @@ export function renderSnapshot(
     snapshot.month && snapshot.year
       ? `${snapshot.month}/${snapshot.year}`
       : '-';
-  renderTargetsList(dom.projectsValue, snapshot.targets);
   dom.workedHoursValue.textContent = formatHours(snapshot.totals.worked);
   dom.toBePerformedHoursValue.textContent = formatHours(
     snapshot.totals.toBePerformed,
@@ -152,6 +126,7 @@ function renderScheduleListItem(
 ): HTMLLIElement {
   const item = document.createElement('li');
   item.className = 'schedule-item';
+  item.dataset.scheduleId = schedule.id;
   if (selectedIds.has(schedule.id)) {
     item.classList.add('schedule-item--selected');
   }
@@ -275,13 +250,87 @@ function renderScheduleListItem(
   actions.appendChild(editButton);
   actions.appendChild(deleteButton);
 
+  const applyStatus = document.createElement('span');
+  applyStatus.className = 'schedule-apply-status';
+  applyStatus.hidden = true;
+
   content.appendChild(title);
   content.appendChild(meta);
+  content.appendChild(applyStatus);
   item.appendChild(content);
   item.appendChild(actions);
   item.appendChild(confirmRow);
 
   return item;
+}
+
+export type ScheduleApplyState = 'applying' | 'success' | 'error';
+
+const SCHEDULE_APPLY_STATE_CLASSES: Record<ScheduleApplyState, string> = {
+  applying: 'schedule-apply-status--applying',
+  success: 'schedule-apply-status--success',
+  error: 'schedule-apply-status--error',
+};
+
+const SCHEDULE_APPLY_STATE_ICONS: Record<ScheduleApplyState, string> = {
+  applying: '⏳',
+  success: '✅',
+  error: '❌',
+};
+
+/**
+ * Update a single schedule row's apply result state (applying/success/error).
+ * @param dom DOM references
+ * @param scheduleId Schedule whose row should be updated
+ * @param applyState State to show, or null to clear/hide the indicator
+ * @param message Optional detail text shown next to the state icon
+ */
+export function setScheduleApplyState(
+  dom: PopupDomRefs,
+  scheduleId: string,
+  applyState: ScheduleApplyState | null,
+  message?: string,
+): void {
+  const row = Array.from(
+    dom.schedulesList.querySelectorAll<HTMLLIElement>('[data-schedule-id]'),
+  ).find((candidate) => candidate.dataset.scheduleId === scheduleId);
+  const applyStatus = row?.querySelector<HTMLSpanElement>(
+    '.schedule-apply-status',
+  );
+  if (!applyStatus) {
+    return;
+  }
+
+  Object.values(SCHEDULE_APPLY_STATE_CLASSES).forEach((className) => {
+    applyStatus.classList.remove(className);
+  });
+
+  if (!applyState) {
+    applyStatus.hidden = true;
+    applyStatus.textContent = '';
+    return;
+  }
+
+  applyStatus.classList.add(SCHEDULE_APPLY_STATE_CLASSES[applyState]);
+  applyStatus.textContent = message
+    ? `${SCHEDULE_APPLY_STATE_ICONS[applyState]} ${message}`
+    : SCHEDULE_APPLY_STATE_ICONS[applyState];
+  applyStatus.hidden = false;
+}
+
+/**
+ * Hide and clear the apply-state indicator for every rendered schedule row.
+ */
+export function clearScheduleApplyStates(dom: PopupDomRefs): void {
+  dom.schedulesList
+    .querySelectorAll<HTMLSpanElement>('.schedule-apply-status')
+    .forEach((applyStatus) => {
+      Object.values(SCHEDULE_APPLY_STATE_CLASSES).forEach((className) => {
+        applyStatus.classList.remove(className);
+      });
+      applyStatus.hidden = true;
+      applyStatus.textContent = '';
+    });
 }
 
 /**
@@ -416,14 +465,15 @@ export function updateApplySchedulesButtonState(
   isApplying: boolean = false,
 ): void {
   const button = dom.applySchedulesButton;
-  if (isApplying) {
-    button.textContent = 'Bezig...';
-  } else {
-    button.textContent = hasSelection ? 'Toepassen' : 'Alles toepassen';
-  }
+  button.textContent = isApplying ? 'Bezig...' : 'Toepassen';
   button.classList.remove('is-applying');
 
-  button.disabled = isLocked || scheduleCount === 0 || !hasPeriod || isApplying;
+  button.disabled =
+    isLocked ||
+    scheduleCount === 0 ||
+    !hasPeriod ||
+    !hasSelection ||
+    isApplying;
   button.classList.toggle('is-locked', isLocked);
 
   if (isApplying) {

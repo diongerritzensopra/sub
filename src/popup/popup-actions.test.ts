@@ -43,8 +43,10 @@ import {
   isSnapshotComplete,
 } from './popup-model';
 import {
+  clearScheduleApplyStates,
   hideScheduleForm,
   renderSchedules,
+  setScheduleApplyState,
   setScrapeButtonState,
   updateApplySchedulesButtonState,
 } from './popup-render';
@@ -86,8 +88,10 @@ vi.mock('./popup-model', () => ({
 }));
 
 vi.mock('./popup-render', () => ({
+  clearScheduleApplyStates: vi.fn(),
   hideScheduleForm: vi.fn(),
   renderSchedules: vi.fn(),
+  setScheduleApplyState: vi.fn(),
   setScrapeButtonState: vi.fn(),
   updateApplySchedulesButtonState: vi.fn(),
 }));
@@ -415,10 +419,26 @@ describe('applySchedulesFromSelection', () => {
     expect(getActiveTab).not.toHaveBeenCalled();
   });
 
+  it('blocks apply when no schedule is selected', async () => {
+    const ctx = createContext();
+    const schedule = createSchedule('a', 'C001');
+    ctx.state.renderedSchedules = [schedule];
+    ctx.state.selectedScheduleIds = new Set<string>();
+
+    await applySchedulesFromSelection(ctx);
+
+    expect(ctx.setStatus).toHaveBeenCalledWith(
+      'Fout: Selecteer minstens één schema om toe te passen.',
+      true,
+    );
+    expect(getActiveTab).not.toHaveBeenCalled();
+  });
+
   it('applies schedules and persists status message on success', async () => {
     const ctx = createContext();
     const schedule = createSchedule('a', 'C001');
     ctx.state.renderedSchedules = [schedule];
+    ctx.state.selectedScheduleIds = new Set<string>(['a']);
 
     vi.mocked(getSchedulesToApply).mockReturnValue([schedule]);
     vi.mocked(buildApplyStatusMessage).mockReturnValue('Alles gelukt');
@@ -430,6 +450,8 @@ describe('applySchedulesFromSelection', () => {
     expect(addFailedDatesForProject).toHaveBeenCalled();
     expect(ctx.setStatus).toHaveBeenCalledWith('Alles gelukt', true);
     expect(updateApplySchedulesButtonState).toHaveBeenCalledTimes(2);
+    expect(clearScheduleApplyStates).toHaveBeenCalledWith(ctx.dom);
+    expect(setScheduleApplyState).toHaveBeenCalledWith(ctx.dom, 'a', 'success');
   });
 
   it('navigates and applies a general-hours schedule using its target code', async () => {
@@ -470,6 +492,7 @@ describe('applySchedulesFromSelection', () => {
       },
     };
     ctx.state.renderedSchedules = [schedule];
+    ctx.state.selectedScheduleIds = new Set<string>(['gh-1']);
 
     vi.mocked(getSchedulesToApply).mockReturnValue([schedule]);
     vi.mocked(buildApplyStatusMessage).mockReturnValue(
@@ -487,6 +510,7 @@ describe('applySchedulesFromSelection', () => {
     const ctx = createContext();
     const schedule = createSchedule('a', 'C001');
     ctx.state.renderedSchedules = [schedule];
+    ctx.state.selectedScheduleIds = new Set<string>(['a']);
 
     vi.mocked(getSchedulesToApply).mockReturnValue([schedule]);
     vi.mocked(buildApplyStatusMessage).mockReturnValue('Basisstatus');
@@ -506,5 +530,11 @@ describe('applySchedulesFromSelection', () => {
     expect(finalCall?.[0]).toContain('Fouten:');
     expect(finalCall?.[0]).toContain('Project Alpha: SAP fout');
     expect(finalCall?.[1]).toBe(true);
+    expect(setScheduleApplyState).toHaveBeenCalledWith(
+      ctx.dom,
+      'a',
+      'error',
+      'SAP fout',
+    );
   });
 });

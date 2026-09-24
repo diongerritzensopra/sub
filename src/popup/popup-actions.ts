@@ -29,8 +29,10 @@ import {
   setCachedTimesheetSnapshot,
 } from './popup-gateway';
 import {
+  clearScheduleApplyStates,
   hideScheduleForm,
   renderSchedules,
+  setScheduleApplyState,
   setScrapeButtonState,
   updateApplySchedulesButtonState,
 } from './popup-render';
@@ -210,6 +212,14 @@ export async function applySchedulesFromSelection(
   const month = ctx.state.currentSnapshot.month;
   const year = ctx.state.currentSnapshot.year;
 
+  if (ctx.state.selectedScheduleIds.size === 0) {
+    ctx.setStatus(
+      'Fout: Selecteer minstens één schema om toe te passen.',
+      true,
+    );
+    return;
+  }
+
   const schedulesToApply = getSchedulesToApply(
     ctx.state.renderedSchedules,
     ctx.state.selectedScheduleIds,
@@ -256,6 +266,10 @@ export async function applySchedulesFromSelection(
     }
 
     syncApplySchedulesButtonState(ctx, true);
+    clearScheduleApplyStates(ctx.dom);
+    schedulesToApply.forEach((schedule) => {
+      setScheduleApplyState(ctx.dom, schedule.id, 'applying');
+    });
 
     let totalDaysCount = 0;
     let appliedDaysCount = 0;
@@ -291,6 +305,16 @@ export async function applySchedulesFromSelection(
         }
         if (summary.error) {
           scheduleErrors.push(`${targetLabel}: ${summary.error}`);
+          setScheduleApplyState(ctx.dom, schedule.id, 'error', summary.error);
+        } else if (summary.failedDates.length > 0) {
+          setScheduleApplyState(
+            ctx.dom,
+            schedule.id,
+            'error',
+            `${summary.failedDates.length}/${summary.totalDaysCount} dagen mislukt`,
+          );
+        } else {
+          setScheduleApplyState(ctx.dom, schedule.id, 'success');
         }
       } catch (error) {
         const scheduleEntries = expandWeeklyScheduleToMonthEntries(
@@ -304,7 +328,9 @@ export async function applySchedulesFromSelection(
           targetLabel,
           scheduleEntries.map((entry) => entry.date),
         );
-        scheduleErrors.push(`${targetLabel}: ${(error as Error).message}`);
+        const errorMessage = (error as Error).message;
+        scheduleErrors.push(`${targetLabel}: ${errorMessage}`);
+        setScheduleApplyState(ctx.dom, schedule.id, 'error', errorMessage);
       }
     }
 

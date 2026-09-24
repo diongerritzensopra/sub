@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getPopupDomRefs } from './popup-dom';
 import {
+  clearScheduleApplyStates,
   formatHours,
   formatTimestampSuffix,
   hideScheduleForm,
   renderSchedules,
   renderSnapshot,
   renderStatusMessage,
+  setScheduleApplyState,
   setScrapeButtonState,
   showScheduleForm,
   updateAddScheduleButtonState,
@@ -62,7 +64,7 @@ describe('formatTimestampSuffix', () => {
 });
 
 describe('renderSnapshot', () => {
-  it('renders period, project list, totals and shows summary section', () => {
+  it('renders period and totals and shows summary section', () => {
     const dom = getPopupDomRefs(document);
     const snapshot = createSnapshot();
 
@@ -72,10 +74,6 @@ describe('renderSnapshot', () => {
     expect(dom.workedHoursValue.textContent).toBe('12,5 u');
     expect(dom.toBePerformedHoursValue.textContent).toBe('30 u');
     expect(dom.summarySection.hidden).toBe(false);
-    expect(dom.projectsValue.querySelectorAll('li')).toHaveLength(3);
-    expect(dom.projectsValue.textContent).toContain('Project Alpha');
-    expect(dom.projectsValue.textContent).toContain('Onbekend project');
-    expect(dom.projectsValue.textContent).toContain('Commercial hours');
   });
 
   it('renders missing period/totals and incomplete indicator', () => {
@@ -95,7 +93,6 @@ describe('renderSnapshot', () => {
     expect(dom.scrapeStatus.hidden).toBe(false);
     expect(dom.scrapeStatus.textContent).toBe('Onvolledig');
     expect(dom.scrapeStatus.classList.contains('warning')).toBe(true);
-    expect(dom.projectsValue.textContent).toBe('-');
   });
 
   it('renders cached origin styling and message when cached data is shown', () => {
@@ -287,6 +284,65 @@ describe('renderSchedules', () => {
   });
 });
 
+describe('setScheduleApplyState / clearScheduleApplyStates', () => {
+  it('shows and hides the applying/success/error indicator on the matching row', () => {
+    const dom = getPopupDomRefs(document);
+    const schedules = [createSchedule('a'), createSchedule('b')];
+    renderSchedules(
+      dom,
+      schedules,
+      new Set<string>(),
+      vi.fn(),
+      vi.fn(),
+      vi.fn(),
+    );
+
+    setScheduleApplyState(dom, 'a', 'applying');
+    const rowA = dom.schedulesList.querySelector(
+      '[data-schedule-id="a"] .schedule-apply-status',
+    ) as HTMLSpanElement;
+    const rowB = dom.schedulesList.querySelector(
+      '[data-schedule-id="b"] .schedule-apply-status',
+    ) as HTMLSpanElement;
+    expect(rowA.hidden).toBe(false);
+    expect(rowA.textContent).toContain('⏳');
+    expect(rowB.hidden).toBe(true);
+
+    setScheduleApplyState(dom, 'a', 'error', 'SAP fout');
+    expect(rowA.classList.contains('schedule-apply-status--error')).toBe(true);
+    expect(rowA.textContent).toBe('❌ SAP fout');
+
+    setScheduleApplyState(dom, 'a', null);
+    expect(rowA.hidden).toBe(true);
+    expect(rowA.textContent).toBe('');
+  });
+
+  it('clears every rendered row apply-state indicator', () => {
+    const dom = getPopupDomRefs(document);
+    const schedules = [createSchedule('a'), createSchedule('b')];
+    renderSchedules(
+      dom,
+      schedules,
+      new Set<string>(),
+      vi.fn(),
+      vi.fn(),
+      vi.fn(),
+    );
+
+    setScheduleApplyState(dom, 'a', 'success');
+    setScheduleApplyState(dom, 'b', 'error', 'Mislukt');
+
+    clearScheduleApplyStates(dom);
+
+    dom.schedulesList
+      .querySelectorAll('.schedule-apply-status')
+      .forEach((el) => {
+        expect((el as HTMLSpanElement).hidden).toBe(true);
+        expect(el.textContent).toBe('');
+      });
+  });
+});
+
 describe('schedule form rendering', () => {
   it('hides the form when snapshot is null', () => {
     const dom = getPopupDomRefs(document);
@@ -404,10 +460,11 @@ describe('simple DOM state helpers', () => {
     const dom = getPopupDomRefs(document);
 
     updateApplySchedulesButtonState(dom, false, false, 2, true, false);
-    expect(dom.applySchedulesButton.disabled).toBe(false);
-    expect(dom.applySchedulesButton.textContent).toBe('Alles toepassen');
+    expect(dom.applySchedulesButton.disabled).toBe(true);
+    expect(dom.applySchedulesButton.textContent).toBe('Toepassen');
 
     updateApplySchedulesButtonState(dom, false, true, 2, true, false);
+    expect(dom.applySchedulesButton.disabled).toBe(false);
     expect(dom.applySchedulesButton.textContent).toBe('Toepassen');
 
     updateApplySchedulesButtonState(dom, true, true, 2, true, false);

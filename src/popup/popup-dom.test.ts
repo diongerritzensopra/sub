@@ -18,7 +18,6 @@ describe('getPopupDomRefs', () => {
     );
     expect(dom.summarySection).toBe(document.getElementById('summary-section'));
     expect(dom.periodValue).toBe(document.getElementById('period-value'));
-    expect(dom.projectsValue).toBe(document.getElementById('projects-value'));
     expect(dom.workedHoursValue).toBe(
       document.getElementById('worked-hours-value'),
     );

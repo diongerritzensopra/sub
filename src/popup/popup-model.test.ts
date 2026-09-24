@@ -183,12 +183,10 @@ describe('resolveValidationPeriod', () => {
 });
 
 describe('getSchedulesToApply', () => {
-  it('returns all schedules when nothing is selected', () => {
+  it('returns nothing when no schedule is selected', () => {
     const schedules = [createSchedule('a'), createSchedule('b')];
 
-    expect(getSchedulesToApply(schedules, new Set<string>())).toEqual(
-      schedules,
-    );
+    expect(getSchedulesToApply(schedules, new Set<string>())).toEqual([]);
   });
 
   it('returns only selected schedules when ids are provided', () => {
