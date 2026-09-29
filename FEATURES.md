@@ -75,6 +75,11 @@ Shared feature roadmap for `sub`.
     - Improve readability and button emphasis for the popup's constrained width.
 - [ ] Chunk 4 - UX polish and regression coverage.
     - Verify loading, locked, cached, empty, and error states still render clearly in the new layout.
+    - Fix failed-date summaries for multiple schedules sharing a target: count distinct target dates, so an already-set
+      schedule does not inflate the total or prevent "alle dagen mislukt" when every relevant date failed.
+    - Clarify the wording of apply-result status sections.
+    - List the dates actually updated under "Dagen bijgewerkt", alongside the count.
+    - Format updated and failed dates in a readable, locale-aware format.
     - Add or update popup tests for the revised structure and state-specific rendering.
 
 ### Reminder notifications
