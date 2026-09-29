@@ -3,6 +3,7 @@ import type { WeeklySchedule } from '../shared/types';
 import {
   addFailedDatesForProject,
   autofillScheduleEntries,
+  addTotalDaysForProject,
   buildApplyStatusMessage,
   buildTimesheetUrlForProject,
   navigateToProject,
@@ -180,20 +181,19 @@ describe('buildApplyStatusMessage', () => {
       2,
       3,
       new Map(),
+      new Map(),
       0,
       0,
     );
 
-    expect(message).toBe(
-      [
-        'Schema toegepast: Kantooruren.',
-        '2/3 dagen bijgewerkt.',
-        'SAP bevestiging: geen submit uitgevoerd.',
-      ].join('\n'),
-    );
+    expect(message).toEqual([
+      { label: 'Schema toegepast:', text: 'Kantooruren' },
+      { label: 'Dagen bijgewerkt:', text: '2/3' },
+      { label: 'SAP bevestiging:', text: 'geen submit uitgevoerd' },
+    ]);
   });
 
-  it('includes sorted unique failed dates and full submit confirmation', () => {
+  it('lists sorted unique failed dates per target and full submit confirmation', () => {
     const failed = new Map<string, string[]>([
       ['Mockproject', ['2026-05-03', '2026-05-01', '2026-05-03']],
     ]);
@@ -215,19 +215,48 @@ describe('buildApplyStatusMessage', () => {
       8,
       10,
       failed,
+      new Map([['Mockproject', 5]]),
       2,
       2,
     );
 
-    expect(message).toBe(
-      [
-        "Schema's toegepast: Kantooruren, Deeltijd.",
-        '8/10 dagen bijgewerkt.',
-        'Mislukt per doel:',
-        '- Mockproject: 2026-05-01, 2026-05-03.',
-        'SAP bevestiging: ontvangen (2/2).',
-      ].join('\n'),
+    expect(message).toEqual([
+      { label: "Schema's toegepast:", text: 'Kantooruren, Deeltijd' },
+      { label: 'Dagen bijgewerkt:', text: '8/10' },
+      {
+        label: 'Mislukt per doel:',
+        items: [{ text: 'Mockproject:', items: ['2026-05-01', '2026-05-03'] }],
+      },
+      { label: 'SAP bevestiging:', text: 'ontvangen (2/2)' },
+    ]);
+  });
+
+  it('states that all days failed instead of listing them for a fully failed target', () => {
+    const failed = new Map<string, string[]>([
+      ['Mockproject', ['2026-05-01', '2026-05-02']],
+      ['Testproject 42', ['2026-05-04']],
+    ]);
+
+    const message = buildApplyStatusMessage(
+      [BASE_SCHEDULE],
+      1,
+      4,
+      failed,
+      new Map([
+        ['Mockproject', 2],
+        ['Testproject 42', 2],
+      ]),
+      1,
+      1,
     );
+
+    expect(message[2]).toEqual({
+      label: 'Mislukt per doel:',
+      items: [
+        'Mockproject: alle dagen mislukt',
+        { text: 'Testproject 42:', items: ['2026-05-04'] },
+      ],
+    });
   });
 
   it('marks submit confirmation as partial when not all submits are confirmed', () => {
@@ -236,16 +265,23 @@ describe('buildApplyStatusMessage', () => {
       1,
       2,
       new Map(),
+      new Map(),
       2,
       1,
     );
-    expect(message).toBe(
-      [
-        'Schema toegepast: Kantooruren.',
-        '1/2 dagen bijgewerkt.',
-        'SAP bevestiging: gedeeltelijk (1/2).',
-      ].join('\n'),
-    );
+    expect(message.at(-1)).toEqual({
+      label: 'SAP bevestiging:',
+      text: 'gedeeltelijk (1/2)',
+    });
+  });
+});
+
+describe('addTotalDaysForProject', () => {
+  it('accumulates totals per target', () => {
+    const totals = new Map<string, number>();
+    addTotalDaysForProject(totals, 'Z1', 3);
+    addTotalDaysForProject(totals, 'Z1', 2);
+    expect(totals.get('Z1')).toBe(5);
   });
 });
 

@@ -4,6 +4,7 @@ import { getPopupDomRefs } from './popup-dom';
 import {
   clearScheduleApplyStates,
   formatHours,
+  formatPeriod,
   formatTimestampSuffix,
   hideScheduleForm,
   renderSchedules,
@@ -24,6 +25,18 @@ import {
 
 beforeEach(() => {
   setupPopupDom();
+});
+
+describe('formatPeriod', () => {
+  it('formats the full month name in the given locale', () => {
+    expect(formatPeriod(8, 2026, 'nl-NL')).toBe('augustus 2026');
+    expect(formatPeriod(8, 2026, 'en-US')).toBe('August 2026');
+  });
+
+  it('returns dash when month or year is missing', () => {
+    expect(formatPeriod(null, 2026)).toBe('-');
+    expect(formatPeriod(8, null)).toBe('-');
+  });
 });
 
 describe('formatHours', () => {
@@ -70,7 +83,7 @@ describe('renderSnapshot', () => {
 
     renderSnapshot(dom, snapshot, true, false, '2026-08-05T14:30:00.000Z');
 
-    expect(dom.periodValue.textContent).toBe('8/2026');
+    expect(dom.periodValue.textContent).toBe(formatPeriod(8, 2026));
     expect(dom.workedHoursValue.textContent).toBe('12,5 u');
     expect(dom.toBePerformedHoursValue.textContent).toBe('30 u');
     expect(dom.summarySection.hidden).toBe(false);
@@ -312,6 +325,13 @@ describe('setScheduleApplyState / clearScheduleApplyStates', () => {
     expect(rowA.classList.contains('schedule-apply-status--error')).toBe(true);
     expect(rowA.textContent).toBe('❌ SAP fout');
 
+    setScheduleApplyState(dom, 'a', 'warning', '1/2 dagen mislukt');
+    expect(rowA.classList.contains('schedule-apply-status--warning')).toBe(
+      true,
+    );
+    expect(rowA.classList.contains('schedule-apply-status--error')).toBe(false);
+    expect(rowA.textContent).toBe('⚠️ 1/2 dagen mislukt');
+
     setScheduleApplyState(dom, 'a', null);
     expect(rowA.hidden).toBe(true);
     expect(rowA.textContent).toBe('');
@@ -366,6 +386,10 @@ describe('schedule form rendering', () => {
     showScheduleForm(dom, snapshot);
 
     expect(dom.scheduleFormSection.hidden).toBe(false);
+    expect(dom.addScheduleButton.nextElementSibling).toBe(
+      dom.scheduleFormSection,
+    );
+    expect(dom.addScheduleButton.disabled).toBe(true);
     expect(dom.scheduleFormTitle.textContent).toBe('Nieuw schema');
     expect(submitBtn.textContent).toBe('Opslaan');
     expect(dom.scheduleLabelInput.value).toBe('');
@@ -413,6 +437,62 @@ describe('schedule form rendering', () => {
     expect(dom.hoursInputs.monday.value).toBe('6.5');
   });
 
+  it('places the edit form in its schedule row and restores its actions on close', () => {
+    const dom = getPopupDomRefs(document);
+    const scheduleToEdit = createSchedule('a', 'C001');
+    const onToggleSelection = vi.fn();
+    renderSchedules(
+      dom,
+      [scheduleToEdit],
+      new Set<string>(),
+      onToggleSelection,
+      vi.fn(),
+      vi.fn(),
+    );
+
+    showScheduleForm(dom, createSnapshot(), scheduleToEdit);
+
+    const scheduleItem = dom.schedulesList.querySelector(
+      '[data-schedule-id="a"]',
+    ) as HTMLLIElement;
+    const editButton = scheduleItem.querySelector(
+      '.schedule-edit-button',
+    ) as HTMLButtonElement;
+    const deleteButton = scheduleItem.querySelector(
+      '.schedule-delete-button',
+    ) as HTMLButtonElement;
+    const scheduleContent = scheduleItem.querySelector(
+      '.schedule-content',
+    ) as HTMLDivElement;
+    expect(dom.scheduleFormSection.parentElement).toBe(scheduleItem);
+    expect(scheduleItem.classList.contains('schedule-item--editing')).toBe(
+      true,
+    );
+    expect(editButton.disabled).toBe(true);
+    expect(deleteButton.disabled).toBe(true);
+    expect(scheduleContent.getAttribute('aria-disabled')).toBe('true');
+    expect(scheduleContent.tabIndex).toBe(-1);
+
+    scheduleContent.click();
+    scheduleContent.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+    );
+    expect(onToggleSelection).not.toHaveBeenCalled();
+
+    hideScheduleForm(dom);
+
+    expect(dom.addScheduleButton.nextElementSibling).toBe(
+      dom.scheduleFormSection,
+    );
+    expect(scheduleItem.classList.contains('schedule-item--editing')).toBe(
+      false,
+    );
+    expect(editButton.disabled).toBe(false);
+    expect(deleteButton.disabled).toBe(false);
+    expect(scheduleContent.hasAttribute('aria-disabled')).toBe(false);
+    expect(scheduleContent.tabIndex).toBe(0);
+  });
+
   it('shows form in edit mode for a general-hours schedule', () => {
     const dom = getPopupDomRefs(document);
     const submitBtn = dom.scheduleForm.querySelector(
@@ -437,13 +517,17 @@ describe('schedule form rendering', () => {
 describe('simple DOM state helpers', () => {
   it('hides and resets the schedule form', () => {
     const dom = getPopupDomRefs(document);
+    updateAddScheduleButtonState(dom, true);
     dom.scheduleFormSection.hidden = false;
+    dom.scheduleFormSection.dataset.formMode = 'add';
+    dom.addScheduleButton.disabled = true;
     dom.scheduleLabelInput.value = 'Test';
 
     hideScheduleForm(dom);
 
     expect(dom.scheduleFormSection.hidden).toBe(true);
     expect(dom.scheduleLabelInput.value).toBe('');
+    expect(dom.addScheduleButton.disabled).toBe(false);
   });
 
   it('updates add-schedule button state', () => {
@@ -488,5 +572,73 @@ describe('simple DOM state helpers', () => {
     renderStatusMessage(dom, 'Status', true);
     expect(dom.statusMessage.textContent).toBe('Status');
     expect(dom.statusDismissButton.hidden).toBe(false);
+    expect(dom.statusSection.hidden).toBe(false);
+
+    renderStatusMessage(dom, '', false);
+    expect(dom.statusSection.hidden).toBe(true);
+  });
+
+  it('renders structured status sections with bold labels and nested lists', () => {
+    const dom = getPopupDomRefs(document);
+
+    renderStatusMessage(
+      dom,
+      [
+        { label: 'Dagen bijgewerkt:', text: '1/3' },
+        {
+          label: 'Mislukt per doel:',
+          items: [
+            'Project A: alle dagen mislukt',
+            { text: 'Project B:', items: ['2026-05-01', '<b>x</b>'] },
+          ],
+        },
+      ],
+      true,
+      'warning',
+    );
+
+    const sections = dom.statusMessage.querySelectorAll(
+      '.status-message-section',
+    );
+    expect(sections).toHaveLength(2);
+    expect(sections[0].querySelector('strong')?.textContent).toBe(
+      'Dagen bijgewerkt:',
+    );
+    expect(sections[0].textContent).toBe('Dagen bijgewerkt: 1/3');
+    const topItems = sections[1].querySelectorAll(':scope > ul > li');
+    expect(topItems[0].textContent).toBe('Project A: alle dagen mislukt');
+    const nestedItems = topItems[1].querySelectorAll('ul > li');
+    expect(Array.from(nestedItems, (li) => li.textContent)).toEqual([
+      '2026-05-01',
+      '<b>x</b>',
+    ]);
+    expect(dom.statusMessage.querySelector('b')).toBeNull();
+    expect(dom.statusSection.hidden).toBe(false);
+
+    renderStatusMessage(dom, []);
+    expect(dom.statusSection.hidden).toBe(true);
+  });
+
+  it('renders the icon and border class matching the status level', () => {
+    const dom = getPopupDomRefs(document);
+
+    renderStatusMessage(dom, 'Info');
+    expect(dom.statusIcon.textContent).toBe('ℹ️');
+    expect(dom.statusBox.classList.contains('status-box--info')).toBe(true);
+
+    renderStatusMessage(dom, 'Let op', false, 'warning');
+    expect(dom.statusIcon.textContent).toBe('⚠️');
+    expect(dom.statusBox.classList.contains('status-box--warning')).toBe(true);
+    expect(dom.statusBox.classList.contains('status-box--info')).toBe(false);
+
+    renderStatusMessage(dom, 'Mislukt', false, 'error');
+    expect(dom.statusIcon.textContent).toBe('❌');
+    expect(dom.statusBox.classList.contains('status-box--error')).toBe(true);
+    expect(dom.statusBox.classList.contains('status-box--warning')).toBe(false);
+
+    renderStatusMessage(dom, 'Gelukt', false, 'success');
+    expect(dom.statusIcon.textContent).toBe('✅');
+    expect(dom.statusBox.classList.contains('status-box--success')).toBe(true);
+    expect(dom.statusBox.classList.contains('status-box--error')).toBe(false);
   });
 });

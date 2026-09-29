@@ -218,8 +218,12 @@ describe('popup integration tests', () => {
         document.getElementById('status-message')?.textContent ?? '';
       expect(autofillCalls).toBe(1);
       expect(statusMessage).toContain(
-        "Schema's toegepast: Kantooruren, Deeltijd.",
+        "Schema's toegepast: Kantooruren, Deeltijd",
       );
+      expect(statusMessage).toContain('Mockproject: alle dagen mislukt');
+      expect(
+        document.querySelectorAll('#status-message .status-message-section'),
+      ).toHaveLength(5);
       expect(statusMessage).toContain('Fouten:');
       expect(statusMessage).toContain(
         'Mockproject: Navigatie mislukt voor project',
@@ -266,13 +270,10 @@ describe('popup integration tests', () => {
       expect(mockChromeTabsGet).toHaveBeenCalledTimes(1);
       expect(mockChromeScriptingExecuteScript).toHaveBeenCalledTimes(1);
       expect(document.getElementById('status-message')?.textContent).toContain(
-        'Schema toegepast: Kantooruren.',
+        'Schema toegepast: Kantooruren',
       );
       expect(document.getElementById('status-message')?.textContent).toContain(
-        '1/',
-      );
-      expect(document.getElementById('status-message')?.textContent).toContain(
-        'dagen bijgewerkt',
+        'Dagen bijgewerkt: 1/',
       );
       expect(document.getElementById('status-message')?.textContent).toContain(
         'SAP bevestiging: ontvangen (1/1)',
@@ -338,6 +339,73 @@ describe('popup integration tests', () => {
       await flushAsyncWork();
 
       expect(document.getElementById('schedule-form-section')?.hidden).toBe(
+        false,
+      );
+      expect(
+        document.getElementById('btn-add-schedule')?.nextElementSibling?.id,
+      ).toBe('schedule-form-section');
+      expect(
+        (document.getElementById('btn-add-schedule') as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
+    });
+
+    it('deselects a schedule and blocks selection while it is being edited', async () => {
+      const schedule = {
+        id: 'edit-selected',
+        label: 'Geselecteerd schema',
+        target: {
+          targetType: 'project' as const,
+          targetCode: 'C001',
+          targetLabel: 'Project Alpha',
+        },
+        hoursPerWeekday: {
+          monday: 8,
+          tuesday: 0,
+          wednesday: 0,
+          thursday: 0,
+          friday: 0,
+          saturday: 0,
+          sunday: 0,
+        },
+      };
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({
+          [keys[0]]:
+            keys[0] === STORAGE_KEYS.projectSchedules ? [schedule] : undefined,
+        });
+      });
+
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      await flushAsyncWork();
+      renderSnapshot(editableSnapshot);
+      await renderSchedules();
+
+      let scheduleItem = document.querySelector(
+        '[data-schedule-id="edit-selected"]',
+      ) as HTMLLIElement;
+      scheduleItem.click();
+      expect(scheduleItem.classList.contains('schedule-item--selected')).toBe(
+        true,
+      );
+
+      (
+        scheduleItem.querySelector('.schedule-edit-button') as HTMLButtonElement
+      ).click();
+
+      scheduleItem = document.querySelector(
+        '[data-schedule-id="edit-selected"]',
+      ) as HTMLLIElement;
+      expect(scheduleItem.classList.contains('schedule-item--selected')).toBe(
+        false,
+      );
+      expect(
+        (document.getElementById('btn-apply-schedules') as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
+
+      (scheduleItem.querySelector('.schedule-content') as HTMLElement).click();
+      expect(scheduleItem.classList.contains('schedule-item--selected')).toBe(
         false,
       );
     });
@@ -424,6 +492,10 @@ describe('popup integration tests', () => {
       expect(document.getElementById('schedule-form-section')?.hidden).toBe(
         true,
       );
+      expect(
+        (document.getElementById('btn-add-schedule') as HTMLButtonElement)
+          .disabled,
+      ).toBe(false);
     });
 
     it('shows an error when add-schedule is clicked but no snapshot is loaded', async () => {

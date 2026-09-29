@@ -4,13 +4,19 @@
  * Coordinates popup state, gateway calls, and rendering side effects.
  */
 
-import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
+import type {
+  StatusContent,
+  StatusLevel,
+  TimesheetSnapshot,
+  WeeklySchedule,
+} from '../shared/types';
 import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
 import { expandWeeklyScheduleToMonthEntries } from '../shared/schedule-expansion';
 import { deleteSchedule, getSchedules, saveSchedule } from '../shared/storage';
 import { getSAPBusyStateForTab } from '../shared/busy-state';
 import {
   addFailedDatesForProject,
+  addTotalDaysForProject,
   autofillScheduleEntries,
   buildApplyStatusMessage,
   navigateToProject,
@@ -47,7 +53,11 @@ const LOCKED_TIMESHEET_MESSAGE =
 export type PopupActionsContext = {
   dom: PopupDomRefs;
   state: PopupState;
-  setStatus: (message: string, persist?: boolean) => void;
+  setStatus: (
+    message: StatusContent,
+    persist?: boolean,
+    level?: StatusLevel,
+  ) => void;
   renderSnapshot: (
     snapshot: TimesheetSnapshot,
     hasAllData?: boolean,
@@ -57,6 +67,31 @@ export type PopupActionsContext = {
   setTimesheetApplyAllowedState: (editable: boolean) => void;
   restoreCachedStatusMessage: () => Promise<boolean>;
 };
+
+/**
+ * Determine the urgency of the apply-result summary: errors win over partial
+ * results (failed days or missing/partial SAP confirmation).
+ */
+export function getApplyStatusLevel(
+  scheduleErrorCount: number,
+  failedTargetCount: number,
+  submissionAttemptedCount: number,
+  submissionConfirmedCount: number,
+): StatusLevel {
+  if (scheduleErrorCount > 0) {
+    return 'error';
+  }
+
+  if (
+    failedTargetCount > 0 ||
+    submissionAttemptedCount === 0 ||
+    submissionConfirmedCount < submissionAttemptedCount
+  ) {
+    return 'warning';
+  }
+
+  return 'success';
+}
 
 function hasCurrentPeriod(state: PopupState): boolean {
   return (
@@ -125,7 +160,11 @@ export async function handleScheduleFormSubmit(
   ctx: PopupActionsContext,
 ): Promise<void> {
   if (!ctx.state.currentSnapshot) {
-    ctx.setStatus('Geen project beschikbaar. Ververs alstublieft de pagina.');
+    ctx.setStatus(
+      'Geen project beschikbaar. Ververs alstublieft de pagina.',
+      false,
+      'error',
+    );
     return;
   }
 
@@ -133,13 +172,13 @@ export async function handleScheduleFormSubmit(
   const encodedTargetValue = ctx.dom.scheduleProjectSelect.value;
 
   if (!label || !encodedTargetValue) {
-    ctx.setStatus('Vul alstublieft alle vereiste velden in.');
+    ctx.setStatus('Vul alstublieft alle vereiste velden in.', false, 'warning');
     return;
   }
 
   const selectedTarget = decodeScheduleTargetSelectValue(encodedTargetValue);
   if (!selectedTarget) {
-    ctx.setStatus('Geselecteerd schema-doel is ongeldig.');
+    ctx.setStatus('Geselecteerd schema-doel is ongeldig.', false, 'error');
     return;
   }
 
@@ -167,7 +206,11 @@ export async function handleScheduleFormSubmit(
         item.targetCode === selectedTarget.targetCode,
     );
     if (!target) {
-      ctx.setStatus('Geselecteerd schema-doel is niet meer beschikbaar.');
+      ctx.setStatus(
+        'Geselecteerd schema-doel is niet meer beschikbaar.',
+        false,
+        'error',
+      );
       return;
     }
 
@@ -179,13 +222,17 @@ export async function handleScheduleFormSubmit(
     };
 
     await saveSchedule(schedule);
-    await reloadSchedulesDisplay(ctx);
     hideScheduleForm(ctx.dom);
+    await reloadSchedulesDisplay(ctx);
     const action = isEditing ? 'bijgewerkt' : 'opgeslagen';
-    ctx.setStatus(`Schema ${action}`);
+    ctx.setStatus(`Schema ${action}`, false, 'success');
     setTimeout(() => ctx.setStatus(''), 2000);
   } catch (err) {
-    ctx.setStatus(`Fout bij opslaan: ${(err as Error).message}`);
+    ctx.setStatus(
+      `Fout bij opslaan: ${(err as Error).message}`,
+      false,
+      'error',
+    );
   }
 }
 
@@ -193,7 +240,7 @@ export async function applySchedulesFromSelection(
   ctx: PopupActionsContext,
 ): Promise<void> {
   if (!ctx.state.isTimesheetApplyAllowed) {
-    ctx.setStatus(`Fout: ${LOCKED_TIMESHEET_MESSAGE}`, true);
+    ctx.setStatus(LOCKED_TIMESHEET_MESSAGE, true, 'error');
     return;
   }
 
@@ -203,8 +250,9 @@ export async function applySchedulesFromSelection(
     ctx.state.currentSnapshot.year === null
   ) {
     ctx.setStatus(
-      'Fout: Kan niet toepassen zonder geldige periode. Analyseer eerst de timesheet.',
+      'Kan niet toepassen zonder geldige periode. Analyseer eerst de timesheet.',
       true,
+      'error',
     );
     return;
   }
@@ -214,8 +262,9 @@ export async function applySchedulesFromSelection(
 
   if (ctx.state.selectedScheduleIds.size === 0) {
     ctx.setStatus(
-      'Fout: Selecteer minstens één schema om toe te passen.',
+      'Selecteer minstens één schema om toe te passen.',
       true,
+      'warning',
     );
     return;
   }
@@ -225,7 +274,7 @@ export async function applySchedulesFromSelection(
     ctx.state.selectedScheduleIds,
   );
   if (schedulesToApply.length === 0) {
-    ctx.setStatus("Fout: Geen schema's beschikbaar om toe te passen.", true);
+    ctx.setStatus("Geen schema's beschikbaar om toe te passen.", true, 'error');
     return;
   }
 
@@ -243,8 +292,9 @@ export async function applySchedulesFromSelection(
           ? 'Project'
           : 'Algemene uren type';
       ctx.setStatus(
-        `Fout: ${unavailableKindMessage} "${targetLabel}" is niet beschikbaar in het SAP navigatiemenu.`,
+        `${unavailableKindMessage} "${targetLabel}" is niet beschikbaar in het SAP navigatiemenu.`,
         true,
+        'error',
       );
       return;
     }
@@ -253,14 +303,15 @@ export async function applySchedulesFromSelection(
   try {
     const activeTab = await getActiveTab();
     if (!activeTab?.id) {
-      ctx.setStatus('Fout: Geen actief tabblad gevonden.', true);
+      ctx.setStatus('Geen actief tabblad gevonden.', true, 'error');
       return;
     }
 
     if (!isTimesheetTab(activeTab)) {
       ctx.setStatus(
-        'Fout: Het actieve tabblad is geen SAP My Timesheet pagina.',
+        'Het actieve tabblad is geen SAP My Timesheet pagina.',
         true,
+        'error',
       );
       return;
     }
@@ -274,6 +325,7 @@ export async function applySchedulesFromSelection(
     let totalDaysCount = 0;
     let appliedDaysCount = 0;
     const failedDatesByProject = new Map<string, string[]>();
+    const totalDaysByProject = new Map<string, number>();
     let submissionAttemptedCount = 0;
     let submissionConfirmedCount = 0;
     const scheduleErrors: string[] = [];
@@ -292,6 +344,11 @@ export async function applySchedulesFromSelection(
 
         totalDaysCount += summary.totalDaysCount;
         appliedDaysCount += summary.appliedDaysCount;
+        addTotalDaysForProject(
+          totalDaysByProject,
+          targetLabel,
+          summary.totalDaysCount,
+        );
         addFailedDatesForProject(
           failedDatesByProject,
           targetLabel,
@@ -310,8 +367,22 @@ export async function applySchedulesFromSelection(
           setScheduleApplyState(
             ctx.dom,
             schedule.id,
-            'error',
+            'warning',
             `${summary.failedDates.length}/${summary.totalDaysCount} dagen mislukt`,
+          );
+        } else if (!summary.submissionAttempted) {
+          setScheduleApplyState(
+            ctx.dom,
+            schedule.id,
+            'warning',
+            'Niet ingediend bij SAP',
+          );
+        } else if (!summary.submissionConfirmed) {
+          setScheduleApplyState(
+            ctx.dom,
+            schedule.id,
+            'warning',
+            'Geen SAP bevestiging',
           );
         } else {
           setScheduleApplyState(ctx.dom, schedule.id, 'success');
@@ -323,6 +394,11 @@ export async function applySchedulesFromSelection(
           year,
         );
         totalDaysCount += scheduleEntries.length;
+        addTotalDaysForProject(
+          totalDaysByProject,
+          targetLabel,
+          scheduleEntries.length,
+        );
         addFailedDatesForProject(
           failedDatesByProject,
           targetLabel,
@@ -334,22 +410,32 @@ export async function applySchedulesFromSelection(
       }
     }
 
-    let statusMessage = buildApplyStatusMessage(
+    const statusMessage = buildApplyStatusMessage(
       schedulesToApply,
       appliedDaysCount,
       totalDaysCount,
       failedDatesByProject,
+      totalDaysByProject,
       submissionAttemptedCount,
       submissionConfirmedCount,
     );
 
     if (scheduleErrors.length > 0) {
-      statusMessage += `\nFouten:\n- ${scheduleErrors.join('\n- ')}`;
+      statusMessage.push({ label: 'Fouten:', items: scheduleErrors });
     }
 
-    ctx.setStatus(statusMessage, true);
+    ctx.setStatus(
+      statusMessage,
+      true,
+      getApplyStatusLevel(
+        scheduleErrors.length,
+        failedDatesByProject.size,
+        submissionAttemptedCount,
+        submissionConfirmedCount,
+      ),
+    );
   } catch (error) {
-    ctx.setStatus(`Fout: ${(error as Error).message}`, true);
+    ctx.setStatus((error as Error).message, true, 'error');
   } finally {
     syncApplySchedulesButtonState(ctx);
   }
@@ -363,19 +449,27 @@ export async function handleDeleteSchedule(
     await deleteSchedule(scheduleId);
     await reloadSchedulesDisplay(ctx);
   } catch (err) {
-    ctx.setStatus(`Fout bij verwijderen: ${(err as Error).message}`);
+    ctx.setStatus(
+      `Fout bij verwijderen: ${(err as Error).message}`,
+      false,
+      'error',
+    );
   }
 }
 
 async function runAnalyseActiveTab(ctx: PopupActionsContext): Promise<void> {
   const activeTab = await getActiveTab();
   if (!activeTab?.id) {
-    ctx.setStatus('Fout: Geen actief tabblad gevonden.');
+    ctx.setStatus('Geen actief tabblad gevonden.', false, 'error');
     return;
   }
 
   if (!isTimesheetTab(activeTab)) {
-    ctx.setStatus('Fout: Het actieve tabblad is geen SAP My Timesheet pagina.');
+    ctx.setStatus(
+      'Het actieve tabblad is geen SAP My Timesheet pagina.',
+      false,
+      'error',
+    );
     return;
   }
 
@@ -391,11 +485,17 @@ async function runAnalyseActiveTab(ctx: PopupActionsContext): Promise<void> {
   if (isPageLoading) {
     if (!hasCachedData) {
       ctx.setStatus(
-        'Fout: De pagina laadt nog. Probeer het over een moment opnieuw.',
+        'De pagina laadt nog. Probeer het over een moment opnieuw.',
+        false,
+        'warning',
       );
       return;
     }
-    ctx.setStatus('Pagina laadt nog, gegevens kunnen verouderd zijn...');
+    ctx.setStatus(
+      'Pagina laadt nog, gegevens kunnen verouderd zijn...',
+      false,
+      'warning',
+    );
     return;
   }
 
@@ -417,7 +517,7 @@ async function runAnalyseActiveTab(ctx: PopupActionsContext): Promise<void> {
   }
 
   if (!timesheetIsEditable) {
-    ctx.setStatus(LOCKED_TIMESHEET_MESSAGE);
+    ctx.setStatus(LOCKED_TIMESHEET_MESSAGE, false, 'warning');
     return;
   }
 
@@ -453,7 +553,7 @@ export async function analyseActiveTab(
   try {
     await runAnalyseActiveTab(ctx);
   } catch (err) {
-    ctx.setStatus(`Fout: ${(err as Error).message}`);
+    ctx.setStatus((err as Error).message, false, 'error');
   } finally {
     setScrapeButtonState(ctx.dom, false);
   }

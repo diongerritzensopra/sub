@@ -7,7 +7,11 @@
  * - Status message composition for the popup UI
  */
 
-import type { WeeklySchedule } from '../shared/types';
+import type {
+  StatusListItem,
+  StatusSection,
+  WeeklySchedule,
+} from '../shared/types';
 import { getSAPBusyStateForTab } from '../shared/busy-state';
 import { expandWeeklyScheduleToMonthEntries } from '../shared/schedule-expansion';
 import { autofillEntriesViaUi5 } from './ui5-scripting';
@@ -114,26 +118,64 @@ export function addFailedDatesForProject(
   failedDatesByProject.set(projectCode, existingDates);
 }
 
-function buildAppliedSchedulesLine(schedules: WeeklySchedule[]): string {
-  const scheduleLabels = schedules.map((schedule) => schedule.label);
-  return scheduleLabels.length === 1
-    ? `Schema toegepast: ${scheduleLabels[0]}.`
-    : `Schema's toegepast: ${scheduleLabels.join(', ')}.`;
+export function addTotalDaysForProject(
+  totalDaysByProject: Map<string, number>,
+  projectCode: string,
+  daysCount: number,
+): void {
+  totalDaysByProject.set(
+    projectCode,
+    (totalDaysByProject.get(projectCode) ?? 0) + daysCount,
+  );
 }
 
-function buildFailedDatesLines(
+function buildAppliedSchedulesSection(
+  schedules: WeeklySchedule[],
+): StatusSection {
+  const scheduleLabels = schedules.map((schedule) => schedule.label);
+  return {
+    label:
+      scheduleLabels.length === 1 ? 'Schema toegepast:' : "Schema's toegepast:",
+    text: scheduleLabels.join(', '),
+  };
+}
+
+function buildFailedDatesSection(
   failedDatesByProject: Map<string, string[]>,
-): string[] {
+  totalDaysByProject: Map<string, number>,
+): StatusSection | undefined {
   if (failedDatesByProject.size === 0) {
-    return [];
+    return undefined;
   }
 
-  const lines = ['Mislukt per doel:'];
+  const items: StatusListItem[] = [];
   failedDatesByProject.forEach((dates, targetName) => {
-    lines.push(`- ${targetName}: ${uniqueSortedDates(dates).join(', ')}.`);
+    const totalDays = totalDaysByProject.get(targetName) ?? 0;
+    if (totalDays > 0 && dates.length >= totalDays) {
+      items.push(`${targetName}: alle dagen mislukt`);
+    } else {
+      items.push({ text: `${targetName}:`, items: uniqueSortedDates(dates) });
+    }
   });
 
-  return lines;
+  return { label: 'Mislukt per doel:', items };
+}
+
+function buildSubmissionSection(
+  submissionAttemptedCount: number,
+  submissionConfirmedCount: number,
+): StatusSection {
+  const counts = `(${submissionConfirmedCount}/${submissionAttemptedCount})`;
+  let text: string;
+  if (submissionAttemptedCount === 0) {
+    text = 'geen submit uitgevoerd';
+  } else if (submissionConfirmedCount === submissionAttemptedCount) {
+    text = `ontvangen ${counts}`;
+  } else {
+    text = `gedeeltelijk ${counts}`;
+  }
+
+  return { label: 'SAP bevestiging:', text };
 }
 
 export function buildApplyStatusMessage(
@@ -141,28 +183,30 @@ export function buildApplyStatusMessage(
   appliedDaysCount: number,
   totalDaysCount: number,
   failedDatesByProject: Map<string, string[]>,
+  totalDaysByProject: Map<string, number>,
   submissionAttemptedCount: number,
   submissionConfirmedCount: number,
-): string {
-  const parts = [
-    buildAppliedSchedulesLine(schedules),
-    `${appliedDaysCount}/${totalDaysCount} dagen bijgewerkt.`,
-    ...buildFailedDatesLines(failedDatesByProject),
+): StatusSection[] {
+  const sections: StatusSection[] = [
+    buildAppliedSchedulesSection(schedules),
+    {
+      label: 'Dagen bijgewerkt:',
+      text: `${appliedDaysCount}/${totalDaysCount}`,
+    },
   ];
 
-  if (submissionAttemptedCount === 0) {
-    parts.push('SAP bevestiging: geen submit uitgevoerd.');
-  } else if (submissionConfirmedCount === submissionAttemptedCount) {
-    parts.push(
-      `SAP bevestiging: ontvangen (${submissionConfirmedCount}/${submissionAttemptedCount}).`,
-    );
-  } else {
-    parts.push(
-      `SAP bevestiging: gedeeltelijk (${submissionConfirmedCount}/${submissionAttemptedCount}).`,
-    );
+  const failedDatesSection = buildFailedDatesSection(
+    failedDatesByProject,
+    totalDaysByProject,
+  );
+  if (failedDatesSection) {
+    sections.push(failedDatesSection);
   }
 
-  return parts.join('\n');
+  sections.push(
+    buildSubmissionSection(submissionAttemptedCount, submissionConfirmedCount),
+  );
+  return sections;
 }
 
 export async function autofillScheduleEntries(

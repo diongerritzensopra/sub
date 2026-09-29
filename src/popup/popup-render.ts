@@ -2,7 +2,13 @@
  * Popup rendering logic — pure functions that update DOM from model/snapshot state.
  */
 
-import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
+import type {
+  StatusContent,
+  StatusLevel,
+  StatusListItem,
+  TimesheetSnapshot,
+  WeeklySchedule,
+} from '../shared/types';
 import type { PopupDomRefs } from './popup-dom';
 import {
   encodeScheduleTargetSelectValue,
@@ -28,10 +34,7 @@ export function renderSnapshot(
   isCachedData: boolean = false,
   snapshotTimestampIso: string | null = null,
 ): void {
-  dom.periodValue.textContent =
-    snapshot.month && snapshot.year
-      ? `${snapshot.month}/${snapshot.year}`
-      : '-';
+  dom.periodValue.textContent = formatPeriod(snapshot.month, snapshot.year);
   dom.workedHoursValue.textContent = formatHours(snapshot.totals.worked);
   dom.toBePerformedHoursValue.textContent = formatHours(
     snapshot.totals.toBePerformed,
@@ -89,6 +92,10 @@ export function renderSchedules(
   const list = dom.schedulesList;
   const empty = dom.schedulesEmpty;
 
+  if (dom.scheduleFormSection.closest('#schedules-list')) {
+    hideScheduleForm(dom);
+  }
+
   list.innerHTML = '';
   if (schedules.length === 0) {
     empty.hidden = false;
@@ -132,6 +139,10 @@ function renderScheduleListItem(
   }
 
   const toggleSelection = (): void => {
+    if (item.classList.contains('schedule-item--editing')) {
+      return;
+    }
+
     onToggleSelection(schedule.id);
     if (selectedIds.has(schedule.id)) {
       item.classList.add('schedule-item--selected');
@@ -143,7 +154,9 @@ function renderScheduleListItem(
   };
 
   item.addEventListener('click', (event) => {
-    if ((event.target as HTMLElement).closest('button')) {
+    if (
+      (event.target as HTMLElement).closest('button, #schedule-form-section')
+    ) {
       return;
     }
     toggleSelection();
@@ -264,22 +277,24 @@ function renderScheduleListItem(
   return item;
 }
 
-export type ScheduleApplyState = 'applying' | 'success' | 'error';
+export type ScheduleApplyState = 'applying' | 'success' | 'warning' | 'error';
 
 const SCHEDULE_APPLY_STATE_CLASSES: Record<ScheduleApplyState, string> = {
   applying: 'schedule-apply-status--applying',
   success: 'schedule-apply-status--success',
+  warning: 'schedule-apply-status--warning',
   error: 'schedule-apply-status--error',
 };
 
 const SCHEDULE_APPLY_STATE_ICONS: Record<ScheduleApplyState, string> = {
   applying: '⏳',
   success: '✅',
+  warning: '⚠️',
   error: '❌',
 };
 
 /**
- * Update a single schedule row's apply result state (applying/success/error).
+ * Update a single schedule row's apply result state (applying/success/warning/error).
  * @param dom DOM references
  * @param scheduleId Schedule whose row should be updated
  * @param applyState State to show, or null to clear/hide the indicator
@@ -431,8 +446,65 @@ export function showScheduleForm(
     submitBtn.textContent = 'Opslaan';
   }
 
+  restoreScheduleFormAnchor(dom);
+  if (scheduleToEdit) {
+    const scheduleItem = Array.from(
+      dom.schedulesList.querySelectorAll<HTMLLIElement>('[data-schedule-id]'),
+    ).find((item) => item.dataset.scheduleId === scheduleToEdit.id);
+    if (scheduleItem) {
+      scheduleItem.classList.add('schedule-item--editing');
+      const scheduleContent =
+        scheduleItem.querySelector<HTMLElement>('.schedule-content');
+      if (scheduleContent) {
+        scheduleContent.setAttribute('aria-disabled', 'true');
+        scheduleContent.tabIndex = -1;
+      }
+      scheduleItem
+        .querySelectorAll<HTMLButtonElement>(
+          '.schedule-edit-button, .schedule-delete-button',
+        )
+        .forEach((button) => {
+          button.disabled = true;
+        });
+      scheduleItem.appendChild(dom.scheduleFormSection);
+    }
+    dom.scheduleFormSection.dataset.formMode = 'edit';
+  } else {
+    dom.scheduleFormSection.dataset.formMode = 'add';
+    dom.addScheduleButton.disabled = true;
+  }
+
   dom.scheduleFormSection.hidden = false;
   dom.scheduleLabelInput.focus();
+}
+
+function restoreScheduleFormAnchor(dom: PopupDomRefs): void {
+  const editedItem =
+    dom.scheduleFormSection.closest<HTMLLIElement>('.schedule-item');
+  if (editedItem) {
+    editedItem.classList.remove('schedule-item--editing');
+    const scheduleContent =
+      editedItem.querySelector<HTMLElement>('.schedule-content');
+    if (scheduleContent) {
+      scheduleContent.removeAttribute('aria-disabled');
+      scheduleContent.tabIndex = 0;
+    }
+    editedItem
+      .querySelectorAll<HTMLButtonElement>(
+        '.schedule-edit-button, .schedule-delete-button',
+      )
+      .forEach((button) => {
+        button.disabled = false;
+      });
+  }
+
+  dom.addScheduleButton.insertAdjacentElement(
+    'afterend',
+    dom.scheduleFormSection,
+  );
+  dom.addScheduleButton.disabled =
+    dom.addScheduleButton.dataset.hasSnapshot !== 'true';
+  delete dom.scheduleFormSection.dataset.formMode;
 }
 
 /**
@@ -441,6 +513,7 @@ export function showScheduleForm(
 export function hideScheduleForm(dom: PopupDomRefs): void {
   dom.scheduleForm.reset();
   dom.scheduleFormSection.hidden = true;
+  restoreScheduleFormAnchor(dom);
 }
 
 /**
@@ -450,7 +523,9 @@ export function updateAddScheduleButtonState(
   dom: PopupDomRefs,
   hasSnapshot: boolean,
 ): void {
-  dom.addScheduleButton.disabled = !hasSnapshot;
+  dom.addScheduleButton.dataset.hasSnapshot = String(hasSnapshot);
+  dom.addScheduleButton.disabled =
+    !hasSnapshot || dom.scheduleFormSection.dataset.formMode === 'add';
 }
 
 /**
@@ -491,16 +566,79 @@ export function setScrapeButtonState(
   dom.btnScrape.disabled = isLoading;
 }
 
+const STATUS_LEVEL_ICONS: Record<StatusLevel, string> = {
+  info: 'ℹ️',
+  success: '✅',
+  warning: '⚠️',
+  error: '❌',
+};
+
 /**
- * Update status message display (with optional persistence flag).
+ * Update status message display (with urgency level and optional dismiss button).
  */
+function buildStatusList(items: StatusListItem[]): HTMLUListElement {
+  const list = document.createElement('ul');
+  list.className = 'status-message-list';
+  items.forEach((item) => {
+    const listItem = document.createElement('li');
+    if (typeof item === 'string') {
+      listItem.textContent = item;
+    } else {
+      listItem.textContent = item.text;
+      if (item.items.length > 0) {
+        listItem.append(buildStatusList(item.items));
+      }
+    }
+    list.append(listItem);
+  });
+  return list;
+}
+
+function renderStatusContent(
+  container: HTMLElement,
+  content: StatusContent,
+): void {
+  if (typeof content === 'string') {
+    container.textContent = content;
+    return;
+  }
+
+  container.replaceChildren(
+    ...content.map((section) => {
+      const block = document.createElement('div');
+      block.className = 'status-message-section';
+      if (section.label) {
+        const label = document.createElement('strong');
+        label.textContent = section.label;
+        block.append(label);
+      }
+      if (section.text) {
+        block.append(section.label ? ` ${section.text}` : section.text);
+      }
+      if (section.items && section.items.length > 0) {
+        block.append(buildStatusList(section.items));
+      }
+      return block;
+    }),
+  );
+}
+
 export function renderStatusMessage(
   dom: PopupDomRefs,
-  message: string,
+  message: StatusContent,
   showDismiss: boolean = false,
+  level: StatusLevel = 'info',
 ): void {
-  dom.statusMessage.textContent = message;
+  renderStatusContent(dom.statusMessage, message);
+  dom.statusIcon.textContent = STATUS_LEVEL_ICONS[level];
+  (Object.keys(STATUS_LEVEL_ICONS) as StatusLevel[]).forEach((candidate) => {
+    dom.statusBox.classList.toggle(
+      `status-box--${candidate}`,
+      candidate === level,
+    );
+  });
   dom.statusDismissButton.hidden = !showDismiss;
+  dom.statusSection.hidden = message.length === 0;
 }
 
 /**
@@ -512,6 +650,25 @@ export function formatHours(value: number | null): string {
   }
 
   return `${value.toString().replace('.', ',')} u`;
+}
+
+/**
+ * Format a month/year period with the full month name in the user's language
+ * (e.g., "augustus 2026" or "August 2026").
+ */
+export function formatPeriod(
+  month: number | null,
+  year: number | null,
+  locale: string | undefined = navigator.language,
+): string {
+  if (!month || !year) {
+    return '-';
+  }
+
+  return new Intl.DateTimeFormat(locale, {
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(year, month - 1, 1));
 }
 
 /**

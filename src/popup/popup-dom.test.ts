@@ -12,6 +12,10 @@ describe('getPopupDomRefs', () => {
     const dom = getPopupDomRefs(document);
 
     expect(dom.btnScrape).toBe(document.getElementById('btn-scrape'));
+    expect(dom.btnScrape.closest('#summary-section')).toBe(dom.summarySection);
+    expect(dom.statusSection).toBe(document.getElementById('status-section'));
+    expect(dom.statusBox).toBe(document.getElementById('status-box'));
+    expect(dom.statusIcon).toBe(document.getElementById('status-icon'));
     expect(dom.statusMessage).toBe(document.getElementById('status-message'));
     expect(dom.statusDismissButton).toBe(
       document.getElementById('btn-status-dismiss'),

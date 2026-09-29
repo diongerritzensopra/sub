@@ -70,7 +70,7 @@ Shared feature roadmap for `sub`.
     - Refactor the popup markup/rendering so the UI is grouped into deliberate sections instead of a single continuous
       flow.
     - Ensure status, snapshot details, schedules, and apply controls each have clear structure and headings.
-- [ ] Chunk 3 - Popup styling overhaul.
+- [x] Chunk 3 - Popup styling overhaul.
     - Update `popup.css` to implement the planned layout, spacing, grouping, and visual hierarchy.
     - Improve readability and button emphasis for the popup's constrained width.
 - [ ] Chunk 4 - UX polish and regression coverage.

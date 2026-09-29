@@ -2,7 +2,12 @@
  * Popup script — composition root for SAP My Timesheet hour booking.
  */
 
-import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
+import type {
+  StatusContent,
+  StatusLevel,
+  TimesheetSnapshot,
+  WeeklySchedule,
+} from '../shared/types';
 import { SAP_TIMESHEET_URL_PATTERN } from '../shared/types';
 import { initBusyStateListener } from '../shared/busy-state';
 import {
@@ -97,12 +102,17 @@ function openScheduleFormForEdit(schedule: WeeklySchedule): void {
   if (!state.currentSnapshot) {
     setStatus(
       'Analyseer eerst de huidige timesheet voordat je een schema bewerkt.',
+      false,
+      'warning',
     );
     return;
   }
 
   state.scheduleBeingEdited = schedule;
+  state.selectedScheduleIds.delete(schedule.id);
+  renderCurrentSchedulesDisplay(createActionsContext());
   showScheduleFormCore(dom, state.currentSnapshot, schedule);
+  setTimesheetApplyAllowedState(state.isTimesheetApplyAllowed);
 }
 
 function setTimesheetApplyAllowedState(editable: boolean): void {
@@ -121,6 +131,8 @@ function openScheduleFormFromLatestSnapshot(): void {
   if (!state.currentSnapshot) {
     setStatus(
       'Analyseer eerst de huidige timesheet voordat je een schema toevoegt.',
+      false,
+      'warning',
     );
     return;
   }
@@ -167,9 +179,14 @@ export function isTimesheetTab(tab: chrome.tabs.Tab | undefined): boolean {
   return (tab?.url ?? '').includes(SAP_TIMESHEET_URL_PATTERN);
 }
 
-export function setStatus(message: string, persist: boolean = false): void {
-  renderStatusMessage(dom, message, persist && message.length > 0);
-  if (!message) {
+export function setStatus(
+  message: StatusContent,
+  persist: boolean = false,
+  level: StatusLevel = 'info',
+): void {
+  const isEmpty = message.length === 0;
+  renderStatusMessage(dom, message, persist && !isEmpty, level);
+  if (isEmpty) {
     if (persist) {
       void clearCachedStatusMessage();
     }
@@ -177,6 +194,7 @@ export function setStatus(message: string, persist: boolean = false): void {
     void setCachedStatusMessage({
       message,
       cachedAt: new Date().toISOString(),
+      level,
     });
   }
 }
@@ -198,7 +216,7 @@ export async function restoreCachedStatusMessage(): Promise<boolean> {
     return false;
   }
 
-  renderStatusMessage(dom, cached.message, true);
+  renderStatusMessage(dom, cached.message, true, cached.level ?? 'info');
   return true;
 }
 
