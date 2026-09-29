@@ -16,7 +16,7 @@ import { deleteSchedule, getSchedules, saveSchedule } from '../shared/storage';
 import { getSAPBusyStateForTab } from '../shared/busy-state';
 import {
   addFailedDatesForProject,
-  addTotalDaysForProject,
+  addTargetDatesForProject,
   autofillScheduleEntries,
   buildApplyStatusMessage,
   navigateToProject,
@@ -325,7 +325,7 @@ export async function applySchedulesFromSelection(
     let totalDaysCount = 0;
     let appliedDaysCount = 0;
     const failedDatesByProject = new Map<string, string[]>();
-    const totalDaysByProject = new Map<string, number>();
+    const targetDatesByProject = new Map<string, Set<string>>();
     let submissionAttemptedCount = 0;
     let submissionConfirmedCount = 0;
     const scheduleErrors: string[] = [];
@@ -344,10 +344,12 @@ export async function applySchedulesFromSelection(
 
         totalDaysCount += summary.totalDaysCount;
         appliedDaysCount += summary.appliedDaysCount;
-        addTotalDaysForProject(
-          totalDaysByProject,
+        addTargetDatesForProject(
+          targetDatesByProject,
           targetLabel,
-          summary.totalDaysCount,
+          expandWeeklyScheduleToMonthEntries(schedule, month, year).map(
+            (entry) => entry.date,
+          ),
         );
         addFailedDatesForProject(
           failedDatesByProject,
@@ -394,10 +396,10 @@ export async function applySchedulesFromSelection(
           year,
         );
         totalDaysCount += scheduleEntries.length;
-        addTotalDaysForProject(
-          totalDaysByProject,
+        addTargetDatesForProject(
+          targetDatesByProject,
           targetLabel,
-          scheduleEntries.length,
+          scheduleEntries.map((entry) => entry.date),
         );
         addFailedDatesForProject(
           failedDatesByProject,
@@ -415,7 +417,7 @@ export async function applySchedulesFromSelection(
       appliedDaysCount,
       totalDaysCount,
       failedDatesByProject,
-      totalDaysByProject,
+      targetDatesByProject,
       submissionAttemptedCount,
       submissionConfirmedCount,
     );

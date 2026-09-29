@@ -118,15 +118,14 @@ export function addFailedDatesForProject(
   failedDatesByProject.set(projectCode, existingDates);
 }
 
-export function addTotalDaysForProject(
-  totalDaysByProject: Map<string, number>,
+export function addTargetDatesForProject(
+  datesByProject: Map<string, Set<string>>,
   projectCode: string,
-  daysCount: number,
+  dates: string[],
 ): void {
-  totalDaysByProject.set(
-    projectCode,
-    (totalDaysByProject.get(projectCode) ?? 0) + daysCount,
-  );
+  const targetDates = datesByProject.get(projectCode) ?? new Set<string>();
+  dates.forEach((date) => targetDates.add(date));
+  datesByProject.set(projectCode, targetDates);
 }
 
 function buildAppliedSchedulesSection(
@@ -142,7 +141,7 @@ function buildAppliedSchedulesSection(
 
 function buildFailedDatesSection(
   failedDatesByProject: Map<string, string[]>,
-  totalDaysByProject: Map<string, number>,
+  targetDatesByProject: Map<string, Set<string>>,
 ): StatusSection | undefined {
   if (failedDatesByProject.size === 0) {
     return undefined;
@@ -150,8 +149,13 @@ function buildFailedDatesSection(
 
   const items: StatusListItem[] = [];
   failedDatesByProject.forEach((dates, targetName) => {
-    const totalDays = totalDaysByProject.get(targetName) ?? 0;
-    if (totalDays > 0 && dates.length >= totalDays) {
+    const targetDates = targetDatesByProject.get(targetName);
+    const failedDates = new Set(dates);
+    if (
+      targetDates &&
+      targetDates.size > 0 &&
+      [...targetDates].every((date) => failedDates.has(date))
+    ) {
       items.push(`${targetName}: alle dagen mislukt`);
     } else {
       items.push({ text: `${targetName}:`, items: uniqueSortedDates(dates) });
@@ -183,7 +187,7 @@ export function buildApplyStatusMessage(
   appliedDaysCount: number,
   totalDaysCount: number,
   failedDatesByProject: Map<string, string[]>,
-  totalDaysByProject: Map<string, number>,
+  targetDatesByProject: Map<string, Set<string>>,
   submissionAttemptedCount: number,
   submissionConfirmedCount: number,
 ): StatusSection[] {
@@ -197,7 +201,7 @@ export function buildApplyStatusMessage(
 
   const failedDatesSection = buildFailedDatesSection(
     failedDatesByProject,
-    totalDaysByProject,
+    targetDatesByProject,
   );
   if (failedDatesSection) {
     sections.push(failedDatesSection);

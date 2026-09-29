@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WeeklySchedule } from '../shared/types';
 import {
   addFailedDatesForProject,
+  addTargetDatesForProject,
   autofillScheduleEntries,
-  addTotalDaysForProject,
   buildApplyStatusMessage,
   buildTimesheetUrlForProject,
   navigateToProject,
@@ -215,7 +215,18 @@ describe('buildApplyStatusMessage', () => {
       8,
       10,
       failed,
-      new Map([['Mockproject', 5]]),
+      new Map([
+        [
+          'Mockproject',
+          new Set([
+            '2026-05-01',
+            '2026-05-02',
+            '2026-05-03',
+            '2026-05-04',
+            '2026-05-05',
+          ]),
+        ],
+      ]),
       2,
       2,
     );
@@ -243,8 +254,8 @@ describe('buildApplyStatusMessage', () => {
       4,
       failed,
       new Map([
-        ['Mockproject', 2],
-        ['Testproject 42', 2],
+        ['Mockproject', new Set(['2026-05-01', '2026-05-02'])],
+        ['Testproject 42', new Set(['2026-05-04', '2026-05-05'])],
       ]),
       1,
       1,
@@ -256,6 +267,33 @@ describe('buildApplyStatusMessage', () => {
         'Mockproject: alle dagen mislukt',
         { text: 'Testproject 42:', items: ['2026-05-04'] },
       ],
+    });
+  });
+
+  it('uses distinct target dates when schedules overlap and one fails', () => {
+    const targetDates = new Map<string, Set<string>>();
+    addTargetDatesForProject(targetDates, 'Mockproject', [
+      '2026-05-01',
+      '2026-05-02',
+    ]);
+    addTargetDatesForProject(targetDates, 'Mockproject', [
+      '2026-05-01',
+      '2026-05-02',
+    ]);
+
+    const message = buildApplyStatusMessage(
+      [BASE_SCHEDULE, { ...BASE_SCHEDULE, id: 'schedule-2' }],
+      0,
+      4,
+      new Map([['Mockproject', ['2026-05-01', '2026-05-02']]]),
+      targetDates,
+      0,
+      0,
+    );
+
+    expect(message[2]).toEqual({
+      label: 'Mislukt per doel:',
+      items: ['Mockproject: alle dagen mislukt'],
     });
   });
 
@@ -276,12 +314,14 @@ describe('buildApplyStatusMessage', () => {
   });
 });
 
-describe('addTotalDaysForProject', () => {
-  it('accumulates totals per target', () => {
-    const totals = new Map<string, number>();
-    addTotalDaysForProject(totals, 'Z1', 3);
-    addTotalDaysForProject(totals, 'Z1', 2);
-    expect(totals.get('Z1')).toBe(5);
+describe('addTargetDatesForProject', () => {
+  it('keeps distinct dates per target', () => {
+    const dates = new Map<string, Set<string>>();
+    addTargetDatesForProject(dates, 'Z1', ['2026-05-01', '2026-05-02']);
+    addTargetDatesForProject(dates, 'Z1', ['2026-05-02', '2026-05-03']);
+    expect(dates.get('Z1')).toEqual(
+      new Set(['2026-05-01', '2026-05-02', '2026-05-03']),
+    );
   });
 });
 

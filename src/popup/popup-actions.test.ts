@@ -34,6 +34,7 @@ import {
 } from './popup-gateway';
 import {
   addFailedDatesForProject,
+  addTargetDatesForProject,
   autofillScheduleEntries,
   buildApplyStatusMessage,
   navigateToProject,
@@ -77,7 +78,7 @@ vi.mock('./popup-gateway', () => ({
 
 vi.mock('./schedule-apply', () => ({
   addFailedDatesForProject: vi.fn(),
-  addTotalDaysForProject: vi.fn(),
+  addTargetDatesForProject: vi.fn(),
   autofillScheduleEntries: vi.fn(),
   buildApplyStatusMessage: vi.fn(),
   navigateToProject: vi.fn(),
@@ -484,6 +485,45 @@ describe('analyseActiveTab', () => {
 });
 
 describe('applySchedulesFromSelection', () => {
+  it('collects the same target dates for a failed and an unchanged schedule', async () => {
+    const ctx = createContext();
+    const scheduleA = createSchedule('a', 'C001');
+    const scheduleB = createSchedule('b', 'C001');
+    ctx.state.renderedSchedules = [scheduleA, scheduleB];
+    ctx.state.selectedScheduleIds = new Set(['a', 'b']);
+    vi.mocked(getSchedulesToApply).mockReturnValue([scheduleA, scheduleB]);
+    vi.mocked(autofillScheduleEntries)
+      .mockResolvedValueOnce({
+        totalDaysCount: 31,
+        appliedDaysCount: 0,
+        failedDates: ['2026-08-01'],
+        submissionAttempted: false,
+        submissionConfirmed: false,
+        error: 'SAP fout',
+      })
+      .mockResolvedValueOnce({
+        totalDaysCount: 31,
+        appliedDaysCount: 0,
+        failedDates: [],
+        submissionAttempted: false,
+        submissionConfirmed: false,
+      });
+
+    await applySchedulesFromSelection(ctx);
+
+    const calls = vi.mocked(addTargetDatesForProject).mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(calls[0][0]).toBe(calls[1][0]);
+    expect(calls[0][1]).toBe('Project Alpha');
+    expect(calls[1][1]).toBe('Project Alpha');
+    expect(calls[0][2]).toEqual(calls[1][2]);
+    expect(calls[0][2]).toHaveLength(31);
+    expect(new Set(calls[0][2]).size).toBe(31);
+    expect(vi.mocked(buildApplyStatusMessage).mock.calls[0][4]).toBe(
+      calls[0][0],
+    );
+  });
+
   it('blocks apply when timesheet is locked', async () => {
     const ctx = createContext();
     ctx.state.isTimesheetApplyAllowed = false;
