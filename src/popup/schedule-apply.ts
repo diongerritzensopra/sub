@@ -131,11 +131,9 @@ export function addTargetDatesForProject(
 function buildAppliedSchedulesSection(
   schedules: WeeklySchedule[],
 ): StatusSection {
-  const scheduleLabels = schedules.map((schedule) => schedule.label);
   return {
-    label:
-      scheduleLabels.length === 1 ? 'Schema toegepast:' : "Schema's toegepast:",
-    text: scheduleLabels.join(', '),
+    label: "Toegepaste schema's:",
+    items: schedules.map((schedule) => schedule.label),
   };
 }
 
@@ -162,24 +160,27 @@ function buildFailedDatesSection(
     }
   });
 
-  return { label: 'Mislukt per doel:', items };
+  return { label: 'Mislukte dagen:', items };
 }
 
 function buildSubmissionSection(
   submissionAttemptedCount: number,
   submissionConfirmedCount: number,
 ): StatusSection {
-  const counts = `(${submissionConfirmedCount}/${submissionAttemptedCount})`;
+  const counts = `${submissionConfirmedCount}/${submissionAttemptedCount}`;
   let text: string;
   if (submissionAttemptedCount === 0) {
-    text = 'geen submit uitgevoerd';
+    text = `${counts} (niets ingediend)`;
   } else if (submissionConfirmedCount === submissionAttemptedCount) {
-    text = `ontvangen ${counts}`;
+    text = `${counts} (alles ingediend)`;
   } else {
-    text = `gedeeltelijk ${counts}`;
+    text = `${counts} (gedeeltelijk ingediend)`;
   }
 
-  return { label: 'SAP bevestiging:', text };
+  return {
+    label: 'Verwerkt door SAP:',
+    text,
+  };
 }
 
 export function buildApplyStatusMessage(
@@ -194,7 +195,7 @@ export function buildApplyStatusMessage(
   const sections: StatusSection[] = [
     buildAppliedSchedulesSection(schedules),
     {
-      label: 'Dagen bijgewerkt:',
+      label: 'Bijgewerkte dagen:',
       text: `${appliedDaysCount}/${totalDaysCount}`,
     },
   ];

@@ -78,7 +78,7 @@ Shared feature roadmap for `sub`.
     - Fix failed-date summaries for multiple schedules sharing a target: count distinct target dates, so an already-set
       schedule does not inflate the total or prevent "alle dagen mislukt" when every relevant date failed.
     - Clarify the wording of apply-result status sections.
-    - List the dates actually updated under "Dagen bijgewerkt", alongside the count.
+    - List the dates actually updated under "Bijgewerkte dagen", alongside the count.
     - Format updated and failed dates in a readable, locale-aware format.
     - Add or update popup tests for the revised structure and state-specific rendering.
 

@@ -217,13 +217,20 @@ describe('popup integration tests', () => {
       const statusMessage =
         document.getElementById('status-message')?.textContent ?? '';
       expect(autofillCalls).toBe(1);
-      expect(statusMessage).toContain(
-        "Schema's toegepast: Kantooruren, Deeltijd",
+      const sections = document.querySelectorAll(
+        '#status-message .status-message-section',
       );
-      expect(statusMessage).toContain('Mockproject: alle dagen mislukt');
+      expect(sections[0].querySelector('strong')?.textContent).toBe(
+        "Toegepaste schema's:",
+      );
       expect(
-        document.querySelectorAll('#status-message .status-message-section'),
-      ).toHaveLength(5);
+        Array.from(
+          sections[0].querySelectorAll('li'),
+          (item) => item.textContent,
+        ),
+      ).toEqual(['Kantooruren', 'Deeltijd']);
+      expect(statusMessage).toContain('Mockproject: alle dagen mislukt');
+      expect(sections).toHaveLength(5);
       expect(statusMessage).toContain('Fouten:');
       expect(statusMessage).toContain(
         'Mockproject: Navigatie mislukt voor project',
@@ -269,14 +276,18 @@ describe('popup integration tests', () => {
       expect(mockChromeTabsUpdate).not.toHaveBeenCalled();
       expect(mockChromeTabsGet).toHaveBeenCalledTimes(1);
       expect(mockChromeScriptingExecuteScript).toHaveBeenCalledTimes(1);
-      expect(document.getElementById('status-message')?.textContent).toContain(
-        'Schema toegepast: Kantooruren',
+      const sections = document.querySelectorAll(
+        '#status-message .status-message-section',
       );
-      expect(document.getElementById('status-message')?.textContent).toContain(
-        'Dagen bijgewerkt: 1/',
+      expect(sections[0].querySelector('strong')?.textContent).toBe(
+        "Toegepaste schema's:",
       );
+      expect(sections[0].querySelector('li')?.textContent).toBe('Kantooruren');
       expect(document.getElementById('status-message')?.textContent).toContain(
-        'SAP bevestiging: ontvangen (1/1)',
+        'Bijgewerkte dagen: 1/',
+      );
+      expect(sections[2].textContent).toBe(
+        'Verwerkt door SAP: 1/1 (alles ingediend)',
       );
     });
   });

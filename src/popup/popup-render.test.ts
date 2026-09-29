@@ -596,9 +596,9 @@ describe('simple DOM state helpers', () => {
     renderStatusMessage(
       dom,
       [
-        { label: 'Dagen bijgewerkt:', text: '1/3' },
+        { label: 'Bijgewerkte dagen:', text: '1/3' },
         {
-          label: 'Mislukt per doel:',
+          label: 'Mislukte dagen:',
           items: [
             'Project A: alle dagen mislukt',
             { text: 'Project B:', items: ['2026-05-01', '<b>x</b>'] },
@@ -614,9 +614,9 @@ describe('simple DOM state helpers', () => {
     );
     expect(sections).toHaveLength(2);
     expect(sections[0].querySelector('strong')?.textContent).toBe(
-      'Dagen bijgewerkt:',
+      'Bijgewerkte dagen:',
     );
-    expect(sections[0].textContent).toBe('Dagen bijgewerkt: 1/3');
+    expect(sections[0].textContent).toBe('Bijgewerkte dagen: 1/3');
     const topItems = sections[1].querySelectorAll(':scope > ul > li');
     expect(topItems[0].textContent).toBe('Project A: alle dagen mislukt');
     const nestedItems = topItems[1].querySelectorAll('ul > li');

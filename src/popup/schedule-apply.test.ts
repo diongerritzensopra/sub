@@ -187,9 +187,12 @@ describe('buildApplyStatusMessage', () => {
     );
 
     expect(message).toEqual([
-      { label: 'Schema toegepast:', text: 'Kantooruren' },
-      { label: 'Dagen bijgewerkt:', text: '2/3' },
-      { label: 'SAP bevestiging:', text: 'geen submit uitgevoerd' },
+      { label: "Toegepaste schema's:", items: ['Kantooruren'] },
+      { label: 'Bijgewerkte dagen:', text: '2/3' },
+      {
+        label: 'Verwerkt door SAP:',
+        text: '0/0 (niets ingediend)',
+      },
     ]);
   });
 
@@ -232,13 +235,19 @@ describe('buildApplyStatusMessage', () => {
     );
 
     expect(message).toEqual([
-      { label: "Schema's toegepast:", text: 'Kantooruren, Deeltijd' },
-      { label: 'Dagen bijgewerkt:', text: '8/10' },
       {
-        label: 'Mislukt per doel:',
+        label: "Toegepaste schema's:",
+        items: ['Kantooruren', 'Deeltijd'],
+      },
+      { label: 'Bijgewerkte dagen:', text: '8/10' },
+      {
+        label: 'Mislukte dagen:',
         items: [{ text: 'Mockproject:', items: ['2026-05-01', '2026-05-03'] }],
       },
-      { label: 'SAP bevestiging:', text: 'ontvangen (2/2)' },
+      {
+        label: 'Verwerkt door SAP:',
+        text: '2/2 (alles ingediend)',
+      },
     ]);
   });
 
@@ -262,7 +271,7 @@ describe('buildApplyStatusMessage', () => {
     );
 
     expect(message[2]).toEqual({
-      label: 'Mislukt per doel:',
+      label: 'Mislukte dagen:',
       items: [
         'Mockproject: alle dagen mislukt',
         { text: 'Testproject 42:', items: ['2026-05-04'] },
@@ -292,12 +301,12 @@ describe('buildApplyStatusMessage', () => {
     );
 
     expect(message[2]).toEqual({
-      label: 'Mislukt per doel:',
+      label: 'Mislukte dagen:',
       items: ['Mockproject: alle dagen mislukt'],
     });
   });
 
-  it('marks submit confirmation as partial when not all submits are confirmed', () => {
+  it('distinguishes partial confirmation from full confirmation', () => {
     const message = buildApplyStatusMessage(
       [BASE_SCHEDULE],
       1,
@@ -308,8 +317,8 @@ describe('buildApplyStatusMessage', () => {
       1,
     );
     expect(message.at(-1)).toEqual({
-      label: 'SAP bevestiging:',
-      text: 'gedeeltelijk (1/2)',
+      label: 'Verwerkt door SAP:',
+      text: '1/2 (gedeeltelijk ingediend)',
     });
   });
 });
