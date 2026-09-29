@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import popupCss from './popup.css?raw';
 import { getPopupDomRefs } from './popup-dom';
 import {
   clearScheduleApplyStates,
@@ -129,6 +130,7 @@ describe('renderSnapshot', () => {
   it('renders fresh origin styling and message when live data is shown', () => {
     const dom = getPopupDomRefs(document);
 
+    renderSnapshot(dom, createSnapshot(), false, true, null);
     renderSnapshot(
       dom,
       createSnapshot(),
@@ -141,18 +143,28 @@ describe('renderSnapshot', () => {
     expect(dom.dataOriginIndicator.classList.contains('fresh')).toBe(true);
     expect(dom.dataOriginIndicator.classList.contains('cached')).toBe(false);
     expect(dom.dataOriginIndicator.textContent).toContain('Vers bijgewerkt');
+    expect(dom.scrapeStatus.hidden).toBe(true);
+    expect(dom.scrapeStatus.classList.contains('warning')).toBe(false);
   });
 });
 
 describe('renderSchedules', () => {
   it('shows empty state when no schedules exist', () => {
     const dom = getPopupDomRefs(document);
+    const style = document.createElement('style');
+    style.textContent = popupCss;
+    document.head.append(style);
 
     renderSchedules(dom, [], new Set<string>(), vi.fn(), vi.fn(), vi.fn());
 
     expect(dom.schedulesEmpty.hidden).toBe(false);
     expect(dom.schedulesList.hidden).toBe(true);
+    expect(getComputedStyle(dom.schedulesList).display).toBe('none');
     expect(dom.schedulesList.children).toHaveLength(0);
+    expect(dom.schedulesEmpty.textContent).toContain(
+      "Nog geen schema's opgeslagen.",
+    );
+    style.remove();
   });
 
   it('renders schedule rows with provided target labels', () => {

@@ -416,6 +416,56 @@ describe('analyseActiveTab', () => {
     );
   });
 
+  it('warns while the page is loading without cached data', async () => {
+    const ctx = createContext();
+    vi.mocked(getSAPBusyStateForTab).mockResolvedValue(true);
+
+    await analyseActiveTab(ctx);
+
+    expect(ctx.setStatus).toHaveBeenCalledWith(
+      'De pagina laadt nog. Probeer het over een moment opnieuw.',
+      false,
+      'warning',
+    );
+    expect(readTimesheetSnapshotViaUi5).not.toHaveBeenCalled();
+    expect(setScrapeButtonState).toHaveBeenNthCalledWith(2, ctx.dom, false);
+  });
+
+  it('warns that cached data may be stale while the page is loading', async () => {
+    const ctx = createContext();
+    vi.mocked(getValidCachedSnapshot).mockResolvedValue({
+      snapshot: createSnapshot(),
+      cachedAt: '2026-08-20T09:00:00.000Z',
+    });
+    vi.mocked(getSAPBusyStateForTab).mockResolvedValue(true);
+
+    await analyseActiveTab(ctx);
+
+    expect(ctx.setStatus).toHaveBeenCalledWith(
+      'Pagina laadt nog, gegevens kunnen verouderd zijn...',
+      false,
+      'warning',
+    );
+    expect(readTimesheetSnapshotViaUi5).not.toHaveBeenCalled();
+  });
+
+  it('shows a warning for a locked timesheet after rendering the snapshot', async () => {
+    const ctx = createContext();
+    const snapshot = createSnapshot({ sapStatus: 'locked' });
+    vi.mocked(readTimesheetSnapshotViaUi5).mockResolvedValue(snapshot);
+    vi.mocked(isSapTimesheetEditable).mockReturnValue(false);
+
+    await analyseActiveTab(ctx);
+
+    expect(ctx.renderSnapshot).toHaveBeenCalledWith(snapshot, true);
+    expect(ctx.setStatus).toHaveBeenCalledWith(
+      'De timesheet is vergrendeld. Uren boeken en indienen is uitgeschakeld.',
+      false,
+      'warning',
+    );
+    expect(ctx.restoreCachedStatusMessage).not.toHaveBeenCalled();
+  });
+
   it('renders fresh snapshot and updates cache when page is ready', async () => {
     const ctx = createContext();
     const snapshot = createSnapshot();

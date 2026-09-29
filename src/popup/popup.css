@@ -242,6 +242,10 @@ h2 {
   gap: 6px;
 }
 
+#schedules-list[hidden] {
+  display: none;
+}
+
 #schedules-list li {
   background: var(--color-neutral-bg);
   border-radius: 4px;
