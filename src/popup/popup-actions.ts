@@ -322,9 +322,8 @@ export async function applySchedulesFromSelection(
       setScheduleApplyState(ctx.dom, schedule.id, 'applying');
     });
 
-    let totalDaysCount = 0;
-    let appliedDaysCount = 0;
-    const failedDatesByProject = new Map<string, string[]>();
+    const appliedDatesByProject = new Map<string, Set<string>>();
+    const failedDatesByProject = new Map<string, Set<string>>();
     const targetDatesByProject = new Map<string, Set<string>>();
     let submissionAttemptedCount = 0;
     let submissionConfirmedCount = 0;
@@ -342,8 +341,11 @@ export async function applySchedulesFromSelection(
           year,
         );
 
-        totalDaysCount += summary.totalDaysCount;
-        appliedDaysCount += summary.appliedDaysCount;
+        addTargetDatesForProject(
+          appliedDatesByProject,
+          targetLabel,
+          summary.appliedDates,
+        );
         addTargetDatesForProject(
           targetDatesByProject,
           targetLabel,
@@ -395,7 +397,6 @@ export async function applySchedulesFromSelection(
           month,
           year,
         );
-        totalDaysCount += scheduleEntries.length;
         addTargetDatesForProject(
           targetDatesByProject,
           targetLabel,
@@ -414,8 +415,7 @@ export async function applySchedulesFromSelection(
 
     const statusMessage = buildApplyStatusMessage(
       schedulesToApply,
-      appliedDaysCount,
-      totalDaysCount,
+      appliedDatesByProject,
       failedDatesByProject,
       targetDatesByProject,
       submissionAttemptedCount,

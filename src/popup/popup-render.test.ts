@@ -596,12 +596,16 @@ describe('simple DOM state helpers', () => {
     renderStatusMessage(
       dom,
       [
-        { label: 'Bijgewerkte dagen:', text: '1/3' },
+        {
+          label: 'Bijgewerkte dagen:',
+          text: '2/3',
+          items: [{ text: 'Project A:', items: ['2026-05-01', '2026-05-02'] }],
+        },
         {
           label: 'Mislukte dagen:',
           items: [
-            'Project A: alle dagen mislukt',
-            { text: 'Project B:', items: ['2026-05-01', '<b>x</b>'] },
+            'Project B: alle dagen mislukt',
+            { text: 'Project C:', items: ['2026-05-01', '<b>x</b>'] },
           ],
         },
       ],
@@ -616,9 +620,15 @@ describe('simple DOM state helpers', () => {
     expect(sections[0].querySelector('strong')?.textContent).toBe(
       'Bijgewerkte dagen:',
     );
-    expect(sections[0].textContent).toBe('Bijgewerkte dagen: 1/3');
+    expect(sections[0].textContent).toContain('Bijgewerkte dagen: 2/3');
+    expect(
+      Array.from(
+        sections[0].querySelectorAll('ul ul li'),
+        (item) => item.textContent,
+      ),
+    ).toEqual(['2026-05-01', '2026-05-02']);
     const topItems = sections[1].querySelectorAll(':scope > ul > li');
-    expect(topItems[0].textContent).toBe('Project A: alle dagen mislukt');
+    expect(topItems[0].textContent).toBe('Project B: alle dagen mislukt');
     const nestedItems = topItems[1].querySelectorAll('ul > li');
     expect(Array.from(nestedItems, (li) => li.textContent)).toEqual([
       '2026-05-01',

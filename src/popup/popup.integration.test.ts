@@ -193,7 +193,7 @@ describe('popup integration tests', () => {
               documentId: 'mock-id',
               frameId: 0,
               result: {
-                appliedDaysCount: 1,
+                appliedDates: ['2026-08-01'],
                 failedDates: [],
                 submissionAttempted: true,
                 submissionConfirmed: true,
@@ -231,6 +231,12 @@ describe('popup integration tests', () => {
       ).toEqual(['Kantooruren', 'Deeltijd']);
       expect(statusMessage).toContain('Mockproject: alle dagen mislukt');
       expect(sections).toHaveLength(5);
+      expect(
+        Array.from(
+          sections[1].querySelectorAll('ul ul li'),
+          (item) => item.textContent,
+        ),
+      ).toContain('2026-08-01');
       expect(statusMessage).toContain('Fouten:');
       expect(statusMessage).toContain(
         'Mockproject: Navigatie mislukt voor project',

@@ -32,7 +32,7 @@ export async function autofillEntriesViaUi5(
 
   return (
     result?.result ?? {
-      appliedDaysCount: 0,
+      appliedDates: [],
       failedDates: entries.map((entry) => entry.date),
       submissionAttempted: false,
       submissionConfirmed: false,

@@ -23,7 +23,7 @@ const PROJECT_NAVIGATION_POLL_INTERVAL_MS = 200;
 
 export type ScheduleAutofillSummary = {
   totalDaysCount: number;
-  appliedDaysCount: number;
+  appliedDates: string[];
   failedDates: string[];
   submissionAttempted: boolean;
   submissionConfirmed: boolean;
@@ -100,12 +100,12 @@ export async function navigateToProject(
   await waitForTabReady(tabId);
 }
 
-function uniqueSortedDates(dates: string[]): string[] {
-  return Array.from(new Set(dates)).sort((a, b) => a.localeCompare(b));
+function sortedDates(dates: Set<string>): string[] {
+  return Array.from(dates).sort((a, b) => a.localeCompare(b));
 }
 
 export function addFailedDatesForProject(
-  failedDatesByProject: Map<string, string[]>,
+  failedDatesByProject: Map<string, Set<string>>,
   projectCode: string,
   dates: string[],
 ): void {
@@ -113,9 +113,10 @@ export function addFailedDatesForProject(
     return;
   }
 
-  const existingDates = failedDatesByProject.get(projectCode) ?? [];
-  existingDates.push(...dates);
-  failedDatesByProject.set(projectCode, existingDates);
+  const failedDates =
+    failedDatesByProject.get(projectCode) ?? new Set<string>();
+  dates.forEach((date) => failedDates.add(date));
+  failedDatesByProject.set(projectCode, failedDates);
 }
 
 export function addTargetDatesForProject(
@@ -123,9 +124,20 @@ export function addTargetDatesForProject(
   projectCode: string,
   dates: string[],
 ): void {
+  if (dates.length === 0) {
+    return;
+  }
+
   const targetDates = datesByProject.get(projectCode) ?? new Set<string>();
   dates.forEach((date) => targetDates.add(date));
   datesByProject.set(projectCode, targetDates);
+}
+
+function countDatesByProject(datesByProject: Map<string, Set<string>>): number {
+  return Array.from(datesByProject.values()).reduce(
+    (total, dates) => total + dates.size,
+    0,
+  );
 }
 
 function buildAppliedSchedulesSection(
@@ -138,7 +150,7 @@ function buildAppliedSchedulesSection(
 }
 
 function buildFailedDatesSection(
-  failedDatesByProject: Map<string, string[]>,
+  failedDatesByProject: Map<string, Set<string>>,
   targetDatesByProject: Map<string, Set<string>>,
 ): StatusSection | undefined {
   if (failedDatesByProject.size === 0) {
@@ -146,9 +158,8 @@ function buildFailedDatesSection(
   }
 
   const items: StatusListItem[] = [];
-  failedDatesByProject.forEach((dates, targetName) => {
+  failedDatesByProject.forEach((failedDates, targetName) => {
     const targetDates = targetDatesByProject.get(targetName);
-    const failedDates = new Set(dates);
     if (
       targetDates &&
       targetDates.size > 0 &&
@@ -156,11 +167,15 @@ function buildFailedDatesSection(
     ) {
       items.push(`${targetName}: alle dagen mislukt`);
     } else {
-      items.push({ text: `${targetName}:`, items: uniqueSortedDates(dates) });
+      items.push({ text: `${targetName}:`, items: sortedDates(failedDates) });
     }
   });
 
-  return { label: 'Mislukte dagen:', items };
+  return {
+    label: 'Mislukte dagen:',
+    text: `${countDatesByProject(failedDatesByProject)}/${countDatesByProject(targetDatesByProject)}`,
+    items,
+  };
 }
 
 function buildSubmissionSection(
@@ -185,9 +200,8 @@ function buildSubmissionSection(
 
 export function buildApplyStatusMessage(
   schedules: WeeklySchedule[],
-  appliedDaysCount: number,
-  totalDaysCount: number,
-  failedDatesByProject: Map<string, string[]>,
+  appliedDatesByProject: Map<string, Set<string>>,
+  failedDatesByProject: Map<string, Set<string>>,
   targetDatesByProject: Map<string, Set<string>>,
   submissionAttemptedCount: number,
   submissionConfirmedCount: number,
@@ -196,7 +210,15 @@ export function buildApplyStatusMessage(
     buildAppliedSchedulesSection(schedules),
     {
       label: 'Bijgewerkte dagen:',
-      text: `${appliedDaysCount}/${totalDaysCount}`,
+      text: `${countDatesByProject(appliedDatesByProject)}/${countDatesByProject(targetDatesByProject)}`,
+      items: Array.from(appliedDatesByProject).some(
+        ([, dates]) => dates.size > 0,
+      )
+        ? Array.from(appliedDatesByProject, ([targetName, dates]) => ({
+            text: `${targetName}:`,
+            items: sortedDates(dates),
+          })).filter((target) => target.items.length > 0)
+        : ['Geen dagen bijgewerkt.'],
     },
   ];
 
@@ -225,7 +247,7 @@ export async function autofillScheduleEntries(
   if (totalDaysCount === 0) {
     return {
       totalDaysCount,
-      appliedDaysCount: 0,
+      appliedDates: [],
       failedDates: [],
       submissionAttempted: false,
       submissionConfirmed: false,
@@ -240,7 +262,7 @@ export async function autofillScheduleEntries(
 
   return {
     totalDaysCount,
-    appliedDaysCount: result.error ? 0 : result.appliedDaysCount,
+    appliedDates: result.error ? [] : result.appliedDates,
     failedDates: result.error
       ? entries.map((entry) => entry.date)
       : result.failedDates,

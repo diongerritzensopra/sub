@@ -184,6 +184,17 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.useRealTimers();
 
+  vi.mocked(addTargetDatesForProject).mockImplementation(
+    (datesByProject, projectCode, dates) => {
+      if (dates.length === 0) {
+        return;
+      }
+      const targetDates = datesByProject.get(projectCode) ?? new Set<string>();
+      dates.forEach((date) => targetDates.add(date));
+      datesByProject.set(projectCode, targetDates);
+    },
+  );
+
   vi.mocked(getSchedules).mockResolvedValue([]);
   vi.mocked(deleteSchedule).mockResolvedValue();
   vi.mocked(saveSchedule).mockResolvedValue();
@@ -212,7 +223,7 @@ beforeEach(() => {
   ]);
   vi.mocked(autofillScheduleEntries).mockResolvedValue({
     totalDaysCount: 3,
-    appliedDaysCount: 3,
+    appliedDates: ['2026-08-03', '2026-08-04', '2026-08-05'],
     failedDates: [],
     submissionAttempted: true,
     submissionConfirmed: true,
@@ -485,7 +496,7 @@ describe('analyseActiveTab', () => {
 });
 
 describe('applySchedulesFromSelection', () => {
-  it('collects the same target dates for a failed and an unchanged schedule', async () => {
+  it('does not report updated dates for failed or unchanged schedules', async () => {
     const ctx = createContext();
     const scheduleA = createSchedule('a', 'C001');
     const scheduleB = createSchedule('b', 'C001');
@@ -495,7 +506,7 @@ describe('applySchedulesFromSelection', () => {
     vi.mocked(autofillScheduleEntries)
       .mockResolvedValueOnce({
         totalDaysCount: 31,
-        appliedDaysCount: 0,
+        appliedDates: [],
         failedDates: ['2026-08-01'],
         submissionAttempted: false,
         submissionConfirmed: false,
@@ -503,7 +514,7 @@ describe('applySchedulesFromSelection', () => {
       })
       .mockResolvedValueOnce({
         totalDaysCount: 31,
-        appliedDaysCount: 0,
+        appliedDates: [],
         failedDates: [],
         submissionAttempted: false,
         submissionConfirmed: false,
@@ -512,15 +523,22 @@ describe('applySchedulesFromSelection', () => {
     await applySchedulesFromSelection(ctx);
 
     const calls = vi.mocked(addTargetDatesForProject).mock.calls;
-    expect(calls).toHaveLength(2);
-    expect(calls[0][0]).toBe(calls[1][0]);
-    expect(calls[0][1]).toBe('Project Alpha');
-    expect(calls[1][1]).toBe('Project Alpha');
-    expect(calls[0][2]).toEqual(calls[1][2]);
-    expect(calls[0][2]).toHaveLength(31);
-    expect(new Set(calls[0][2]).size).toBe(31);
-    expect(vi.mocked(buildApplyStatusMessage).mock.calls[0][4]).toBe(
-      calls[0][0],
+    const appliedDateCalls = [calls[0], calls[2]];
+    expect(calls).toHaveLength(4);
+    expect(appliedDateCalls[0][0]).toBe(appliedDateCalls[1][0]);
+    expect(appliedDateCalls[0][1]).toBe('Project Alpha');
+    expect(appliedDateCalls[1][1]).toBe('Project Alpha');
+    expect(appliedDateCalls[0][2]).toEqual(appliedDateCalls[1][2]);
+    expect(appliedDateCalls[0][2]).toEqual([]);
+    expect(appliedDateCalls[1][2]).toEqual([]);
+    expect(vi.mocked(buildApplyStatusMessage).mock.calls[0][1]).toBe(
+      appliedDateCalls[0][0],
+    );
+    expect(vi.mocked(buildApplyStatusMessage).mock.calls[0][1]).toEqual(
+      new Map(),
+    );
+    expect(vi.mocked(buildApplyStatusMessage).mock.calls[0][3]).toBe(
+      calls[1][0],
     );
   });
 
@@ -575,6 +593,16 @@ describe('applySchedulesFromSelection', () => {
       true,
       'success',
     );
+    expect(vi.mocked(buildApplyStatusMessage).mock.calls[0][1]).toEqual(
+      new Map([
+        ['Project Alpha', new Set(['2026-08-03', '2026-08-04', '2026-08-05'])],
+      ]),
+    );
+    expect(
+      Array.from(
+        vi.mocked(buildApplyStatusMessage).mock.calls[0][3].values(),
+      ).reduce((total, dates) => total + dates.size, 0),
+    ).toBe(31);
     expect(updateApplySchedulesButtonState).toHaveBeenCalledTimes(2);
     expect(clearScheduleApplyStates).toHaveBeenCalledWith(ctx.dom);
     expect(setScheduleApplyState).toHaveBeenCalledWith(ctx.dom, 'a', 'success');
@@ -591,7 +619,7 @@ describe('applySchedulesFromSelection', () => {
     vi.mocked(autofillScheduleEntries)
       .mockResolvedValueOnce({
         totalDaysCount: 3,
-        appliedDaysCount: 3,
+        appliedDates: ['2026-08-03', '2026-08-04', '2026-08-05'],
         failedDates: [],
         submissionAttempted: true,
         submissionConfirmed: false,
@@ -599,7 +627,7 @@ describe('applySchedulesFromSelection', () => {
       })
       .mockResolvedValueOnce({
         totalDaysCount: 3,
-        appliedDaysCount: 3,
+        appliedDates: ['2026-08-03', '2026-08-04', '2026-08-05'],
         failedDates: [],
         submissionAttempted: false,
         submissionConfirmed: false,
@@ -695,7 +723,7 @@ describe('applySchedulesFromSelection', () => {
     ]);
     vi.mocked(autofillScheduleEntries).mockResolvedValue({
       totalDaysCount: 2,
-      appliedDaysCount: 1,
+      appliedDates: ['2026-08-02'],
       failedDates: ['2026-08-03'],
       submissionAttempted: true,
       submissionConfirmed: false,

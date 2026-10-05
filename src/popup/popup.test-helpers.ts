@@ -195,7 +195,7 @@ export function resetPopupTestEnvironment(): void {
           documentId: 'mock-id',
           frameId: 0,
           result: {
-            appliedDaysCount: 1,
+            appliedDates: ['2026-08-03'],
             failedDates: [],
             submissionAttempted: true,
             submissionConfirmed: true,
