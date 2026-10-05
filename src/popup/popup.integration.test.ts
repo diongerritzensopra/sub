@@ -242,6 +242,11 @@ describe('popup integration tests', () => {
       expect(statusMessage).toContain(
         'Mockproject: Navigatie mislukt voor project',
       );
+      expect(
+        document
+          .getElementById('status-box')
+          ?.classList.contains('status-box--error'),
+      ).toBe(true);
     });
 
     it('applies without navigation when already on the same project page', async () => {
@@ -319,6 +324,114 @@ describe('popup integration tests', () => {
       totals: { worked: 10, toBePerformed: 20 },
       sapStatus: 'editable',
     };
+
+    it('shows cached data and a loading status while SAP is loading', async () => {
+      const now = new Date();
+      const cachedSnapshot: TimesheetSnapshot = {
+        ...editableSnapshot,
+        month: now.getMonth() + 1,
+        year: now.getFullYear(),
+      };
+      const sapTab = {
+        id: 99,
+        url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my',
+        status: 'loading',
+      } as chrome.tabs.Tab;
+      const cachedData = {
+        snapshot: cachedSnapshot,
+        cachedAt: now.toISOString(),
+      };
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({
+          [keys[0]]:
+            keys[0] === STORAGE_KEYS.timesheetSnapshotCache
+              ? cachedData
+              : undefined,
+        });
+      });
+
+      await import('./popup');
+      await flushAsyncWork();
+
+      expect(
+        Array.from(
+          document.querySelectorAll('main > section'),
+          (section) => section.id,
+        ),
+      ).toEqual(['summary-section', 'status-section', 'schedules-section']);
+      expect(document.getElementById('summary-section')?.hidden).toBe(false);
+      expect(
+        document.getElementById('data-origin-indicator')?.textContent,
+      ).toContain('Cache gebruikt');
+      expect(document.getElementById('status-message')?.textContent).toContain(
+        'Pagina laadt nog, gegevens kunnen verouderd zijn...',
+      );
+      expect(
+        document
+          .getElementById('status-box')
+          ?.classList.contains('status-box--warning'),
+      ).toBe(true);
+      expect(document.getElementById('schedules-empty')?.hidden).toBe(false);
+      expect(document.getElementById('schedules-list')?.hidden).toBe(true);
+      expect(
+        (document.getElementById('btn-scrape') as HTMLButtonElement).disabled,
+      ).toBe(false);
+    });
+
+    it('shows a locked status and disables applying for a locked timesheet', async () => {
+      const sapTab = {
+        id: 99,
+        url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my',
+        status: 'complete',
+      } as chrome.tabs.Tab;
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeRuntimeSendMessage.mockResolvedValue({
+        success: true,
+        data: { busy: false },
+      });
+      mockChromeScriptingExecuteScript.mockImplementation(async (injection) => {
+        if (injection.func?.name === 'ui5MainWorldReadSnapshot') {
+          return [
+            {
+              documentId: 'mock-id',
+              frameId: 0,
+              result: {
+                success: true,
+                snapshot: {
+                  ...editableSnapshot,
+                  sapStatus: 'locked',
+                },
+              },
+            },
+          ];
+        }
+
+        return [{ documentId: 'mock-id', frameId: 0, result: undefined }];
+      });
+
+      await import('./popup');
+      await flushAsyncWork();
+
+      expect(document.getElementById('summary-section')?.hidden).toBe(false);
+      expect(document.getElementById('status-message')?.textContent).toContain(
+        'De timesheet is vergrendeld.',
+      );
+      expect(
+        document
+          .getElementById('status-box')
+          ?.classList.contains('status-box--warning'),
+      ).toBe(true);
+      expect(
+        (document.getElementById('btn-apply-schedules') as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
+      expect(
+        document
+          .getElementById('btn-apply-schedules')
+          ?.classList.contains('is-locked'),
+      ).toBe(true);
+    });
 
     it('clears a persisted status when dismiss is clicked', async () => {
       const storedValues: Record<string, unknown> = {};
