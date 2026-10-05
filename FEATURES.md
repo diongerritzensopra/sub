@@ -39,6 +39,39 @@ Shared feature roadmap for `sub`.
   - Ensure the popup refreshes language when the preference changes without requiring a popup reopen.
   - Add or update popup tests for language-aware rendering across different states and messages.
 
+### Reminder notifications
+
+#### Feature description
+
+- [ ] Allow users to enable a weekly reminder notification to submit their hours.
+  - Default schedule: every Friday at 11:00.
+  - Users can edit both the weekday and time of the reminder.
+  - The notification should appear regardless of the active browser tab/page.
+  - Clicking the notification opens a new browser tab that navigates to the SAP timesheet application.
+  - Optionally support a browser-closed reminder toggle, disabled by default, if the extension/runtime can reliably
+    trigger it.
+
+#### Implementation chunks
+
+- [ ] Chunk 1 - Notification schedule model and persistence.
+  - Add shared types for reminder configuration in `src/shared/types.ts`.
+  - Persist the enabled state, weekday, time, and browser-closed toggle in storage.
+  - Add or update tests for schedule serialization and defaults.
+- [ ] Chunk 2 - Background alarm/notification plumbing.
+  - Add a background mechanism to evaluate the configured reminder and trigger a notification at the chosen time.
+  - Ensure the notification is independent of the active tab and survives normal browser usage.
+  - Add or update tests for alarm scheduling and notification dispatch behavior.
+- [ ] Chunk 3 - Notification click handling.
+  - Handle notification click events in the background service worker.
+  - Open a new tab to the canonical SAP timesheet URL when the notification is clicked.
+  - Add or update tests for click behavior and tab creation.
+- [ ] Chunk 4 - Popup settings UI.
+  - Add popup controls to enable/disable reminders and choose weekday/time.
+  - Add a browser-closed toggle when supported by the implementation.
+  - Add or update popup tests for editing, saving, and rendering reminder settings.
+
+## Completed
+
 ### Popup UI overhaul
 
 #### Feature description
@@ -81,39 +114,6 @@ Shared feature roadmap for `sub`.
   - List the dates actually updated under "Bijgewerkte dagen", alongside the count.
   - Format updated and failed dates in a readable, locale-aware format.
   - Add or update popup tests for the revised structure and state-specific rendering.
-
-### Reminder notifications
-
-#### Feature description
-
-- [ ] Allow users to enable a weekly reminder notification to submit their hours.
-  - Default schedule: every Friday at 11:00.
-  - Users can edit both the weekday and time of the reminder.
-  - The notification should appear regardless of the active browser tab/page.
-  - Clicking the notification opens a new browser tab that navigates to the SAP timesheet application.
-  - Optionally support a browser-closed reminder toggle, disabled by default, if the extension/runtime can reliably
-    trigger it.
-
-#### Implementation chunks
-
-- [ ] Chunk 1 - Notification schedule model and persistence.
-  - Add shared types for reminder configuration in `src/shared/types.ts`.
-  - Persist the enabled state, weekday, time, and browser-closed toggle in storage.
-  - Add or update tests for schedule serialization and defaults.
-- [ ] Chunk 2 - Background alarm/notification plumbing.
-  - Add a background mechanism to evaluate the configured reminder and trigger a notification at the chosen time.
-  - Ensure the notification is independent of the active tab and survives normal browser usage.
-  - Add or update tests for alarm scheduling and notification dispatch behavior.
-- [ ] Chunk 3 - Notification click handling.
-  - Handle notification click events in the background service worker.
-  - Open a new tab to the canonical SAP timesheet URL when the notification is clicked.
-  - Add or update tests for click behavior and tab creation.
-- [ ] Chunk 4 - Popup settings UI.
-  - Add popup controls to enable/disable reminders and choose weekday/time.
-  - Add a browser-closed toggle when supported by the implementation.
-  - Add or update popup tests for editing, saving, and rendering reminder settings.
-
-## Completed
 
 ### General hours schedules
 
