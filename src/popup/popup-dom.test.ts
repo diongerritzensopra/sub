@@ -12,13 +12,16 @@ describe('getPopupDomRefs', () => {
     const dom = getPopupDomRefs(document);
 
     expect(dom.btnScrape).toBe(document.getElementById('btn-scrape'));
+    expect(dom.btnScrape.closest('#summary-section')).toBe(dom.summarySection);
+    expect(dom.statusSection).toBe(document.getElementById('status-section'));
+    expect(dom.statusBox).toBe(document.getElementById('status-box'));
+    expect(dom.statusIcon).toBe(document.getElementById('status-icon'));
     expect(dom.statusMessage).toBe(document.getElementById('status-message'));
     expect(dom.statusDismissButton).toBe(
       document.getElementById('btn-status-dismiss'),
     );
     expect(dom.summarySection).toBe(document.getElementById('summary-section'));
     expect(dom.periodValue).toBe(document.getElementById('period-value'));
-    expect(dom.projectsValue).toBe(document.getElementById('projects-value'));
     expect(dom.workedHoursValue).toBe(
       document.getElementById('worked-hours-value'),
     );

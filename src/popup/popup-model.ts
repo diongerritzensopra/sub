@@ -73,14 +73,14 @@ export function resolveValidationPeriod(tab: chrome.tabs.Tab | undefined): {
   return { month: now.getMonth() + 1, year: now.getFullYear() };
 }
 
+/**
+ * Resolve the schedules to apply — only explicitly selected schedules.
+ * Returns an empty array when nothing is selected (no implicit apply-all).
+ */
 export function getSchedulesToApply(
   renderedSchedules: WeeklySchedule[],
   selectedScheduleIds: Set<string>,
 ): WeeklySchedule[] {
-  if (selectedScheduleIds.size === 0) {
-    return renderedSchedules;
-  }
-
   return renderedSchedules.filter((schedule) =>
     selectedScheduleIds.has(schedule.id),
   );

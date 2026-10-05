@@ -80,22 +80,35 @@ export function setupPopupDom(): void {
       <header>
         <div class="header-content">
           <h1>sub</h1>
-          <button id="btn-scrape" type="button">🔄</button>
         </div>
       </header>
       <main>
+        <section id="summary-section">
+          <div class="section-heading">
+            <h2>Timesheet overzicht</h2>
+            <button id="btn-scrape" type="button" aria-label="Timesheet vernieuwen" title="Timesheet vernieuwen">🔄</button>
+          </div>
+          <ul id="summary-list">
+            <li><strong>Periode:</strong> <span id="period-value">-</span></li>
+            <li><strong>Uren gewerkt:</strong> <span id="worked-hours-value">-</span></li>
+            <li><strong>Uren uit te voeren:</strong> <span id="to-be-performed-hours-value">-</span></li>
+          </ul>
+          <p id="scrape-status" class="subtle-indicator" hidden></p>
+          <p id="data-origin-indicator" class="subtle-indicator" hidden></p>
+        </section>
         <section id="status-section">
-          <p id="status-message">Klik op het vernieuwingspictogram om te beginnen.</p>
-          <button id="btn-status-dismiss" type="button" title="Sluiten" hidden>×</button>
+          <div id="status-box" class="status-box status-box--info">
+            <span id="status-icon" aria-hidden="true">ℹ️</span>
+            <div id="status-message">Klik op het vernieuwingspictogram om te beginnen.</div>
+            <button id="btn-status-dismiss" type="button" title="Sluiten" hidden>×</button>
+          </div>
         </section>
         <section id="schedules-section">
           <h2>Schema's</h2>
-          <button id="btn-add-schedule" type="button" disabled>Nieuw schema</button>
-          <button id="btn-apply-schedules" type="button" disabled>Alles toepassen</button>
           <p id="schedules-empty">Nog geen schema's opgeslagen.</p>
           <ul id="schedules-list" hidden aria-label="Selecteerbare schema's"></ul>
-        </section>
-        <section id="schedule-form-section" hidden>
+          <button id="btn-add-schedule" type="button" class="schedule-add-item" disabled><span class="schedule-title">Nieuw schema</span><span class="schedule-add-icon" aria-hidden="true">➕</span></button>
+          <section id="schedule-form-section" hidden>
           <h2 id="schedule-form-title">Nieuw schema</h2>
           <form id="schedule-form">
             <div class="form-group">
@@ -146,17 +159,8 @@ export function setupPopupDom(): void {
               <button type="button" id="schedule-form-cancel">Annuleren</button>
             </div>
           </form>
-        </section>
-        <section id="summary-section" hidden>
-          <h2>Timesheet overzicht</h2>
-          <ul id="summary-list">
-            <li><strong>Periode:</strong> <span id="period-value">-</span></li>
-            <li><strong>Doelen:</strong> <ul id="projects-value" class="project-list"><li>-</li></ul></li>
-            <li><strong>Uren gewerkt:</strong> <span id="worked-hours-value">-</span></li>
-            <li><strong>Uren uit te voeren:</strong> <span id="to-be-performed-hours-value">-</span></li>
-          </ul>
-          <p id="scrape-status" class="subtle-indicator" hidden></p>
-          <p id="data-origin-indicator" class="subtle-indicator" hidden></p>
+          </section>
+          <button id="btn-apply-schedules" type="button" disabled>Toepassen</button>
         </section>
       </main>
     </div>
@@ -191,7 +195,7 @@ export function resetPopupTestEnvironment(): void {
           documentId: 'mock-id',
           frameId: 0,
           result: {
-            appliedDaysCount: 1,
+            appliedDates: ['2026-08-03'],
             failedDates: [],
             submissionAttempted: true,
             submissionConfirmed: true,

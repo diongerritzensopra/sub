@@ -24,7 +24,7 @@ describe('autofillEntriesViaUi5', () => {
         documentId: 'doc',
         frameId: 0,
         result: {
-          appliedDaysCount: 2,
+          appliedDates: ['2026-05-11'],
           failedDates: ['2026-05-10'],
           submissionAttempted: true,
           submissionConfirmed: false,
@@ -38,7 +38,7 @@ describe('autofillEntriesViaUi5', () => {
     ]);
 
     expect(result).toEqual({
-      appliedDaysCount: 2,
+      appliedDates: ['2026-05-11'],
       failedDates: ['2026-05-10'],
       submissionAttempted: true,
       submissionConfirmed: false,
@@ -54,12 +54,34 @@ describe('autofillEntriesViaUi5', () => {
     ]);
 
     expect(result).toEqual({
-      appliedDaysCount: 0,
+      appliedDates: [],
       failedDates: ['2026-05-10', '2026-05-11'],
       submissionAttempted: false,
       submissionConfirmed: false,
       error: 'UI5 autofill leverde geen resultaat op.',
     });
+  });
+
+  it('returns updated dates reported by the injected autofill function', async () => {
+    mockExecuteScript.mockResolvedValueOnce([
+      {
+        documentId: 'doc',
+        frameId: 0,
+        result: {
+          appliedDates: ['2026-05-11'],
+          failedDates: ['2026-05-10'],
+          submissionAttempted: true,
+          submissionConfirmed: true,
+        },
+      },
+    ]);
+
+    const result = await autofillEntriesViaUi5(99, [
+      { date: '2026-05-10', hours: 8 },
+      { date: '2026-05-11', hours: 8 },
+    ]);
+
+    expect(result.appliedDates).toEqual(['2026-05-11']);
   });
 });
 

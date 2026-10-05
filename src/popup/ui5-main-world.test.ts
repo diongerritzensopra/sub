@@ -309,7 +309,7 @@ describe('ui5MainWorldAutofill', () => {
     });
 
     expect(result).toEqual({
-      appliedDaysCount: 0,
+      appliedDates: [],
       failedDates: ['2026-05-01'],
       submissionAttempted: false,
       submissionConfirmed: false,
@@ -331,7 +331,7 @@ describe('ui5MainWorldAutofill', () => {
     });
 
     expect(result).toEqual({
-      appliedDaysCount: 0,
+      appliedDates: [],
       failedDates: ['2026-05-01'],
       submissionAttempted: false,
       submissionConfirmed: false,
@@ -353,7 +353,7 @@ describe('ui5MainWorldAutofill', () => {
     });
 
     expect(result).toEqual({
-      appliedDaysCount: 0,
+      appliedDates: [],
       failedDates: ['2026-05-01'],
       submissionAttempted: false,
       submissionConfirmed: false,
@@ -369,7 +369,7 @@ describe('ui5MainWorldAutofill', () => {
     });
 
     expect(result).toEqual({
-      appliedDaysCount: 0,
+      appliedDates: [],
       failedDates: ['2026-05-01'],
       submissionAttempted: false,
       submissionConfirmed: false,
@@ -400,7 +400,7 @@ describe('ui5MainWorldAutofill', () => {
     });
 
     expect(result).toEqual({
-      appliedDaysCount: 1,
+      appliedDates: ['2026-05-01'],
       failedDates: [],
       submissionAttempted: true,
       submissionConfirmed: true,
@@ -463,7 +463,7 @@ describe('ui5MainWorldAutofill', () => {
     });
 
     expect(result).toEqual({
-      appliedDaysCount: 0,
+      appliedDates: [],
       failedDates: ['2026-05-01'],
       submissionAttempted: true,
       submissionConfirmed: false,
@@ -486,7 +486,7 @@ describe('ui5MainWorldAutofill', () => {
     });
 
     expect(result).toEqual({
-      appliedDaysCount: 0,
+      appliedDates: [],
       failedDates: [],
       submissionAttempted: false,
       submissionConfirmed: false,
@@ -510,7 +510,7 @@ describe('ui5MainWorldAutofill', () => {
     });
 
     expect(result.failedDates).toEqual(['2026-05-01']);
-    expect(result.appliedDaysCount).toBe(0);
+    expect(result.appliedDates).toEqual([]);
     expect(result.submissionAttempted).toBe(false);
   });
 
@@ -556,7 +556,7 @@ describe('ui5MainWorldAutofill', () => {
     });
 
     expect(result).toEqual({
-      appliedDaysCount: 0,
+      appliedDates: [],
       failedDates: ['2026-05-01'],
       submissionAttempted: false,
       submissionConfirmed: false,
@@ -579,7 +579,7 @@ describe('ui5MainWorldAutofill', () => {
     });
 
     expect(result).toEqual({
-      appliedDaysCount: 0,
+      appliedDates: [],
       failedDates: ['2026-05-01'],
       submissionAttempted: false,
       submissionConfirmed: false,
@@ -606,7 +606,7 @@ describe('ui5MainWorldAutofill', () => {
     });
 
     expect(result).toEqual({
-      appliedDaysCount: 1,
+      appliedDates: ['2026-05-01'],
       failedDates: [],
       submissionAttempted: true,
       submissionConfirmed: true,
@@ -700,7 +700,7 @@ describe('ui5MainWorldAutofill', () => {
     });
 
     expect(result).toEqual({
-      appliedDaysCount: 1,
+      appliedDates: ['2026-04-01'],
       failedDates: [],
       submissionAttempted: true,
       submissionConfirmed: true,

@@ -22,7 +22,7 @@ export type Ui5AutofillArgs = {
 };
 
 export type Ui5AutofillResult = {
-  appliedDaysCount: number;
+  appliedDates: string[];
   failedDates: string[];
   submissionAttempted: boolean;
   submissionConfirmed: boolean;
@@ -487,7 +487,7 @@ export async function ui5MainWorldAutofill(
     const sapCore = getUi5Core(timesheetWindow);
     if (!sapCore?.byId) {
       return {
-        appliedDaysCount: 0,
+        appliedDates: [],
         failedDates: args.entries.map((entry) => entry.date),
         submissionAttempted: false,
         submissionConfirmed: false,
@@ -502,7 +502,7 @@ export async function ui5MainWorldAutofill(
     const projectsModelData = projectsModel?.getData?.() ?? null;
     if (!projectsModelData) {
       return {
-        appliedDaysCount: 0,
+        appliedDates: [],
         failedDates: args.entries.map((entry) => entry.date),
         submissionAttempted: false,
         submissionConfirmed: false,
@@ -514,7 +514,7 @@ export async function ui5MainWorldAutofill(
       projectsModelData.oCurrentProject ?? null;
     if (!currentProject) {
       return {
-        appliedDaysCount: 0,
+        appliedDates: [],
         failedDates: args.entries.map((entry) => entry.date),
         submissionAttempted: false,
         submissionConfirmed: false,
@@ -527,7 +527,7 @@ export async function ui5MainWorldAutofill(
       : [];
     if (monthData.length === 0) {
       return {
-        appliedDaysCount: 0,
+        appliedDates: [],
         failedDates: args.entries.map((entry) => entry.date),
         submissionAttempted: false,
         submissionConfirmed: false,
@@ -538,7 +538,7 @@ export async function ui5MainWorldAutofill(
     const postModel = timesheetComponent?.getModel?.() as ODataModelLike | null;
     if (!postModel?.callFunction) {
       return {
-        appliedDaysCount: 0,
+        appliedDates: [],
         failedDates: args.entries.map((entry) => entry.date),
         submissionAttempted: false,
         submissionConfirmed: false,
@@ -562,7 +562,7 @@ export async function ui5MainWorldAutofill(
       !companyCode
     ) {
       return {
-        appliedDaysCount: 0,
+        appliedDates: [],
         failedDates: args.entries.map((entry) => entry.date),
         submissionAttempted: false,
         submissionConfirmed: false,
@@ -593,7 +593,7 @@ export async function ui5MainWorldAutofill(
       : '';
 
     const failedDates: string[] = [];
-    let appliedDaysCount = 0;
+    const appliedDates: string[] = [];
     const generalRows: PostTimeSheetGeneralRow[] = [];
 
     for (const entry of args.entries) {
@@ -636,7 +636,7 @@ export async function ui5MainWorldAutofill(
           ).trim(),
           TimeSheetIsReleasedOnSave: true,
         });
-        appliedDaysCount += 1;
+        appliedDates.push(entry.date);
         continue;
       }
 
@@ -758,7 +758,7 @@ export async function ui5MainWorldAutofill(
       }
 
       generalRows.push(row);
-      appliedDaysCount += 1;
+      appliedDates.push(entry.date);
     }
 
     const submissionAttempted = generalRows.length > 0;
@@ -780,7 +780,7 @@ export async function ui5MainWorldAutofill(
         refreshTotalsModels(timesheetController);
       } catch (error) {
         return {
-          appliedDaysCount: 0,
+          appliedDates: [],
           failedDates: args.entries.map((entry) => entry.date),
           submissionAttempted,
           submissionConfirmed: false,
@@ -790,14 +790,14 @@ export async function ui5MainWorldAutofill(
     }
 
     return {
-      appliedDaysCount,
+      appliedDates,
       failedDates,
       submissionAttempted,
       submissionConfirmed: submissionAttempted,
     };
   } catch (error) {
     return {
-      appliedDaysCount: 0,
+      appliedDates: [],
       failedDates: args.entries.map((entry) => entry.date),
       submissionAttempted: false,
       submissionConfirmed: false,

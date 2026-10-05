@@ -4,11 +4,13 @@
 
 export type PopupDomRefs = {
   btnScrape: HTMLButtonElement;
-  statusMessage: HTMLParagraphElement;
+  statusSection: HTMLElement;
+  statusBox: HTMLDivElement;
+  statusIcon: HTMLSpanElement;
+  statusMessage: HTMLDivElement;
   statusDismissButton: HTMLButtonElement;
   summarySection: HTMLElement;
   periodValue: HTMLSpanElement;
-  projectsValue: HTMLUListElement;
   workedHoursValue: HTMLSpanElement;
   toBePerformedHoursValue: HTMLSpanElement;
   scrapeStatus: HTMLSpanElement;
@@ -45,7 +47,10 @@ function getRequiredElement<T extends HTMLElement>(
 export function getPopupDomRefs(document: Document): PopupDomRefs {
   return {
     btnScrape: getRequiredElement<HTMLButtonElement>(document, 'btn-scrape'),
-    statusMessage: getRequiredElement<HTMLParagraphElement>(
+    statusSection: getRequiredElement<HTMLElement>(document, 'status-section'),
+    statusBox: getRequiredElement<HTMLDivElement>(document, 'status-box'),
+    statusIcon: getRequiredElement<HTMLSpanElement>(document, 'status-icon'),
+    statusMessage: getRequiredElement<HTMLDivElement>(
       document,
       'status-message',
     ),
@@ -58,10 +63,6 @@ export function getPopupDomRefs(document: Document): PopupDomRefs {
       'summary-section',
     ),
     periodValue: getRequiredElement<HTMLSpanElement>(document, 'period-value'),
-    projectsValue: getRequiredElement<HTMLUListElement>(
-      document,
-      'projects-value',
-    ),
     workedHoursValue: getRequiredElement<HTMLSpanElement>(
       document,
       'worked-hours-value',

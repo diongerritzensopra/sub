@@ -159,10 +159,27 @@ export interface SapProjectsModelData {
   UserDetail?: SapUserDetail;
 }
 
+/** Urgency level of a popup status message. */
+export type StatusLevel = 'info' | 'success' | 'warning' | 'error';
+
+/** List item in a structured status section; may carry a nested list. */
+export type StatusListItem = string | { text: string; items: string[] };
+
+/** A visually distinct block of a structured status message. */
+export interface StatusSection {
+  label?: string;
+  text?: string;
+  items?: StatusListItem[];
+}
+
+/** Plain text or structured sections, rendered safely via DOM APIs. */
+export type StatusContent = string | StatusSection[];
+
 /** A status message cached to survive popup close/reopen cycles. */
 export interface CachedStatusMessage {
-  message: string;
+  message: StatusContent;
   cachedAt: string; // ISO timestamp
+  level?: StatusLevel;
 }
 
 /** Union of all message types sent between extension components. */

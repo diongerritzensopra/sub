@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WeeklySchedule } from '../shared/types';
 import {
-  addFailedDatesForProject,
+  addDatesForTarget,
   autofillScheduleEntries,
   buildApplyStatusMessage,
+  formatStatusDate,
   buildTimesheetUrlForProject,
   navigateToProject,
 } from './schedule-apply';
@@ -154,22 +155,41 @@ describe('buildTimesheetUrlForProject', () => {
   });
 });
 
-describe('addFailedDatesForProject', () => {
-  it('does nothing when no failed dates are provided', () => {
-    const failed = new Map<string, string[]>([['Z1', ['2026-05-01']]]);
-    addFailedDatesForProject(failed, 'Z1', []);
+describe('addDatesForTarget', () => {
+  it('does nothing when no dates are provided', () => {
+    const datesByTarget = new Map<string, Set<string>>([
+      ['Z1', new Set(['2026-05-01'])],
+    ]);
+    addDatesForTarget(datesByTarget, 'Z1', []);
 
-    expect(failed.get('Z1')).toEqual(['2026-05-01']);
-    expect(failed.size).toBe(1);
+    expect(datesByTarget.get('Z1')).toEqual(new Set(['2026-05-01']));
+    expect(datesByTarget.size).toBe(1);
   });
 
-  it('appends failed dates to existing project bucket', () => {
-    const failed = new Map<string, string[]>([['Z1', ['2026-05-01']]]);
-    addFailedDatesForProject(failed, 'Z1', ['2026-05-02']);
-    addFailedDatesForProject(failed, 'Z2', ['2026-05-03']);
+  it('deduplicates dates in each target set', () => {
+    const datesByTarget = new Map<string, Set<string>>([
+      ['Z1', new Set(['2026-05-01'])],
+    ]);
+    addDatesForTarget(datesByTarget, 'Z1', ['2026-05-01', '2026-05-02']);
+    addDatesForTarget(datesByTarget, 'Z2', ['2026-05-03']);
 
-    expect(failed.get('Z1')).toEqual(['2026-05-01', '2026-05-02']);
-    expect(failed.get('Z2')).toEqual(['2026-05-03']);
+    expect(datesByTarget.get('Z1')).toEqual(
+      new Set(['2026-05-01', '2026-05-02']),
+    );
+    expect(datesByTarget.get('Z2')).toEqual(new Set(['2026-05-03']));
+  });
+});
+
+describe('formatStatusDate', () => {
+  it('formats ISO dates with a weekday and without a year in the requested locale', () => {
+    expect(formatStatusDate('2026-10-05', 'en-US')).toBe('Mon, Oct 5');
+    expect(formatStatusDate('2026-10-05', 'nl-NL')).toBe('ma 5 okt');
+  });
+
+  it('rejects invalid ISO calendar dates', () => {
+    expect(() => formatStatusDate('2026-02-30', 'en-US')).toThrow(
+      'Invalid ISO date: 2026-02-30',
+    );
   });
 });
 
@@ -177,27 +197,38 @@ describe('buildApplyStatusMessage', () => {
   it('builds status for one schedule without submit attempt', () => {
     const message = buildApplyStatusMessage(
       [BASE_SCHEDULE],
-      2,
-      3,
+      new Map([['Mockproject', new Set(['2026-05-01', '2026-05-02'])]]),
       new Map(),
+      new Map([
+        ['Mockproject', new Set(['2026-05-01', '2026-05-02', '2026-05-03'])],
+      ]),
       0,
       0,
     );
 
-    expect(message).toBe(
-      [
-        'Schema toegepast: Kantooruren.',
-        '2/3 dagen bijgewerkt.',
-        'SAP bevestiging: geen submit uitgevoerd.',
-      ].join('\n'),
-    );
+    expect(message).toEqual([
+      { label: "Toegepaste schema's:", items: ['Kantooruren'] },
+      {
+        label: 'Bijgewerkte dagen:',
+        text: '2/3',
+        items: [
+          {
+            text: 'Mockproject:',
+            items: [
+              formatStatusDate('2026-05-01'),
+              formatStatusDate('2026-05-02'),
+            ],
+          },
+        ],
+      },
+      {
+        label: 'Verwerkt door SAP:',
+        text: '0/0 (niets ingediend)',
+      },
+    ]);
   });
 
-  it('includes sorted unique failed dates and full submit confirmation', () => {
-    const failed = new Map<string, string[]>([
-      ['Mockproject', ['2026-05-03', '2026-05-01', '2026-05-03']],
-    ]);
-
+  it('lists sorted unique failed dates per target and full submit confirmation', () => {
     const message = buildApplyStatusMessage(
       [
         BASE_SCHEDULE,
@@ -212,40 +243,132 @@ describe('buildApplyStatusMessage', () => {
           },
         },
       ],
-      8,
-      10,
-      failed,
+      new Map([['Mockproject', new Set(['2026-05-01', '2026-05-03'])]]),
+      new Map([
+        ['Mockproject', new Set(['2026-05-02', '2026-05-04', '2026-05-05'])],
+      ]),
+      new Map([
+        [
+          'Mockproject',
+          new Set([
+            '2026-05-01',
+            '2026-05-02',
+            '2026-05-03',
+            '2026-05-04',
+            '2026-05-05',
+          ]),
+        ],
+      ]),
       2,
       2,
     );
 
-    expect(message).toBe(
-      [
-        "Schema's toegepast: Kantooruren, Deeltijd.",
-        '8/10 dagen bijgewerkt.',
-        'Mislukt per doel:',
-        '- Mockproject: 2026-05-01, 2026-05-03.',
-        'SAP bevestiging: ontvangen (2/2).',
-      ].join('\n'),
-    );
+    expect(message).toEqual([
+      {
+        label: "Toegepaste schema's:",
+        items: ['Kantooruren', 'Deeltijd'],
+      },
+      {
+        label: 'Bijgewerkte dagen:',
+        text: '2/5',
+        items: [
+          {
+            text: 'Mockproject:',
+            items: [
+              formatStatusDate('2026-05-01'),
+              formatStatusDate('2026-05-03'),
+            ],
+          },
+        ],
+      },
+      {
+        label: 'Mislukte dagen:',
+        text: '3/5',
+        items: [
+          {
+            text: 'Mockproject:',
+            items: [
+              formatStatusDate('2026-05-02'),
+              formatStatusDate('2026-05-04'),
+              formatStatusDate('2026-05-05'),
+            ],
+          },
+        ],
+      },
+      {
+        label: 'Verwerkt door SAP:',
+        text: '2/2 (alles ingediend)',
+      },
+    ]);
   });
 
-  it('marks submit confirmation as partial when not all submits are confirmed', () => {
+  it('states that all days failed instead of listing them for a fully failed target', () => {
     const message = buildApplyStatusMessage(
       [BASE_SCHEDULE],
+      new Map(),
+      new Map<string, Set<string>>([
+        ['Mockproject', new Set(['2026-05-01', '2026-05-02'])],
+        ['Testproject 42', new Set(['2026-05-04'])],
+      ]),
+      new Map([
+        ['Mockproject', new Set(['2026-05-01', '2026-05-02'])],
+        ['Testproject 42', new Set(['2026-05-04', '2026-05-05'])],
+      ]),
       1,
-      2,
+      1,
+    );
+
+    expect(message[2]).toEqual({
+      label: 'Mislukte dagen:',
+      text: '3/4',
+      items: [
+        'Mockproject: alle dagen mislukt',
+        {
+          text: 'Testproject 42:',
+          items: [formatStatusDate('2026-05-04')],
+        },
+      ],
+    });
+  });
+
+  it('uses distinct target dates when schedules overlap and one fails', () => {
+    const targetDates = new Map<string, Set<string>>();
+    addDatesForTarget(targetDates, 'Mockproject', ['2026-05-01', '2026-05-02']);
+    addDatesForTarget(targetDates, 'Mockproject', ['2026-05-01', '2026-05-02']);
+
+    const message = buildApplyStatusMessage(
+      [BASE_SCHEDULE, { ...BASE_SCHEDULE, id: 'schedule-2' }],
+      new Map(),
+      new Map([['Mockproject', new Set(['2026-05-01', '2026-05-02'])]]),
+      targetDates,
+      0,
+      0,
+    );
+
+    expect(message[1]).toMatchObject({
+      label: 'Bijgewerkte dagen:',
+      text: '0/2',
+    });
+    expect(message[2]).toEqual({
+      label: 'Mislukte dagen:',
+      text: '2/2',
+      items: ['Mockproject: alle dagen mislukt'],
+    });
+  });
+
+  it('distinguishes partial confirmation from full confirmation', () => {
+    const message = buildApplyStatusMessage(
+      [BASE_SCHEDULE],
+      new Map(),
+      new Map(),
       new Map(),
       2,
       1,
     );
-    expect(message).toBe(
-      [
-        'Schema toegepast: Kantooruren.',
-        '1/2 dagen bijgewerkt.',
-        'SAP bevestiging: gedeeltelijk (1/2).',
-      ].join('\n'),
-    );
+    expect(message.at(-1)).toEqual({
+      label: 'Verwerkt door SAP:',
+      text: '1/2 (gedeeltelijk ingediend)',
+    });
   });
 });
 
@@ -350,7 +473,7 @@ describe('autofillScheduleEntries', () => {
 
     expect(result).toEqual({
       totalDaysCount: 0,
-      appliedDaysCount: 0,
+      appliedDates: [],
       failedDates: [],
       submissionAttempted: false,
       submissionConfirmed: false,
@@ -367,7 +490,7 @@ describe('autofillScheduleEntries', () => {
     ];
     mockExpandWeeklyScheduleToMonthEntries.mockReturnValue(entries);
     mockAutofillEntriesViaUi5.mockResolvedValue({
-      appliedDaysCount: 0,
+      appliedDates: [],
       failedDates: [],
       submissionAttempted: false,
       submissionConfirmed: false,
@@ -378,7 +501,7 @@ describe('autofillScheduleEntries', () => {
 
     expect(result).toEqual({
       totalDaysCount: 2,
-      appliedDaysCount: 0,
+      appliedDates: [],
       failedDates: ['2026-05-01', '2026-05-02'],
       submissionAttempted: false,
       submissionConfirmed: false,
@@ -391,7 +514,7 @@ describe('autofillScheduleEntries', () => {
       { date: '2026-05-01', hours: 8 },
     ]);
     mockAutofillEntriesViaUi5.mockResolvedValue({
-      appliedDaysCount: 0,
+      appliedDates: [],
       failedDates: ['2026-05-01'],
       submissionAttempted: false,
       submissionConfirmed: false,
@@ -412,7 +535,7 @@ describe('autofillScheduleEntries', () => {
     ];
     mockExpandWeeklyScheduleToMonthEntries.mockReturnValue(entries);
     mockAutofillEntriesViaUi5.mockResolvedValue({
-      appliedDaysCount: 1,
+      appliedDates: ['2026-05-01'],
       failedDates: ['2026-05-02'],
       submissionAttempted: true,
       submissionConfirmed: true,
@@ -426,7 +549,7 @@ describe('autofillScheduleEntries', () => {
     ]);
     expect(result).toEqual({
       totalDaysCount: 2,
-      appliedDaysCount: 1,
+      appliedDates: ['2026-05-01'],
       failedDates: ['2026-05-02'],
       submissionAttempted: true,
       submissionConfirmed: true,
@@ -440,7 +563,7 @@ describe('autofillScheduleEntries', () => {
       { date: '2026-05-02', hours: 0 },
     ]);
     mockAutofillEntriesViaUi5.mockResolvedValue({
-      appliedDaysCount: 2,
+      appliedDates: ['2026-05-01', '2026-05-02'],
       failedDates: [],
       submissionAttempted: true,
       submissionConfirmed: false,
@@ -451,7 +574,7 @@ describe('autofillScheduleEntries', () => {
 
     expect(result).toEqual({
       totalDaysCount: 2,
-      appliedDaysCount: 0,
+      appliedDates: [],
       failedDates: ['2026-05-01', '2026-05-02'],
       submissionAttempted: true,
       submissionConfirmed: false,

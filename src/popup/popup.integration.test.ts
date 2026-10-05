@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 import { STORAGE_KEYS } from '../shared/storage';
+import { formatStatusDate } from './schedule-apply';
 import {
   flushAsyncWork,
   mockChromeRuntimeSendMessage,
@@ -193,7 +194,7 @@ describe('popup integration tests', () => {
               documentId: 'mock-id',
               frameId: 0,
               result: {
-                appliedDaysCount: 1,
+                appliedDates: ['2026-08-01'],
                 failedDates: [],
                 submissionAttempted: true,
                 submissionConfirmed: true,
@@ -208,19 +209,44 @@ describe('popup integration tests', () => {
       const applyButton = document.getElementById(
         'btn-apply-schedules',
       ) as HTMLButtonElement;
+      document
+        .querySelectorAll<HTMLLIElement>('#schedules-list .schedule-item')
+        .forEach((item) => item.click());
       applyButton.click();
       await flushAsyncWork();
 
       const statusMessage =
         document.getElementById('status-message')?.textContent ?? '';
       expect(autofillCalls).toBe(1);
-      expect(statusMessage).toContain(
-        "Schema's toegepast: Kantooruren, Deeltijd.",
+      const sections = document.querySelectorAll(
+        '#status-message .status-message-section',
       );
+      expect(sections[0].querySelector('strong')?.textContent).toBe(
+        "Toegepaste schema's:",
+      );
+      expect(
+        Array.from(
+          sections[0].querySelectorAll('li'),
+          (item) => item.textContent,
+        ),
+      ).toEqual(['Kantooruren', 'Deeltijd']);
+      expect(statusMessage).toContain('Mockproject: alle dagen mislukt');
+      expect(sections).toHaveLength(5);
+      expect(
+        Array.from(
+          sections[1].querySelectorAll('ul ul li'),
+          (item) => item.textContent,
+        ),
+      ).toContain(formatStatusDate('2026-08-01'));
       expect(statusMessage).toContain('Fouten:');
       expect(statusMessage).toContain(
         'Mockproject: Navigatie mislukt voor project',
       );
+      expect(
+        document
+          .getElementById('status-box')
+          ?.classList.contains('status-box--error'),
+      ).toBe(true);
     });
 
     it('applies without navigation when already on the same project page', async () => {
@@ -253,23 +279,27 @@ describe('popup integration tests', () => {
       const applyButton = document.getElementById(
         'btn-apply-schedules',
       ) as HTMLButtonElement;
+      document
+        .querySelectorAll<HTMLLIElement>('#schedules-list .schedule-item')
+        .forEach((item) => item.click());
       applyButton.click();
       await flushAsyncWork();
 
       expect(mockChromeTabsUpdate).not.toHaveBeenCalled();
       expect(mockChromeTabsGet).toHaveBeenCalledTimes(1);
       expect(mockChromeScriptingExecuteScript).toHaveBeenCalledTimes(1);
-      expect(document.getElementById('status-message')?.textContent).toContain(
-        'Schema toegepast: Kantooruren.',
+      const sections = document.querySelectorAll(
+        '#status-message .status-message-section',
       );
-      expect(document.getElementById('status-message')?.textContent).toContain(
-        '1/',
+      expect(sections[0].querySelector('strong')?.textContent).toBe(
+        "Toegepaste schema's:",
       );
+      expect(sections[0].querySelector('li')?.textContent).toBe('Kantooruren');
       expect(document.getElementById('status-message')?.textContent).toContain(
-        'dagen bijgewerkt',
+        'Bijgewerkte dagen: 1/',
       );
-      expect(document.getElementById('status-message')?.textContent).toContain(
-        'SAP bevestiging: ontvangen (1/1)',
+      expect(sections[2].textContent).toBe(
+        'Verwerkt door SAP: 1/1 (alles ingediend)',
       );
     });
   });
@@ -294,6 +324,114 @@ describe('popup integration tests', () => {
       totals: { worked: 10, toBePerformed: 20 },
       sapStatus: 'editable',
     };
+
+    it('shows cached data and a loading status while SAP is loading', async () => {
+      const now = new Date();
+      const cachedSnapshot: TimesheetSnapshot = {
+        ...editableSnapshot,
+        month: now.getMonth() + 1,
+        year: now.getFullYear(),
+      };
+      const sapTab = {
+        id: 99,
+        url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my',
+        status: 'loading',
+      } as chrome.tabs.Tab;
+      const cachedData = {
+        snapshot: cachedSnapshot,
+        cachedAt: now.toISOString(),
+      };
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({
+          [keys[0]]:
+            keys[0] === STORAGE_KEYS.timesheetSnapshotCache
+              ? cachedData
+              : undefined,
+        });
+      });
+
+      await import('./popup');
+      await flushAsyncWork();
+
+      expect(
+        Array.from(
+          document.querySelectorAll('main > section'),
+          (section) => section.id,
+        ),
+      ).toEqual(['summary-section', 'status-section', 'schedules-section']);
+      expect(document.getElementById('summary-section')?.hidden).toBe(false);
+      expect(
+        document.getElementById('data-origin-indicator')?.textContent,
+      ).toContain('Cache gebruikt');
+      expect(document.getElementById('status-message')?.textContent).toContain(
+        'Pagina laadt nog, gegevens kunnen verouderd zijn...',
+      );
+      expect(
+        document
+          .getElementById('status-box')
+          ?.classList.contains('status-box--warning'),
+      ).toBe(true);
+      expect(document.getElementById('schedules-empty')?.hidden).toBe(false);
+      expect(document.getElementById('schedules-list')?.hidden).toBe(true);
+      expect(
+        (document.getElementById('btn-scrape') as HTMLButtonElement).disabled,
+      ).toBe(false);
+    });
+
+    it('shows a locked status and disables applying for a locked timesheet', async () => {
+      const sapTab = {
+        id: 99,
+        url: 'https://p10mq7ma.launchpad.cfapps.eu10.hana.ondemand.com/site#timesheet-my',
+        status: 'complete',
+      } as chrome.tabs.Tab;
+      mockChromeTabsQuery.mockResolvedValue([sapTab]);
+      mockChromeRuntimeSendMessage.mockResolvedValue({
+        success: true,
+        data: { busy: false },
+      });
+      mockChromeScriptingExecuteScript.mockImplementation(async (injection) => {
+        if (injection.func?.name === 'ui5MainWorldReadSnapshot') {
+          return [
+            {
+              documentId: 'mock-id',
+              frameId: 0,
+              result: {
+                success: true,
+                snapshot: {
+                  ...editableSnapshot,
+                  sapStatus: 'locked',
+                },
+              },
+            },
+          ];
+        }
+
+        return [{ documentId: 'mock-id', frameId: 0, result: undefined }];
+      });
+
+      await import('./popup');
+      await flushAsyncWork();
+
+      expect(document.getElementById('summary-section')?.hidden).toBe(false);
+      expect(document.getElementById('status-message')?.textContent).toContain(
+        'De timesheet is vergrendeld.',
+      );
+      expect(
+        document
+          .getElementById('status-box')
+          ?.classList.contains('status-box--warning'),
+      ).toBe(true);
+      expect(
+        (document.getElementById('btn-apply-schedules') as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
+      expect(
+        document
+          .getElementById('btn-apply-schedules')
+          ?.classList.contains('is-locked'),
+      ).toBe(true);
+    });
 
     it('clears a persisted status when dismiss is clicked', async () => {
       const storedValues: Record<string, unknown> = {};
@@ -332,6 +470,73 @@ describe('popup integration tests', () => {
       await flushAsyncWork();
 
       expect(document.getElementById('schedule-form-section')?.hidden).toBe(
+        false,
+      );
+      expect(
+        document.getElementById('btn-add-schedule')?.nextElementSibling?.id,
+      ).toBe('schedule-form-section');
+      expect(
+        (document.getElementById('btn-add-schedule') as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
+    });
+
+    it('deselects a schedule and blocks selection while it is being edited', async () => {
+      const schedule = {
+        id: 'edit-selected',
+        label: 'Geselecteerd schema',
+        target: {
+          targetType: 'project' as const,
+          targetCode: 'C001',
+          targetLabel: 'Project Alpha',
+        },
+        hoursPerWeekday: {
+          monday: 8,
+          tuesday: 0,
+          wednesday: 0,
+          thursday: 0,
+          friday: 0,
+          saturday: 0,
+          sunday: 0,
+        },
+      };
+      mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
+        callback({
+          [keys[0]]:
+            keys[0] === STORAGE_KEYS.projectSchedules ? [schedule] : undefined,
+        });
+      });
+
+      const { renderSchedules, renderSnapshot } = await import('./popup');
+      await flushAsyncWork();
+      renderSnapshot(editableSnapshot);
+      await renderSchedules();
+
+      let scheduleItem = document.querySelector(
+        '[data-schedule-id="edit-selected"]',
+      ) as HTMLLIElement;
+      scheduleItem.click();
+      expect(scheduleItem.classList.contains('schedule-item--selected')).toBe(
+        true,
+      );
+
+      (
+        scheduleItem.querySelector('.schedule-edit-button') as HTMLButtonElement
+      ).click();
+
+      scheduleItem = document.querySelector(
+        '[data-schedule-id="edit-selected"]',
+      ) as HTMLLIElement;
+      expect(scheduleItem.classList.contains('schedule-item--selected')).toBe(
+        false,
+      );
+      expect(
+        (document.getElementById('btn-apply-schedules') as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
+
+      (scheduleItem.querySelector('.schedule-content') as HTMLElement).click();
+      expect(scheduleItem.classList.contains('schedule-item--selected')).toBe(
         false,
       );
     });
@@ -418,6 +623,10 @@ describe('popup integration tests', () => {
       expect(document.getElementById('schedule-form-section')?.hidden).toBe(
         true,
       );
+      expect(
+        (document.getElementById('btn-add-schedule') as HTMLButtonElement)
+          .disabled,
+      ).toBe(false);
     });
 
     it('shows an error when add-schedule is clicked but no snapshot is loaded', async () => {

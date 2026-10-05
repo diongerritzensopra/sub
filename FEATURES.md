@@ -43,7 +43,7 @@ Shared feature roadmap for `sub`.
 
 #### Feature description
 
-- [ ] Redesign the popup so the layout is intentional instead of a single vertical stack of controls.
+- [x] Redesign the popup so the layout is intentional instead of a single vertical stack of controls.
     - Start with a brainstorming/planning phase with Copilot to define the popup's information hierarchy, primary
       actions, and visual grouping.
     - The updated design should make the most important states and actions easy to scan: SAP status, refresh/snapshot
@@ -54,19 +54,32 @@ Shared feature roadmap for `sub`.
 
 #### Implementation chunks
 
-- [ ] Chunk 1 - Popup layout planning.
+- [x] Chunk 1 - Popup layout planning.
     - Brainstorm the popup layout with Copilot.
     - Define the target information architecture, section order, and primary/secondary actions.
     - Capture the agreed structure and UX goals before changing code.
-- [ ] Chunk 2 - Popup DOM/render structure.
+    - Output: Agreed section order top-to-bottom: header (title + refresh) → snapshot summary (trimmed to period,
+      worked hours, and to-be-performed hours; project list removed) → status/error messages → schedules list →
+      schedule form (shown only when adding/editing). Apply behavior change: remove "Alles toepassen" (apply-all)
+      functionality; the button becomes "Toepassen" only and requires an explicit schedule selection. Each schedule
+      row gains its own apply result state (applying/success/error) instead of relying solely on the global status
+      message. Visual grouping stays light-weight (spacing + subtle divider lines, no card/border/shadow treatment).
+      No dedicated SAP-status badge/indicator; existing button states (refresh icon busy state, apply button
+      disabled/amber-locked) remain the sole readiness indicators.
+- [x] Chunk 2 - Popup DOM/render structure.
     - Refactor the popup markup/rendering so the UI is grouped into deliberate sections instead of a single continuous
       flow.
     - Ensure status, snapshot details, schedules, and apply controls each have clear structure and headings.
-- [ ] Chunk 3 - Popup styling overhaul.
+- [x] Chunk 3 - Popup styling overhaul.
     - Update `popup.css` to implement the planned layout, spacing, grouping, and visual hierarchy.
     - Improve readability and button emphasis for the popup's constrained width.
-- [ ] Chunk 4 - UX polish and regression coverage.
+- [x] Chunk 4 - UX polish and regression coverage.
     - Verify loading, locked, cached, empty, and error states still render clearly in the new layout.
+    - Fix failed-date summaries for multiple schedules sharing a target: count distinct target dates, so an already-set
+      schedule does not inflate the total or prevent "alle dagen mislukt" when every relevant date failed.
+    - Clarify the wording of apply-result status sections.
+    - List the dates actually updated under "Bijgewerkte dagen", alongside the count.
+    - Format updated and failed dates in a readable, locale-aware format.
     - Add or update popup tests for the revised structure and state-specific rendering.
 
 ### Reminder notifications
