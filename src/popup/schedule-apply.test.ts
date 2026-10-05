@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WeeklySchedule } from '../shared/types';
 import {
-  addFailedDatesForProject,
-  addTargetDatesForProject,
+  addDatesForTarget,
   autofillScheduleEntries,
   buildApplyStatusMessage,
   formatStatusDate,
@@ -156,26 +155,28 @@ describe('buildTimesheetUrlForProject', () => {
   });
 });
 
-describe('addFailedDatesForProject', () => {
-  it('does nothing when no failed dates are provided', () => {
-    const failed = new Map<string, Set<string>>([
+describe('addDatesForTarget', () => {
+  it('does nothing when no dates are provided', () => {
+    const datesByTarget = new Map<string, Set<string>>([
       ['Z1', new Set(['2026-05-01'])],
     ]);
-    addFailedDatesForProject(failed, 'Z1', []);
+    addDatesForTarget(datesByTarget, 'Z1', []);
 
-    expect(failed.get('Z1')).toEqual(new Set(['2026-05-01']));
-    expect(failed.size).toBe(1);
+    expect(datesByTarget.get('Z1')).toEqual(new Set(['2026-05-01']));
+    expect(datesByTarget.size).toBe(1);
   });
 
-  it('deduplicates failed dates in the target set', () => {
-    const failed = new Map<string, Set<string>>([
+  it('deduplicates dates in each target set', () => {
+    const datesByTarget = new Map<string, Set<string>>([
       ['Z1', new Set(['2026-05-01'])],
     ]);
-    addFailedDatesForProject(failed, 'Z1', ['2026-05-01', '2026-05-02']);
-    addFailedDatesForProject(failed, 'Z2', ['2026-05-03']);
+    addDatesForTarget(datesByTarget, 'Z1', ['2026-05-01', '2026-05-02']);
+    addDatesForTarget(datesByTarget, 'Z2', ['2026-05-03']);
 
-    expect(failed.get('Z1')).toEqual(new Set(['2026-05-01', '2026-05-02']));
-    expect(failed.get('Z2')).toEqual(new Set(['2026-05-03']));
+    expect(datesByTarget.get('Z1')).toEqual(
+      new Set(['2026-05-01', '2026-05-02']),
+    );
+    expect(datesByTarget.get('Z2')).toEqual(new Set(['2026-05-03']));
   });
 });
 
@@ -332,14 +333,8 @@ describe('buildApplyStatusMessage', () => {
 
   it('uses distinct target dates when schedules overlap and one fails', () => {
     const targetDates = new Map<string, Set<string>>();
-    addTargetDatesForProject(targetDates, 'Mockproject', [
-      '2026-05-01',
-      '2026-05-02',
-    ]);
-    addTargetDatesForProject(targetDates, 'Mockproject', [
-      '2026-05-01',
-      '2026-05-02',
-    ]);
+    addDatesForTarget(targetDates, 'Mockproject', ['2026-05-01', '2026-05-02']);
+    addDatesForTarget(targetDates, 'Mockproject', ['2026-05-01', '2026-05-02']);
 
     const message = buildApplyStatusMessage(
       [BASE_SCHEDULE, { ...BASE_SCHEDULE, id: 'schedule-2' }],
@@ -374,17 +369,6 @@ describe('buildApplyStatusMessage', () => {
       label: 'Verwerkt door SAP:',
       text: '1/2 (gedeeltelijk ingediend)',
     });
-  });
-});
-
-describe('addTargetDatesForProject', () => {
-  it('keeps distinct dates per target', () => {
-    const dates = new Map<string, Set<string>>();
-    addTargetDatesForProject(dates, 'Z1', ['2026-05-01', '2026-05-02']);
-    addTargetDatesForProject(dates, 'Z1', ['2026-05-02', '2026-05-03']);
-    expect(dates.get('Z1')).toEqual(
-      new Set(['2026-05-01', '2026-05-02', '2026-05-03']),
-    );
   });
 });
 

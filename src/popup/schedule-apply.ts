@@ -126,37 +126,22 @@ function sortedDates(dates: Set<string>, locale?: string): string[] {
     .map((date) => formatStatusDate(date, locale));
 }
 
-export function addFailedDatesForProject(
-  failedDatesByProject: Map<string, Set<string>>,
-  projectCode: string,
+export function addDatesForTarget(
+  datesByTarget: Map<string, Set<string>>,
+  targetKey: string,
   dates: string[],
 ): void {
   if (dates.length === 0) {
     return;
   }
 
-  const failedDates =
-    failedDatesByProject.get(projectCode) ?? new Set<string>();
-  dates.forEach((date) => failedDates.add(date));
-  failedDatesByProject.set(projectCode, failedDates);
-}
-
-export function addTargetDatesForProject(
-  datesByProject: Map<string, Set<string>>,
-  projectCode: string,
-  dates: string[],
-): void {
-  if (dates.length === 0) {
-    return;
-  }
-
-  const targetDates = datesByProject.get(projectCode) ?? new Set<string>();
+  const targetDates = datesByTarget.get(targetKey) ?? new Set<string>();
   dates.forEach((date) => targetDates.add(date));
-  datesByProject.set(projectCode, targetDates);
+  datesByTarget.set(targetKey, targetDates);
 }
 
-function countDatesByProject(datesByProject: Map<string, Set<string>>): number {
-  return Array.from(datesByProject.values()).reduce(
+function countDatesByTarget(datesByTarget: Map<string, Set<string>>): number {
+  return Array.from(datesByTarget.values()).reduce(
     (total, dates) => total + dates.size,
     0,
   );
@@ -172,16 +157,16 @@ function buildAppliedSchedulesSection(
 }
 
 function buildFailedDatesSection(
-  failedDatesByProject: Map<string, Set<string>>,
-  targetDatesByProject: Map<string, Set<string>>,
+  failedDatesByTarget: Map<string, Set<string>>,
+  targetDatesByTarget: Map<string, Set<string>>,
 ): StatusSection | undefined {
-  if (failedDatesByProject.size === 0) {
+  if (failedDatesByTarget.size === 0) {
     return undefined;
   }
 
   const items: StatusListItem[] = [];
-  failedDatesByProject.forEach((failedDates, targetName) => {
-    const targetDates = targetDatesByProject.get(targetName);
+  failedDatesByTarget.forEach((failedDates, targetName) => {
+    const targetDates = targetDatesByTarget.get(targetName);
     if (
       targetDates &&
       targetDates.size > 0 &&
@@ -195,7 +180,7 @@ function buildFailedDatesSection(
 
   return {
     label: 'Mislukte dagen:',
-    text: `${countDatesByProject(failedDatesByProject)}/${countDatesByProject(targetDatesByProject)}`,
+    text: `${countDatesByTarget(failedDatesByTarget)}/${countDatesByTarget(targetDatesByTarget)}`,
     items,
   };
 }
@@ -222,9 +207,9 @@ function buildSubmissionSection(
 
 export function buildApplyStatusMessage(
   schedules: WeeklySchedule[],
-  appliedDatesByProject: Map<string, Set<string>>,
-  failedDatesByProject: Map<string, Set<string>>,
-  targetDatesByProject: Map<string, Set<string>>,
+  appliedDatesByTarget: Map<string, Set<string>>,
+  failedDatesByTarget: Map<string, Set<string>>,
+  targetDatesByTarget: Map<string, Set<string>>,
   submissionAttemptedCount: number,
   submissionConfirmedCount: number,
 ): StatusSection[] {
@@ -232,11 +217,11 @@ export function buildApplyStatusMessage(
     buildAppliedSchedulesSection(schedules),
     {
       label: 'Bijgewerkte dagen:',
-      text: `${countDatesByProject(appliedDatesByProject)}/${countDatesByProject(targetDatesByProject)}`,
-      items: Array.from(appliedDatesByProject).some(
+      text: `${countDatesByTarget(appliedDatesByTarget)}/${countDatesByTarget(targetDatesByTarget)}`,
+      items: Array.from(appliedDatesByTarget).some(
         ([, dates]) => dates.size > 0,
       )
-        ? Array.from(appliedDatesByProject, ([targetName, dates]) => ({
+        ? Array.from(appliedDatesByTarget, ([targetName, dates]) => ({
             text: `${targetName}:`,
             items: sortedDates(dates),
           })).filter((target) => target.items.length > 0)
@@ -245,8 +230,8 @@ export function buildApplyStatusMessage(
   ];
 
   const failedDatesSection = buildFailedDatesSection(
-    failedDatesByProject,
-    targetDatesByProject,
+    failedDatesByTarget,
+    targetDatesByTarget,
   );
   if (failedDatesSection) {
     sections.push(failedDatesSection);

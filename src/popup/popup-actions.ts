@@ -15,8 +15,7 @@ import { expandWeeklyScheduleToMonthEntries } from '../shared/schedule-expansion
 import { deleteSchedule, getSchedules, saveSchedule } from '../shared/storage';
 import { getSAPBusyStateForTab } from '../shared/busy-state';
 import {
-  addFailedDatesForProject,
-  addTargetDatesForProject,
+  addDatesForTarget,
   autofillScheduleEntries,
   buildApplyStatusMessage,
   navigateToProject,
@@ -322,9 +321,9 @@ export async function applySchedulesFromSelection(
       setScheduleApplyState(ctx.dom, schedule.id, 'applying');
     });
 
-    const appliedDatesByProject = new Map<string, Set<string>>();
-    const failedDatesByProject = new Map<string, Set<string>>();
-    const targetDatesByProject = new Map<string, Set<string>>();
+    const appliedDatesByTarget = new Map<string, Set<string>>();
+    const failedDatesByTarget = new Map<string, Set<string>>();
+    const targetDatesByTarget = new Map<string, Set<string>>();
     let submissionAttemptedCount = 0;
     let submissionConfirmedCount = 0;
     const scheduleErrors: string[] = [];
@@ -341,20 +340,20 @@ export async function applySchedulesFromSelection(
           year,
         );
 
-        addTargetDatesForProject(
-          appliedDatesByProject,
+        addDatesForTarget(
+          appliedDatesByTarget,
           targetLabel,
           summary.appliedDates,
         );
-        addTargetDatesForProject(
-          targetDatesByProject,
+        addDatesForTarget(
+          targetDatesByTarget,
           targetLabel,
           expandWeeklyScheduleToMonthEntries(schedule, month, year).map(
             (entry) => entry.date,
           ),
         );
-        addFailedDatesForProject(
-          failedDatesByProject,
+        addDatesForTarget(
+          failedDatesByTarget,
           targetLabel,
           summary.failedDates,
         );
@@ -397,13 +396,13 @@ export async function applySchedulesFromSelection(
           month,
           year,
         );
-        addTargetDatesForProject(
-          targetDatesByProject,
+        addDatesForTarget(
+          targetDatesByTarget,
           targetLabel,
           scheduleEntries.map((entry) => entry.date),
         );
-        addFailedDatesForProject(
-          failedDatesByProject,
+        addDatesForTarget(
+          failedDatesByTarget,
           targetLabel,
           scheduleEntries.map((entry) => entry.date),
         );
@@ -415,9 +414,9 @@ export async function applySchedulesFromSelection(
 
     const statusMessage = buildApplyStatusMessage(
       schedulesToApply,
-      appliedDatesByProject,
-      failedDatesByProject,
-      targetDatesByProject,
+      appliedDatesByTarget,
+      failedDatesByTarget,
+      targetDatesByTarget,
       submissionAttemptedCount,
       submissionConfirmedCount,
     );
@@ -431,7 +430,7 @@ export async function applySchedulesFromSelection(
       true,
       getApplyStatusLevel(
         scheduleErrors.length,
-        failedDatesByProject.size,
+        failedDatesByTarget.size,
         submissionAttemptedCount,
         submissionConfirmedCount,
       ),

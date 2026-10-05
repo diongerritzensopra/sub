@@ -573,9 +573,6 @@ const STATUS_LEVEL_ICONS: Record<StatusLevel, string> = {
   error: '❌',
 };
 
-/**
- * Update status message display (with urgency level and optional dismiss button).
- */
 function buildStatusList(items: StatusListItem[]): HTMLUListElement {
   const list = document.createElement('ul');
   list.className = 'status-message-list';
@@ -623,6 +620,9 @@ function renderStatusContent(
   );
 }
 
+/**
+ * Update status message display (with urgency level and optional dismiss button).
+ */
 export function renderStatusMessage(
   dom: PopupDomRefs,
   message: StatusContent,

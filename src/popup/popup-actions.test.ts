@@ -33,8 +33,7 @@ import {
   setCachedTimesheetSnapshot,
 } from './popup-gateway';
 import {
-  addFailedDatesForProject,
-  addTargetDatesForProject,
+  addDatesForTarget,
   autofillScheduleEntries,
   buildApplyStatusMessage,
   navigateToProject,
@@ -77,8 +76,7 @@ vi.mock('./popup-gateway', () => ({
 }));
 
 vi.mock('./schedule-apply', () => ({
-  addFailedDatesForProject: vi.fn(),
-  addTargetDatesForProject: vi.fn(),
+  addDatesForTarget: vi.fn(),
   autofillScheduleEntries: vi.fn(),
   buildApplyStatusMessage: vi.fn(),
   navigateToProject: vi.fn(),
@@ -184,14 +182,14 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.useRealTimers();
 
-  vi.mocked(addTargetDatesForProject).mockImplementation(
-    (datesByProject, projectCode, dates) => {
+  vi.mocked(addDatesForTarget).mockImplementation(
+    (datesByTarget, targetKey, dates) => {
       if (dates.length === 0) {
         return;
       }
-      const targetDates = datesByProject.get(projectCode) ?? new Set<string>();
+      const targetDates = datesByTarget.get(targetKey) ?? new Set<string>();
       dates.forEach((date) => targetDates.add(date));
-      datesByProject.set(projectCode, targetDates);
+      datesByTarget.set(targetKey, targetDates);
     },
   );
 
@@ -522,9 +520,9 @@ describe('applySchedulesFromSelection', () => {
 
     await applySchedulesFromSelection(ctx);
 
-    const calls = vi.mocked(addTargetDatesForProject).mock.calls;
-    const appliedDateCalls = [calls[0], calls[2]];
-    expect(calls).toHaveLength(4);
+    const calls = vi.mocked(addDatesForTarget).mock.calls;
+    const appliedDateCalls = [calls[0], calls[3]];
+    expect(calls).toHaveLength(6);
     expect(appliedDateCalls[0][0]).toBe(appliedDateCalls[1][0]);
     expect(appliedDateCalls[0][1]).toBe('Project Alpha');
     expect(appliedDateCalls[1][1]).toBe('Project Alpha');
@@ -587,7 +585,7 @@ describe('applySchedulesFromSelection', () => {
 
     expect(navigateToProject).toHaveBeenCalledWith(1, 8, 2026, 'C001');
     expect(autofillScheduleEntries).toHaveBeenCalledWith(1, schedule, 8, 2026);
-    expect(addFailedDatesForProject).toHaveBeenCalled();
+    expect(addDatesForTarget).toHaveBeenCalled();
     expect(ctx.setStatus).toHaveBeenCalledWith(
       [{ text: 'Alles gelukt' }],
       true,
