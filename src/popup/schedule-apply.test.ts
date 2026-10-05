@@ -5,6 +5,7 @@ import {
   addTargetDatesForProject,
   autofillScheduleEntries,
   buildApplyStatusMessage,
+  formatStatusDate,
   buildTimesheetUrlForProject,
   navigateToProject,
 } from './schedule-apply';
@@ -178,6 +179,19 @@ describe('addFailedDatesForProject', () => {
   });
 });
 
+describe('formatStatusDate', () => {
+  it('formats ISO dates with a weekday and without a year in the requested locale', () => {
+    expect(formatStatusDate('2026-10-05', 'en-US')).toBe('Mon, Oct 5');
+    expect(formatStatusDate('2026-10-05', 'nl-NL')).toBe('ma 5 okt');
+  });
+
+  it('rejects invalid ISO calendar dates', () => {
+    expect(() => formatStatusDate('2026-02-30', 'en-US')).toThrow(
+      'Invalid ISO date: 2026-02-30',
+    );
+  });
+});
+
 describe('buildApplyStatusMessage', () => {
   it('builds status for one schedule without submit attempt', () => {
     const message = buildApplyStatusMessage(
@@ -196,7 +210,15 @@ describe('buildApplyStatusMessage', () => {
       {
         label: 'Bijgewerkte dagen:',
         text: '2/3',
-        items: [{ text: 'Mockproject:', items: ['2026-05-01', '2026-05-02'] }],
+        items: [
+          {
+            text: 'Mockproject:',
+            items: [
+              formatStatusDate('2026-05-01'),
+              formatStatusDate('2026-05-02'),
+            ],
+          },
+        ],
       },
       {
         label: 'Verwerkt door SAP:',
@@ -251,7 +273,10 @@ describe('buildApplyStatusMessage', () => {
         items: [
           {
             text: 'Mockproject:',
-            items: ['2026-05-01', '2026-05-03'],
+            items: [
+              formatStatusDate('2026-05-01'),
+              formatStatusDate('2026-05-03'),
+            ],
           },
         ],
       },
@@ -261,7 +286,11 @@ describe('buildApplyStatusMessage', () => {
         items: [
           {
             text: 'Mockproject:',
-            items: ['2026-05-02', '2026-05-04', '2026-05-05'],
+            items: [
+              formatStatusDate('2026-05-02'),
+              formatStatusDate('2026-05-04'),
+              formatStatusDate('2026-05-05'),
+            ],
           },
         ],
       },
@@ -293,7 +322,10 @@ describe('buildApplyStatusMessage', () => {
       text: '3/4',
       items: [
         'Mockproject: alle dagen mislukt',
-        { text: 'Testproject 42:', items: ['2026-05-04'] },
+        {
+          text: 'Testproject 42:',
+          items: [formatStatusDate('2026-05-04')],
+        },
       ],
     });
   });

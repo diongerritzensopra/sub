@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 import { STORAGE_KEYS } from '../shared/storage';
+import { formatStatusDate } from './schedule-apply';
 import {
   flushAsyncWork,
   mockChromeRuntimeSendMessage,
@@ -236,7 +237,7 @@ describe('popup integration tests', () => {
           sections[1].querySelectorAll('ul ul li'),
           (item) => item.textContent,
         ),
-      ).toContain('2026-08-01');
+      ).toContain(formatStatusDate('2026-08-01'));
       expect(statusMessage).toContain('Fouten:');
       expect(statusMessage).toContain(
         'Mockproject: Navigatie mislukt voor project',

@@ -100,8 +100,30 @@ export async function navigateToProject(
   await waitForTabReady(tabId);
 }
 
-function sortedDates(dates: Set<string>): string[] {
-  return Array.from(dates).sort((a, b) => a.localeCompare(b));
+export function formatStatusDate(
+  isoDate: string,
+  locale: string | undefined = navigator.language,
+): string {
+  const date = new Date(`${isoDate}T00:00:00.000Z`);
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.toISOString().slice(0, 10) !== isoDate
+  ) {
+    throw new Error(`Invalid ISO date: ${isoDate}`);
+  }
+
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+    weekday: 'short',
+  }).format(date);
+}
+
+function sortedDates(dates: Set<string>, locale?: string): string[] {
+  return Array.from(dates)
+    .sort((a, b) => a.localeCompare(b))
+    .map((date) => formatStatusDate(date, locale));
 }
 
 export function addFailedDatesForProject(
