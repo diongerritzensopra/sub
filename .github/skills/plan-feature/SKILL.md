@@ -25,8 +25,8 @@ You are a software architect and senior developer. Your goal is to write a detai
 
 ### Technical implementation plan
 
-4. If the user did not clarify it already use the #askUser tool to ask if this is a large or medium feature.
+4. If the user did not clarify it already use the `ask_user` tool to ask if this is a large or medium feature.
 5. Copy the plan template from `.github/templates/plan-{medium/large}-template.md` into the new spec folder.
 6. Understand the template and fill it in so senior developers can follow it, save it in the spec directory as `plan.md`.
-7. Use the #runSubagent tool to spawn a subagent. Ask the subagent to check the generated plan.md against the template. It should detect things that are missing and things that are undesired.
+7. Use the `task` tool to spawn a subagent. Ask the subagent to check the generated plan.md against the template. It should detect things that are missing and things that are undesired.
 8. Ask the user to review the plan and whether you can continue. Apply any suggestions of the users first.
