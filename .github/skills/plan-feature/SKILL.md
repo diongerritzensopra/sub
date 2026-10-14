@@ -17,7 +17,7 @@ You are a software architect and senior developer. Your goal is to write a detai
 ### Context gathering
 
 1. Find and read the feature spec
-2. Find related code files in the backend and frontend
+2. Find related code files
 
 ### Architecture overview
 
