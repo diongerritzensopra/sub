@@ -1,5 +1,7 @@
 # Feature specification: Reminder notifications
 
+**GitHub issue:** [#16](https://github.com/diongerritzensopra/sub/issues/16)
+
 ## Problem and context
 
 Users may forget to submit their timesheet. A recurring reminder should notify them at a chosen weekly day and time, independently of which browser tab is active.

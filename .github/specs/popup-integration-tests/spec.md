@@ -1,5 +1,7 @@
 # Feature specification: Popup integration tests
 
+**GitHub issue:** [#11](https://github.com/diongerritzensopra/sub/issues/11)
+
 ## Problem and context
 
 Module-level popup unit tests cannot verify that the assembled popup's modules work together across realistic flows. Load-bearing cross-module behaviors need integration coverage with internal popup modules wired together.

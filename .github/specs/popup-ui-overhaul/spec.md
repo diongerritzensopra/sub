@@ -1,5 +1,7 @@
 # Feature specification: Popup UI overhaul
 
+**GitHub issue:** [#15](https://github.com/diongerritzensopra/sub/issues/15)
+
 ## Problem and context
 
 The popup's single vertical stack makes its information and actions harder to scan in the limited space of a browser extension popup. Users need a clearer hierarchy while retaining existing capabilities.

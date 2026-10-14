@@ -1,5 +1,7 @@
 # Feature specification: Caching
 
+**GitHub issue:** [#24](https://github.com/diongerritzensopra/sub/issues/24)
+
 ## Problem and context
 
 Reading the SAP timesheet can take time, especially while the SAP page is loading. Showing the most recent usable snapshot immediately makes the popup responsive while fresh data is retrieved.

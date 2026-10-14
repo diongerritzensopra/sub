@@ -1,5 +1,7 @@
 # Feature specification: Project schedules
 
+**GitHub issue:** [#26](https://github.com/diongerritzensopra/sub/issues/26)
+
 ## Problem and context
 
 Entering planned project hours day by day each month is repetitive. Users need to save weekly hour patterns by project code and apply them to the currently opened month.

@@ -1,5 +1,7 @@
 # Feature specification: Popup unit test refactoring
 
+**GitHub issue:** [#9](https://github.com/diongerritzensopra/sub/issues/9)
+
 ## Problem and context
 
 Popup tests grouped by feature currently exercise the assembled popup rather than isolating individual modules. This makes it harder for maintainers to identify which module a failure concerns and to test module behavior independently.

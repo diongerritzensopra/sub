@@ -1,5 +1,7 @@
 # Feature specification: General hours schedules
 
+**GitHub issue:** [#13](https://github.com/diongerritzensopra/sub/issues/13)
+
 ## Problem and context
 
 Users need to reuse weekly hour patterns for SAP general-hours timesheets as well as project timesheets. General-hours entries use distinct SAP identifiers and labels and cannot be treated as project targets.

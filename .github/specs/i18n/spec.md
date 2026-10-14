@@ -1,5 +1,7 @@
 # Feature specification: i18n
 
+**GitHub issue:** [#14](https://github.com/diongerritzensopra/sub/issues/14)
+
 ## Problem and context
 
 The extension currently presents its user-facing interface in Dutch. Users who prefer English need the popup and its messages to be available in English as well.

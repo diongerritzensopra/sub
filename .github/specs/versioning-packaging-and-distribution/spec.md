@@ -1,5 +1,7 @@
 # Feature specification: Versioning, packaging and distribution
 
+**GitHub issue:** [#25](https://github.com/diongerritzensopra/sub/issues/25)
+
 ## Problem and context
 
 Preparing a distributable extension requires a consistent version across project metadata and a packaged build. A single release command reduces manual steps and ties the artifact to a tagged commit.
