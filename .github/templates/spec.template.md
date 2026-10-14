@@ -1,5 +1,7 @@
 # Feature specification: [Feature name]
 
+**GitHub issue:** [#123: Issue title](https://github.com/OWNER/REPOSITORY/issues/123)
+
 ## Problem and context
 
 [Describe the user need or problem this feature addresses.]
