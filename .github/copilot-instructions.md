@@ -82,4 +82,4 @@ The popup is composed of modular, independently-testable layers:
 
 - Update this file when architecture, workflow, or SAP-specific targeting changes.
 - Prefer repository-specific instructions to generic advice.
-- Track planned/completed product features in `FEATURES.md`.
+- Document feature requirements in issue-linked specifications under `.github/specs/`; use the linked GitHub issue as the source of truth for feature status.
