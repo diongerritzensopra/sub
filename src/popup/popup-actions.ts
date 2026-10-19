@@ -106,7 +106,7 @@ function syncApplySchedulesButtonState(
   updateApplySchedulesButtonState(
     ctx.dom,
     !ctx.state.isTimesheetApplyAllowed,
-    ctx.state.selectedScheduleIds.size > 0,
+    ctx.state.selectedScheduleId !== null,
     ctx.state.renderedSchedules.length,
     hasCurrentPeriod(ctx.state),
     isApplying,
@@ -117,13 +117,10 @@ function renderSchedulesFromState(ctx: PopupActionsContext): void {
   renderSchedules(
     ctx.dom,
     ctx.state.renderedSchedules,
-    ctx.state.selectedScheduleIds,
+    ctx.state.selectedScheduleId,
     (scheduleId) => {
-      if (ctx.state.selectedScheduleIds.has(scheduleId)) {
-        ctx.state.selectedScheduleIds.delete(scheduleId);
-      } else {
-        ctx.state.selectedScheduleIds.add(scheduleId);
-      }
+      ctx.state.selectedScheduleId =
+        ctx.state.selectedScheduleId === scheduleId ? null : scheduleId;
       syncApplySchedulesButtonState(ctx);
     },
     ctx.openScheduleFormForEdit,
@@ -139,12 +136,12 @@ export async function reloadSchedulesDisplay(
   const schedules = await getSchedules();
   ctx.state.renderedSchedules = schedules;
 
-  const availableIds = new Set(schedules.map((schedule) => schedule.id));
-  Array.from<string>(ctx.state.selectedScheduleIds).forEach((id) => {
-    if (!availableIds.has(id)) {
-      ctx.state.selectedScheduleIds.delete(id);
-    }
-  });
+  if (
+    ctx.state.selectedScheduleId !== null &&
+    !schedules.some((schedule) => schedule.id === ctx.state.selectedScheduleId)
+  ) {
+    ctx.state.selectedScheduleId = null;
+  }
 
   renderSchedulesFromState(ctx);
 
@@ -259,7 +256,7 @@ export async function applySchedulesFromSelection(
   const month = ctx.state.currentSnapshot.month;
   const year = ctx.state.currentSnapshot.year;
 
-  if (ctx.state.selectedScheduleIds.size === 0) {
+  if (ctx.state.selectedScheduleId === null) {
     ctx.setStatus(
       'Selecteer minstens één schema om toe te passen.',
       true,
@@ -270,7 +267,7 @@ export async function applySchedulesFromSelection(
 
   const schedulesToApply = getSchedulesToApply(
     ctx.state.renderedSchedules,
-    ctx.state.selectedScheduleIds,
+    ctx.state.selectedScheduleId,
   );
   if (schedulesToApply.length === 0) {
     ctx.setStatus("Geen schema's beschikbaar om toe te passen.", true, 'error');

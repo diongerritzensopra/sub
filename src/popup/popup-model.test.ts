@@ -67,18 +67,18 @@ describe('createInitialPopupState', () => {
     expect(state.currentSnapshot).toBeNull();
     expect(state.renderedSchedules).toEqual([]);
     expect(state.isTimesheetApplyAllowed).toBe(false);
-    expect(state.selectedScheduleIds).toEqual(new Set<string>());
+    expect(state.selectedScheduleId).toBeNull();
     expect(state.scheduleBeingEdited).toBeNull();
   });
 
-  it('creates a fresh selected ids set for each call', () => {
+  it('starts each state without a selected schedule', () => {
     const a = createInitialPopupState();
     const b = createInitialPopupState();
 
-    a.selectedScheduleIds.add('schedule-1');
+    a.selectedScheduleId = 'schedule-1';
 
-    expect(a.selectedScheduleIds.has('schedule-1')).toBe(true);
-    expect(b.selectedScheduleIds.has('schedule-1')).toBe(false);
+    expect(a.selectedScheduleId).toBe('schedule-1');
+    expect(b.selectedScheduleId).toBeNull();
   });
 });
 
@@ -186,31 +186,25 @@ describe('getSchedulesToApply', () => {
   it('returns nothing when no schedule is selected', () => {
     const schedules = [createSchedule('a'), createSchedule('b')];
 
-    expect(getSchedulesToApply(schedules, new Set<string>())).toEqual([]);
+    expect(getSchedulesToApply(schedules, null)).toEqual([]);
   });
 
-  it('returns only selected schedules when ids are provided', () => {
+  it('returns only the selected schedule', () => {
     const schedules = [
       createSchedule('a'),
       createSchedule('b'),
       createSchedule('c'),
     ];
 
-    const selected = getSchedulesToApply(
-      schedules,
-      new Set<string>(['c', 'a']),
-    );
+    const selected = getSchedulesToApply(schedules, 'c');
 
-    expect(selected).toEqual([schedules[0], schedules[2]]);
+    expect(selected).toEqual([schedules[2]]);
   });
 
-  it('ignores selected ids that are not in rendered schedules', () => {
+  it('ignores a selected id that is not in rendered schedules', () => {
     const schedules = [createSchedule('a')];
 
-    const selected = getSchedulesToApply(
-      schedules,
-      new Set<string>(['missing']),
-    );
+    const selected = getSchedulesToApply(schedules, 'missing');
 
     expect(selected).toEqual([]);
   });

@@ -14,7 +14,7 @@ export type PopupState = {
   currentSnapshot: TimesheetSnapshot | null;
   renderedSchedules: WeeklySchedule[];
   isTimesheetApplyAllowed: boolean;
-  selectedScheduleIds: Set<string>;
+  selectedScheduleId: string | null;
   scheduleBeingEdited: WeeklySchedule | null;
 };
 
@@ -25,7 +25,7 @@ export function createInitialPopupState(): PopupState {
     currentSnapshot: null,
     renderedSchedules: [],
     isTimesheetApplyAllowed: false,
-    selectedScheduleIds: new Set<string>(),
+    selectedScheduleId: null,
     scheduleBeingEdited: null,
   };
 }
@@ -79,9 +79,14 @@ export function resolveValidationPeriod(tab: chrome.tabs.Tab | undefined): {
  */
 export function getSchedulesToApply(
   renderedSchedules: WeeklySchedule[],
-  selectedScheduleIds: Set<string>,
+  selectedScheduleId: string | null,
 ): WeeklySchedule[] {
-  return renderedSchedules.filter((schedule) =>
-    selectedScheduleIds.has(schedule.id),
+  if (selectedScheduleId === null) {
+    return [];
+  }
+
+  const selectedSchedule = renderedSchedules.find(
+    (schedule) => schedule.id === selectedScheduleId,
   );
+  return selectedSchedule ? [selectedSchedule] : [];
 }

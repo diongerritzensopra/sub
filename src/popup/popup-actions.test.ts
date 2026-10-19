@@ -157,7 +157,7 @@ function createContext(
       currentSnapshot: createSnapshot(),
       renderedSchedules: [],
       isTimesheetApplyAllowed: true,
-      selectedScheduleIds: new Set<string>(),
+      selectedScheduleId: null,
       scheduleBeingEdited: null,
     },
     setStatus: vi.fn(),
@@ -249,33 +249,46 @@ describe('getApplyStatusLevel', () => {
 describe('reloadSchedulesDisplay', () => {
   it('loads schedules, removes stale selections and syncs rendering/button state', async () => {
     const ctx = createContext();
-    ctx.state.selectedScheduleIds = new Set(['keep', 'drop']);
+    ctx.state.selectedScheduleId = 'drop';
     vi.mocked(getSchedules).mockResolvedValue([createSchedule('keep')]);
 
     await reloadSchedulesDisplay(ctx);
 
     expect(ctx.state.renderedSchedules).toHaveLength(1);
-    expect(ctx.state.selectedScheduleIds.has('keep')).toBe(true);
-    expect(ctx.state.selectedScheduleIds.has('drop')).toBe(false);
+    expect(ctx.state.selectedScheduleId).toBeNull();
     expect(renderSchedules).toHaveBeenCalledTimes(1);
     expect(updateApplySchedulesButtonState).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves the selected schedule when it remains available', async () => {
+    const ctx = createContext();
+    ctx.state.selectedScheduleId = 'keep';
+    vi.mocked(getSchedules).mockResolvedValue([createSchedule('keep')]);
+
+    await reloadSchedulesDisplay(ctx);
+
+    expect(ctx.state.selectedScheduleId).toBe('keep');
   });
 });
 
 describe('renderCurrentSchedulesDisplay', () => {
-  it('toggles selected ids through render callback and resyncs apply button', () => {
+  it('replaces and clears selected id through render callback', () => {
     const ctx = createContext();
-    ctx.state.renderedSchedules = [createSchedule('a')];
+    ctx.state.renderedSchedules = [createSchedule('a'), createSchedule('b')];
 
     renderCurrentSchedulesDisplay(ctx);
 
     const onToggleSelection = vi.mocked(renderSchedules).mock.calls[0][3];
     onToggleSelection('a');
-    expect(ctx.state.selectedScheduleIds.has('a')).toBe(true);
+    expect(ctx.state.selectedScheduleId).toBe('a');
+    expect(updateApplySchedulesButtonState).toHaveBeenCalledTimes(1);
 
-    onToggleSelection('a');
-    expect(ctx.state.selectedScheduleIds.has('a')).toBe(false);
-    expect(updateApplySchedulesButtonState).toHaveBeenCalledTimes(2);
+    onToggleSelection('b');
+    expect(ctx.state.selectedScheduleId).toBe('b');
+
+    onToggleSelection('b');
+    expect(ctx.state.selectedScheduleId).toBeNull();
+    expect(updateApplySchedulesButtonState).toHaveBeenCalledTimes(3);
   });
 });
 
@@ -499,7 +512,7 @@ describe('applySchedulesFromSelection', () => {
     const scheduleA = createSchedule('a', 'C001');
     const scheduleB = createSchedule('b', 'C001');
     ctx.state.renderedSchedules = [scheduleA, scheduleB];
-    ctx.state.selectedScheduleIds = new Set(['a', 'b']);
+    ctx.state.selectedScheduleId = 'a';
     vi.mocked(getSchedulesToApply).mockReturnValue([scheduleA, scheduleB]);
     vi.mocked(autofillScheduleEntries)
       .mockResolvedValueOnce({
@@ -558,7 +571,7 @@ describe('applySchedulesFromSelection', () => {
     const ctx = createContext();
     const schedule = createSchedule('a', 'C001');
     ctx.state.renderedSchedules = [schedule];
-    ctx.state.selectedScheduleIds = new Set<string>();
+    ctx.state.selectedScheduleId = null;
 
     await applySchedulesFromSelection(ctx);
 
@@ -574,7 +587,7 @@ describe('applySchedulesFromSelection', () => {
     const ctx = createContext();
     const schedule = createSchedule('a', 'C001');
     ctx.state.renderedSchedules = [schedule];
-    ctx.state.selectedScheduleIds = new Set<string>(['a']);
+    ctx.state.selectedScheduleId = 'a';
 
     vi.mocked(getSchedulesToApply).mockReturnValue([schedule]);
     vi.mocked(buildApplyStatusMessage).mockImplementation(() => [
@@ -611,7 +624,7 @@ describe('applySchedulesFromSelection', () => {
     const scheduleA = createSchedule('a', 'C001');
     const scheduleB = createSchedule('b', 'C001');
     ctx.state.renderedSchedules = [scheduleA, scheduleB];
-    ctx.state.selectedScheduleIds = new Set<string>(['a', 'b']);
+    ctx.state.selectedScheduleId = 'a';
 
     vi.mocked(getSchedulesToApply).mockReturnValue([scheduleA, scheduleB]);
     vi.mocked(autofillScheduleEntries)
@@ -691,7 +704,7 @@ describe('applySchedulesFromSelection', () => {
       },
     };
     ctx.state.renderedSchedules = [schedule];
-    ctx.state.selectedScheduleIds = new Set<string>(['gh-1']);
+    ctx.state.selectedScheduleId = 'gh-1';
 
     vi.mocked(getSchedulesToApply).mockReturnValue([schedule]);
     vi.mocked(buildApplyStatusMessage).mockImplementation(() => [
@@ -713,7 +726,7 @@ describe('applySchedulesFromSelection', () => {
     const ctx = createContext();
     const schedule = createSchedule('a', 'C001');
     ctx.state.renderedSchedules = [schedule];
-    ctx.state.selectedScheduleIds = new Set<string>(['a']);
+    ctx.state.selectedScheduleId = 'a';
 
     vi.mocked(getSchedulesToApply).mockReturnValue([schedule]);
     vi.mocked(buildApplyStatusMessage).mockImplementation(() => [

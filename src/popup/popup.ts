@@ -109,7 +109,9 @@ function openScheduleFormForEdit(schedule: WeeklySchedule): void {
   }
 
   state.scheduleBeingEdited = schedule;
-  state.selectedScheduleIds.delete(schedule.id);
+  if (state.selectedScheduleId === schedule.id) {
+    state.selectedScheduleId = null;
+  }
   renderCurrentSchedulesDisplay(createActionsContext());
   showScheduleFormCore(dom, state.currentSnapshot, schedule);
   setTimesheetApplyAllowedState(state.isTimesheetApplyAllowed);
@@ -120,7 +122,7 @@ function setTimesheetApplyAllowedState(editable: boolean): void {
   updateApplySchedulesButtonState(
     dom,
     !editable,
-    state.selectedScheduleIds.size > 0,
+    state.selectedScheduleId !== null,
     state.renderedSchedules.length,
     state.currentSnapshot?.month !== null &&
       state.currentSnapshot?.year !== null,
@@ -158,7 +160,7 @@ export function renderSnapshot(
   updateApplySchedulesButtonState(
     dom,
     !state.isTimesheetApplyAllowed,
-    state.selectedScheduleIds.size > 0,
+    state.selectedScheduleId !== null,
     state.renderedSchedules.length,
     state.currentSnapshot?.month !== null &&
       state.currentSnapshot?.year !== null,

@@ -145,7 +145,7 @@ describe('popup integration tests', () => {
       status: 'complete',
     } as chrome.tabs.Tab;
 
-    it('continues with remaining schedules and reports accumulated errors when one navigation fails', async () => {
+    it('applies only the most recently selected schedule', async () => {
       const storedValues: Record<string, unknown> = {
         [STORAGE_KEYS.projectSchedules]: [
           makeProjectSchedule(
@@ -229,23 +229,20 @@ describe('popup integration tests', () => {
           sections[0].querySelectorAll('li'),
           (item) => item.textContent,
         ),
-      ).toEqual(['Kantooruren', 'Deeltijd']);
-      expect(statusMessage).toContain('Mockproject: alle dagen mislukt');
-      expect(sections).toHaveLength(5);
-      expect(
-        Array.from(
-          sections[1].querySelectorAll('ul ul li'),
-          (item) => item.textContent,
-        ),
-      ).toContain(formatStatusDate('2026-08-01'));
-      expect(statusMessage).toContain('Fouten:');
-      expect(statusMessage).toContain(
-        'Mockproject: Navigatie mislukt voor project',
+      ).toEqual(['Deeltijd']);
+      expect(statusMessage).not.toContain('Mockproject');
+      expect(sections).toHaveLength(3);
+      expect(mockChromeTabsUpdate).toHaveBeenCalledTimes(1);
+      expect(mockChromeTabsUpdate).toHaveBeenCalledWith(
+        99,
+        expect.objectContaining({
+          url: expect.stringContaining('/project/ZTEST_42'),
+        }),
       );
       expect(
         document
           .getElementById('status-box')
-          ?.classList.contains('status-box--error'),
+          ?.classList.contains('status-box--success'),
       ).toBe(true);
     });
 

@@ -91,6 +91,8 @@ flowchart LR
 
 ### Milestone 1: Enforce one selected schedule in popup state and rendering
 
+**Progress:** Complete.
+
 - Replace the set of selected IDs with the nullable single ID in popup model initialization and relevant popup wiring.
 - Update schedule row interaction to replace the previous selection or clear the current selection on repeat activation.
 - Update row rendering, selected styling, accessible checked state, and apply-button enablement to reflect the single ID.
