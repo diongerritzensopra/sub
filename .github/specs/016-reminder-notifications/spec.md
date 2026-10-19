@@ -1,6 +1,6 @@
 # Feature specification: Reminder notifications
 
-**GitHub issue:** [#16](https://github.com/diongerritzensopra/sub/issues/16)
+**GitHub issue:** [#16: Reminder notifications](https://github.com/diongerritzensopra/sub/issues/16)
 
 ## Problem and context
 

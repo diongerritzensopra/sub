@@ -1,6 +1,6 @@
 # Feature specification: Caching
 
-**GitHub issue:** [#24](https://github.com/diongerritzensopra/sub/issues/24)
+**GitHub issue:** [#24: Caching](https://github.com/diongerritzensopra/sub/issues/24)
 
 ## Problem and context
 

@@ -1,6 +1,6 @@
 # Feature specification: General hours schedules
 
-**GitHub issue:** [#13](https://github.com/diongerritzensopra/sub/issues/13)
+**GitHub issue:** [#13: General hours support](https://github.com/diongerritzensopra/sub/issues/13)
 
 ## Problem and context
 

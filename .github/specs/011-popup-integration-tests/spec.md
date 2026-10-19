@@ -1,6 +1,6 @@
 # Feature specification: Popup integration tests
 
-**GitHub issue:** [#11](https://github.com/diongerritzensopra/sub/issues/11)
+**GitHub issue:** [#11: Popup integration tests](https://github.com/diongerritzensopra/sub/issues/11)
 
 ## Problem and context
 

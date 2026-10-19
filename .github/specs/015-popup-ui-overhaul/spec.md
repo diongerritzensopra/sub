@@ -1,6 +1,6 @@
 # Feature specification: Popup UI overhaul
 
-**GitHub issue:** [#15](https://github.com/diongerritzensopra/sub/issues/15)
+**GitHub issue:** [#15: Popup UI overhaul](https://github.com/diongerritzensopra/sub/issues/15)
 
 ## Problem and context
 

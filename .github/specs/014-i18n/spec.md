@@ -1,6 +1,6 @@
 # Feature specification: i18n
 
-**GitHub issue:** [#14](https://github.com/diongerritzensopra/sub/issues/14)
+**GitHub issue:** [#14: i18n](https://github.com/diongerritzensopra/sub/issues/14)
 
 ## Problem and context
 

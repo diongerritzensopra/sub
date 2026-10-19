@@ -1,6 +1,6 @@
 # Feature specification: Project schedules
 
-**GitHub issue:** [#26](https://github.com/diongerritzensopra/sub/issues/26)
+**GitHub issue:** [#26: Project schedules](https://github.com/diongerritzensopra/sub/issues/26)
 
 ## Problem and context
 

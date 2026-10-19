@@ -1,6 +1,6 @@
 # Feature specification: Popup unit test refactoring
 
-**GitHub issue:** [#9](https://github.com/diongerritzensopra/sub/issues/9)
+**GitHub issue:** [#9: Popup unit test refactoring](https://github.com/diongerritzensopra/sub/issues/9)
 
 ## Problem and context
 

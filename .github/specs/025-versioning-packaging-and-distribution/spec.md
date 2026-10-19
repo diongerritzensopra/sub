@@ -1,6 +1,6 @@
 # Feature specification: Versioning, packaging and distribution
 
-**GitHub issue:** [#25](https://github.com/diongerritzensopra/sub/issues/25)
+**GitHub issue:** [#25: Versioning, packaging and distribution](https://github.com/diongerritzensopra/sub/issues/25)
 
 ## Problem and context
 
