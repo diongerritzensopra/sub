@@ -12,9 +12,10 @@
 - UI5-based snapshot reading and autofill that run in the SAP page's MAIN world.
 - Content script and MV3 service worker that monitor SAP page readiness and keep the extension state in sync.
 
-## Feature roadmap
+## Feature specifications and status
 
-- See `FEATURES.md` for the current roadmap and feature status.
+- Feature requirements are documented in issue-linked specifications under `.github/specs/`.
+- The linked GitHub issue is the source of truth for each feature's status.
 
 ## Target URL
 

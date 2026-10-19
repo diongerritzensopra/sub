@@ -2,7 +2,7 @@
 
 ## Code Quality
 
-- Run Prettier on all files you create or edit. After creating or editing any file, run `npx prettier --write <file-path>` or `npx prettier --write src/` to format according to `.prettierrc`.
+- The repository-level Copilot post-tool hook formats supported files changed through agent file-edit tools. Prefer those tools for file changes; do not run Prettier manually after each edit.
 
 ## Project Goal
 
@@ -82,4 +82,4 @@ The popup is composed of modular, independently-testable layers:
 
 - Update this file when architecture, workflow, or SAP-specific targeting changes.
 - Prefer repository-specific instructions to generic advice.
-- Track planned/completed product features in `FEATURES.md`.
+- Document feature requirements in issue-linked specifications under `.github/specs/`; use the linked GitHub issue as the source of truth for feature status.
