@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "hooks": {
+    "PostToolUse": [
+      {
+        "type": "command",
+        "bash": "node scripts/format-agent-edits.mjs",
+        "powershell": "node scripts/format-agent-edits.mjs",
+        "cwd": ".",
+        "timeoutSec": 30
+      }
+    ]
+  }
+}

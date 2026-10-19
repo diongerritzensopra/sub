@@ -2,7 +2,7 @@
 
 ## Code Quality
 
-- Run Prettier on all files you create or edit. After creating or editing any file, run `npx prettier --write <file-path>` or `npx prettier --write src/` to format according to `.prettierrc`.
+- The repository-level Copilot post-tool hook formats supported files changed through agent file-edit tools. Prefer those tools for file changes; do not run Prettier manually after each edit.
 
 ## Project Goal
 
