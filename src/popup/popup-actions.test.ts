@@ -6,7 +6,7 @@ import { getPopupDomRefs } from './popup-dom';
 import type { PopupActionsContext } from './popup-actions';
 import {
   analyseActiveTab,
-  applySchedulesFromSelection,
+  applySelectedSchedule,
   getApplyStatusLevel,
   handleDeleteSchedule,
   handleScheduleFormSubmit,
@@ -38,7 +38,7 @@ import {
   navigateToProject,
 } from './schedule-apply';
 import {
-  getSchedulesToApply,
+  findScheduleById,
   isSapTimesheetEditable,
   isSnapshotComplete,
 } from './popup-model';
@@ -48,7 +48,7 @@ import {
   renderSchedules,
   setScheduleApplyState,
   setScrapeButtonState,
-  updateApplySchedulesButtonState,
+  updateApplyButtonState,
 } from './popup-render';
 
 vi.mock('../shared/storage', () => ({
@@ -81,7 +81,7 @@ vi.mock('./schedule-apply', () => ({
 }));
 
 vi.mock('./popup-model', () => ({
-  getSchedulesToApply: vi.fn(),
+  findScheduleById: vi.fn(),
   isSapTimesheetEditable: vi.fn(),
   isSnapshotComplete: vi.fn(),
 }));
@@ -92,7 +92,7 @@ vi.mock('./popup-render', () => ({
   renderSchedules: vi.fn(),
   setScheduleApplyState: vi.fn(),
   setScrapeButtonState: vi.fn(),
-  updateApplySchedulesButtonState: vi.fn(),
+  updateApplyButtonState: vi.fn(),
 }));
 
 function createSchedule(
@@ -199,7 +199,9 @@ beforeEach(() => {
   vi.mocked(readTimesheetSnapshotViaUi5).mockResolvedValue(createSnapshot());
   vi.mocked(setCachedTimesheetSnapshot).mockResolvedValue();
 
-  vi.mocked(getSchedulesToApply).mockImplementation((rendered) => rendered);
+  vi.mocked(findScheduleById).mockImplementation(
+    (schedules, id) => schedules.find((schedule) => schedule.id === id) ?? null,
+  );
   vi.mocked(isSnapshotComplete).mockReturnValue(true);
   vi.mocked(isSapTimesheetEditable).mockReturnValue(true);
 
@@ -244,7 +246,7 @@ describe('reloadSchedulesDisplay', () => {
     expect(ctx.state.renderedSchedules).toHaveLength(1);
     expect(ctx.state.selectedScheduleId).toBeNull();
     expect(renderSchedules).toHaveBeenCalledTimes(1);
-    expect(updateApplySchedulesButtonState).toHaveBeenCalledTimes(1);
+    expect(updateApplyButtonState).toHaveBeenCalledTimes(1);
   });
 
   it('preserves the selected schedule when it remains available', async () => {
@@ -268,14 +270,14 @@ describe('renderCurrentSchedulesDisplay', () => {
     const onToggleSelection = vi.mocked(renderSchedules).mock.calls[0][3];
     onToggleSelection('a');
     expect(ctx.state.selectedScheduleId).toBe('a');
-    expect(updateApplySchedulesButtonState).toHaveBeenCalledTimes(1);
+    expect(updateApplyButtonState).toHaveBeenCalledTimes(1);
 
     onToggleSelection('b');
     expect(ctx.state.selectedScheduleId).toBe('b');
 
     onToggleSelection('b');
     expect(ctx.state.selectedScheduleId).toBeNull();
-    expect(updateApplySchedulesButtonState).toHaveBeenCalledTimes(3);
+    expect(updateApplyButtonState).toHaveBeenCalledTimes(3);
   });
 });
 
@@ -493,14 +495,13 @@ describe('analyseActiveTab', () => {
   });
 });
 
-describe('applySchedulesFromSelection', () => {
+describe('applySelectedSchedule', () => {
   it('applies and reports only the selected schedule', async () => {
     const ctx = createContext();
     const scheduleA = createSchedule('a', 'C001');
     const scheduleB = createSchedule('b', 'C001');
     ctx.state.renderedSchedules = [scheduleA, scheduleB];
     ctx.state.selectedScheduleId = 'a';
-    vi.mocked(getSchedulesToApply).mockReturnValue([scheduleA, scheduleB]);
     vi.mocked(autofillScheduleEntries).mockResolvedValueOnce({
       totalDaysCount: 31,
       appliedDates: [],
@@ -510,7 +511,7 @@ describe('applySchedulesFromSelection', () => {
       error: 'SAP fout',
     });
 
-    await applySchedulesFromSelection(ctx);
+    await applySelectedSchedule(ctx);
 
     expect(navigateToProject).toHaveBeenCalledTimes(1);
     expect(navigateToProject).toHaveBeenCalledWith(1, 8, 2026, 'C001');
@@ -543,12 +544,11 @@ describe('applySchedulesFromSelection', () => {
     const scheduleB = createSchedule('b', 'C001');
     ctx.state.renderedSchedules = [scheduleA, scheduleB];
     ctx.state.selectedScheduleId = 'a';
-    vi.mocked(getSchedulesToApply).mockReturnValue([scheduleA, scheduleB]);
     vi.mocked(navigateToProject).mockRejectedValue(
       new Error('Navigatie mislukt'),
     );
 
-    await applySchedulesFromSelection(ctx);
+    await applySelectedSchedule(ctx);
 
     expect(navigateToProject).toHaveBeenCalledTimes(1);
     expect(autofillScheduleEntries).not.toHaveBeenCalled();
@@ -588,7 +588,7 @@ describe('applySchedulesFromSelection', () => {
     const ctx = createContext();
     ctx.state.isTimesheetApplyAllowed = false;
 
-    await applySchedulesFromSelection(ctx);
+    await applySelectedSchedule(ctx);
 
     expect(ctx.setStatus).toHaveBeenCalledWith(
       'De timesheet is vergrendeld. Uren boeken en indienen is uitgeschakeld.',
@@ -604,10 +604,10 @@ describe('applySchedulesFromSelection', () => {
     ctx.state.renderedSchedules = [schedule];
     ctx.state.selectedScheduleId = null;
 
-    await applySchedulesFromSelection(ctx);
+    await applySelectedSchedule(ctx);
 
     expect(ctx.setStatus).toHaveBeenCalledWith(
-      'Selecteer minstens één schema om toe te passen.',
+      'Selecteer een schema om toe te passen.',
       true,
       'warning',
     );
@@ -632,12 +632,8 @@ describe('applySchedulesFromSelection', () => {
     const availableSchedule = createSchedule('b', 'C001');
     ctx.state.renderedSchedules = [unavailableSchedule, availableSchedule];
     ctx.state.selectedScheduleId = 'a';
-    vi.mocked(getSchedulesToApply).mockReturnValue([
-      unavailableSchedule,
-      availableSchedule,
-    ]);
 
-    await applySchedulesFromSelection(ctx);
+    await applySelectedSchedule(ctx);
 
     expect(ctx.setStatus).toHaveBeenCalledWith(
       'Project "Unavailable" is niet beschikbaar in het SAP navigatiemenu.',
@@ -655,12 +651,11 @@ describe('applySchedulesFromSelection', () => {
     ctx.state.renderedSchedules = [schedule];
     ctx.state.selectedScheduleId = 'a';
 
-    vi.mocked(getSchedulesToApply).mockReturnValue([schedule]);
     vi.mocked(buildApplyStatusMessage).mockImplementation(() => [
       { text: 'Alles gelukt' },
     ]);
 
-    await applySchedulesFromSelection(ctx);
+    await applySelectedSchedule(ctx);
 
     expect(navigateToProject).toHaveBeenCalledWith(1, 8, 2026, 'C001');
     expect(autofillScheduleEntries).toHaveBeenCalledWith(1, schedule, 8, 2026);
@@ -678,7 +673,7 @@ describe('applySchedulesFromSelection', () => {
       true,
       true,
     );
-    expect(updateApplySchedulesButtonState).toHaveBeenCalledTimes(2);
+    expect(updateApplyButtonState).toHaveBeenCalledTimes(2);
     expect(clearScheduleApplyStates).toHaveBeenCalledWith(ctx.dom);
     expect(setScheduleApplyState).toHaveBeenCalledWith(ctx.dom, 'a', 'success');
   });
@@ -690,7 +685,6 @@ describe('applySchedulesFromSelection', () => {
     ctx.state.renderedSchedules = [scheduleA, scheduleB];
     ctx.state.selectedScheduleId = 'a';
 
-    vi.mocked(getSchedulesToApply).mockReturnValue([scheduleA, scheduleB]);
     vi.mocked(autofillScheduleEntries).mockResolvedValue({
       totalDaysCount: 3,
       appliedDates: ['2026-08-03', '2026-08-04', '2026-08-05'],
@@ -700,7 +694,7 @@ describe('applySchedulesFromSelection', () => {
       error: undefined,
     });
 
-    await applySchedulesFromSelection(ctx);
+    await applySelectedSchedule(ctx);
 
     expect(setScheduleApplyState).toHaveBeenCalledWith(
       ctx.dom,
@@ -762,12 +756,11 @@ describe('applySchedulesFromSelection', () => {
     ctx.state.renderedSchedules = [schedule];
     ctx.state.selectedScheduleId = 'gh-1';
 
-    vi.mocked(getSchedulesToApply).mockReturnValue([schedule]);
     vi.mocked(buildApplyStatusMessage).mockImplementation(() => [
       { text: 'Algemene uren toegepast' },
     ]);
 
-    await applySchedulesFromSelection(ctx);
+    await applySelectedSchedule(ctx);
 
     expect(navigateToProject).toHaveBeenCalledWith(1, 8, 2026, 'MISC');
     expect(autofillScheduleEntries).toHaveBeenCalledWith(1, schedule, 8, 2026);
@@ -784,7 +777,6 @@ describe('applySchedulesFromSelection', () => {
     ctx.state.renderedSchedules = [schedule];
     ctx.state.selectedScheduleId = 'a';
 
-    vi.mocked(getSchedulesToApply).mockReturnValue([schedule]);
     vi.mocked(buildApplyStatusMessage).mockImplementation(() => [
       { text: 'Basisstatus' },
     ]);
@@ -797,7 +789,7 @@ describe('applySchedulesFromSelection', () => {
       error: 'SAP fout',
     });
 
-    await applySchedulesFromSelection(ctx);
+    await applySelectedSchedule(ctx);
 
     const finalCall = vi.mocked(ctx.setStatus).mock.calls.at(-1);
     expect(finalCall?.[0]).toEqual([

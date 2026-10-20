@@ -22,7 +22,7 @@ import {
 import type { PopupDomRefs } from './popup-dom';
 import type { PopupState } from './popup-model';
 import {
-  getSchedulesToApply,
+  findScheduleById,
   isSapTimesheetEditable,
   isSnapshotComplete,
 } from './popup-model';
@@ -38,7 +38,7 @@ import {
   renderSchedules,
   setScheduleApplyState,
   setScrapeButtonState,
-  updateApplySchedulesButtonState,
+  updateApplyButtonState,
 } from './popup-render';
 import {
   decodeScheduleTargetSelectValue,
@@ -98,11 +98,11 @@ function hasCurrentPeriod(state: PopupState): boolean {
   );
 }
 
-function syncApplySchedulesButtonState(
+function syncApplyButtonState(
   ctx: PopupActionsContext,
   isApplying: boolean = false,
 ): void {
-  updateApplySchedulesButtonState(
+  updateApplyButtonState(
     ctx.dom,
     !ctx.state.isTimesheetApplyAllowed,
     ctx.state.selectedScheduleId !== null,
@@ -120,7 +120,7 @@ function renderSchedulesFromState(ctx: PopupActionsContext): void {
     (scheduleId) => {
       ctx.state.selectedScheduleId =
         ctx.state.selectedScheduleId === scheduleId ? null : scheduleId;
-      syncApplySchedulesButtonState(ctx);
+      syncApplyButtonState(ctx);
     },
     ctx.openScheduleFormForEdit,
     (scheduleId) => {
@@ -144,7 +144,7 @@ export async function reloadSchedulesDisplay(
 
   renderSchedulesFromState(ctx);
 
-  syncApplySchedulesButtonState(ctx);
+  syncApplyButtonState(ctx);
 }
 
 export function renderCurrentSchedulesDisplay(ctx: PopupActionsContext): void {
@@ -231,7 +231,7 @@ export async function handleScheduleFormSubmit(
   }
 }
 
-export async function applySchedulesFromSelection(
+export async function applySelectedSchedule(
   ctx: PopupActionsContext,
 ): Promise<void> {
   if (!ctx.state.isTimesheetApplyAllowed) {
@@ -256,26 +256,20 @@ export async function applySchedulesFromSelection(
   const year = ctx.state.currentSnapshot.year;
 
   if (ctx.state.selectedScheduleId === null) {
-    ctx.setStatus(
-      'Selecteer minstens één schema om toe te passen.',
-      true,
-      'warning',
-    );
+    ctx.setStatus('Selecteer een schema om toe te passen.', true, 'warning');
     return;
   }
 
-  const schedulesToApply = getSchedulesToApply(
+  const schedule = findScheduleById(
     ctx.state.renderedSchedules,
     ctx.state.selectedScheduleId,
   );
-  if (schedulesToApply.length === 0) {
-    ctx.setStatus("Geen schema's beschikbaar om toe te passen.", true, 'error');
-    return;
-  }
-
-  const schedule = schedulesToApply[0];
   if (!schedule) {
-    ctx.setStatus("Geen schema's beschikbaar om toe te passen.", true, 'error');
+    ctx.setStatus(
+      'Het geselecteerde schema is niet beschikbaar om toe te passen.',
+      true,
+      'error',
+    );
     return;
   }
 
@@ -315,7 +309,7 @@ export async function applySchedulesFromSelection(
       return;
     }
 
-    syncApplySchedulesButtonState(ctx, true);
+    syncApplyButtonState(ctx, true);
     clearScheduleApplyStates(ctx.dom);
     setScheduleApplyState(ctx.dom, schedule.id, 'applying');
 
@@ -410,7 +404,7 @@ export async function applySchedulesFromSelection(
   } catch (error) {
     ctx.setStatus((error as Error).message, true, 'error');
   } finally {
-    syncApplySchedulesButtonState(ctx);
+    syncApplyButtonState(ctx);
   }
 }
 

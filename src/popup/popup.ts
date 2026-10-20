@@ -23,7 +23,7 @@ import {
 } from './popup-model';
 import {
   analyseActiveTab,
-  applySchedulesFromSelection,
+  applySelectedSchedule,
   handleScheduleFormSubmit,
   type PopupActionsContext,
   reloadSchedulesDisplay,
@@ -36,7 +36,7 @@ import {
   renderStatusMessage,
   showScheduleForm as showScheduleFormCore,
   updateAddScheduleButtonState,
-  updateApplySchedulesButtonState,
+  updateApplyButtonState,
 } from './popup-render';
 
 // Popup state
@@ -68,8 +68,8 @@ dom.addScheduleButton.addEventListener('click', () => {
   openScheduleFormFromLatestSnapshot();
 });
 
-dom.applySchedulesButton.addEventListener('click', () => {
-  void applySchedulesFromSelection(createActionsContext());
+dom.applyScheduleButton.addEventListener('click', () => {
+  void applySelectedSchedule(createActionsContext());
 });
 
 // Form submission
@@ -119,7 +119,7 @@ function openScheduleFormForEdit(schedule: WeeklySchedule): void {
 
 function setTimesheetApplyAllowedState(editable: boolean): void {
   state.isTimesheetApplyAllowed = editable;
-  updateApplySchedulesButtonState(
+  updateApplyButtonState(
     dom,
     !editable,
     state.selectedScheduleId !== null,
@@ -157,7 +157,7 @@ export function renderSnapshot(
     setTimesheetApplyAllowedState(isSapTimesheetEditable(snapshot.sapStatus));
   }
   updateAddScheduleButtonState(dom, state.currentSnapshot !== null);
-  updateApplySchedulesButtonState(
+  updateApplyButtonState(
     dom,
     !state.isTimesheetApplyAllowed,
     state.selectedScheduleId !== null,

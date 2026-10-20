@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { TimesheetSnapshot, WeeklySchedule } from '../shared/types';
 import {
   createInitialPopupState,
-  getSchedulesToApply,
+  findScheduleById,
   isSapTimesheetEditable,
   isSnapshotComplete,
   resolveValidationPeriod,
@@ -182,30 +182,24 @@ describe('resolveValidationPeriod', () => {
   });
 });
 
-describe('getSchedulesToApply', () => {
-  it('returns nothing when no schedule is selected', () => {
-    const schedules = [createSchedule('a'), createSchedule('b')];
-
-    expect(getSchedulesToApply(schedules, null)).toEqual([]);
-  });
-
-  it('returns only the selected schedule', () => {
+describe('findScheduleById', () => {
+  it('returns the schedule matching the given id', () => {
     const schedules = [
       createSchedule('a'),
       createSchedule('b'),
       createSchedule('c'),
     ];
 
-    const selected = getSchedulesToApply(schedules, 'c');
+    const schedule = findScheduleById(schedules, 'c');
 
-    expect(selected).toEqual([schedules[2]]);
+    expect(schedule).toBe(schedules[2]);
   });
 
-  it('ignores a selected id that is not in rendered schedules', () => {
+  it('returns null when no schedule matches the given id', () => {
     const schedules = [createSchedule('a')];
 
-    const selected = getSchedulesToApply(schedules, 'missing');
+    const schedule = findScheduleById(schedules, 'missing');
 
-    expect(selected).toEqual([]);
+    expect(schedule).toBeNull();
   });
 });

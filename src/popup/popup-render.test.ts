@@ -15,7 +15,7 @@ import {
   setScrapeButtonState,
   showScheduleForm,
   updateAddScheduleButtonState,
-  updateApplySchedulesButtonState,
+  updateApplyButtonState,
 } from './popup-render';
 import {
   createGeneralHoursSchedule,
@@ -548,22 +548,22 @@ describe('simple DOM state helpers', () => {
   it('updates apply button state for selection, locking and apply progress', () => {
     const dom = getPopupDomRefs(document);
 
-    updateApplySchedulesButtonState(dom, false, false, 2, true, false);
-    expect(dom.applySchedulesButton.disabled).toBe(true);
-    expect(dom.applySchedulesButton.textContent).toBe('Toepassen');
+    updateApplyButtonState(dom, false, false, 2, true, false);
+    expect(dom.applyScheduleButton.disabled).toBe(true);
+    expect(dom.applyScheduleButton.textContent).toBe('Toepassen');
 
-    updateApplySchedulesButtonState(dom, false, true, 2, true, false);
-    expect(dom.applySchedulesButton.disabled).toBe(false);
-    expect(dom.applySchedulesButton.textContent).toBe('Toepassen');
+    updateApplyButtonState(dom, false, true, 2, true, false);
+    expect(dom.applyScheduleButton.disabled).toBe(false);
+    expect(dom.applyScheduleButton.textContent).toBe('Toepassen');
 
-    updateApplySchedulesButtonState(dom, true, true, 2, true, false);
-    expect(dom.applySchedulesButton.disabled).toBe(true);
-    expect(dom.applySchedulesButton.classList.contains('is-locked')).toBe(true);
+    updateApplyButtonState(dom, true, true, 2, true, false);
+    expect(dom.applyScheduleButton.disabled).toBe(true);
+    expect(dom.applyScheduleButton.classList.contains('is-locked')).toBe(true);
 
-    updateApplySchedulesButtonState(dom, false, true, 2, true, true);
-    expect(dom.applySchedulesButton.disabled).toBe(true);
-    expect(dom.applySchedulesButton.textContent).toBe('Bezig...');
-    expect(dom.applySchedulesButton.classList.contains('is-applying')).toBe(
+    updateApplyButtonState(dom, false, true, 2, true, true);
+    expect(dom.applyScheduleButton.disabled).toBe(true);
+    expect(dom.applyScheduleButton.textContent).toBe('Bezig...');
+    expect(dom.applyScheduleButton.classList.contains('is-applying')).toBe(
       true,
     );
   });

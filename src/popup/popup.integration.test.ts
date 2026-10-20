@@ -226,7 +226,7 @@ describe('popup integration tests', () => {
       });
 
       const applyButton = document.getElementById(
-        'btn-apply-schedules',
+        'btn-apply-schedule',
       ) as HTMLButtonElement;
       document
         .querySelectorAll<HTMLLIElement>('#schedules-list .schedule-item')
@@ -300,7 +300,7 @@ describe('popup integration tests', () => {
       mockChromeTabsGet.mockResolvedValue(sameProjectTab);
 
       const applyButton = document.getElementById(
-        'btn-apply-schedules',
+        'btn-apply-schedule',
       ) as HTMLButtonElement;
       document
         .querySelectorAll<HTMLLIElement>('#schedules-list .schedule-item')
@@ -450,12 +450,12 @@ describe('popup integration tests', () => {
           ?.classList.contains('status-box--warning'),
       ).toBe(true);
       expect(
-        (document.getElementById('btn-apply-schedules') as HTMLButtonElement)
+        (document.getElementById('btn-apply-schedule') as HTMLButtonElement)
           .disabled,
       ).toBe(true);
       expect(
         document
-          .getElementById('btn-apply-schedules')
+          .getElementById('btn-apply-schedule')
           ?.classList.contains('is-locked'),
       ).toBe(true);
     });
@@ -558,7 +558,7 @@ describe('popup integration tests', () => {
         false,
       );
       expect(
-        (document.getElementById('btn-apply-schedules') as HTMLButtonElement)
+        (document.getElementById('btn-apply-schedule') as HTMLButtonElement)
           .disabled,
       ).toBe(true);
 

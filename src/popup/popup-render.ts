@@ -542,9 +542,9 @@ export function updateAddScheduleButtonState(
 }
 
 /**
- * Update the "Apply Schedules" button state (disabled, text, visual flags).
+ * Update the apply button state (disabled, text, visual flags).
  */
-export function updateApplySchedulesButtonState(
+export function updateApplyButtonState(
   dom: PopupDomRefs,
   isLocked: boolean,
   hasSelection: boolean,
@@ -552,7 +552,7 @@ export function updateApplySchedulesButtonState(
   hasPeriod: boolean,
   isApplying: boolean = false,
 ): void {
-  const button = dom.applySchedulesButton;
+  const button = dom.applyScheduleButton;
   button.textContent = isApplying ? 'Bezig...' : 'Toepassen';
   button.classList.remove('is-applying');
 

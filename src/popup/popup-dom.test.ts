@@ -37,8 +37,8 @@ describe('getPopupDomRefs', () => {
     expect(dom.addScheduleButton).toBe(
       document.getElementById('btn-add-schedule'),
     );
-    expect(dom.applySchedulesButton).toBe(
-      document.getElementById('btn-apply-schedules'),
+    expect(dom.applyScheduleButton).toBe(
+      document.getElementById('btn-apply-schedule'),
     );
     expect(dom.scheduleFormSection).toBe(
       document.getElementById('schedule-form-section'),

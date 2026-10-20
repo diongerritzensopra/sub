@@ -160,7 +160,7 @@ export function setupPopupDom(): void {
             </div>
           </form>
           </section>
-          <button id="btn-apply-schedules" type="button" disabled>Toepassen</button>
+          <button id="btn-apply-schedule" type="button" disabled>Toepassen</button>
         </section>
       </main>
     </div>
