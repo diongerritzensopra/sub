@@ -114,6 +114,20 @@ describe('popup integration tests', () => {
       },
     });
 
+    const makeGeneralHoursSchedule = (
+      id: string,
+      label: string,
+      targetCode: string,
+      targetName: string,
+    ): WeeklySchedule => ({
+      ...makeProjectSchedule(id, label, targetCode, targetName),
+      target: {
+        targetType: 'general-hours',
+        targetCode,
+        targetLabel: targetName,
+      },
+    });
+
     const snapshot: TimesheetSnapshot = {
       month: 5,
       year: 2026,
@@ -145,7 +159,7 @@ describe('popup integration tests', () => {
       status: 'complete',
     } as chrome.tabs.Tab;
 
-    it('applies only the most recently selected schedule', async () => {
+    it('replaces a project selection with a general-hours schedule and applies only it', async () => {
       const storedValues: Record<string, unknown> = {
         [STORAGE_KEYS.projectSchedules]: [
           makeProjectSchedule(
@@ -154,7 +168,12 @@ describe('popup integration tests', () => {
             'ZMOCK_001.1.1',
             'Mockproject',
           ),
-          makeProjectSchedule('s2', 'Deeltijd', 'ZTEST_42', 'Testproject 42'),
+          makeGeneralHoursSchedule(
+            's2',
+            'Algemene uren',
+            'MISC',
+            'Commercial hours',
+          ),
         ],
       };
       mockChromeStorageLocalGet.mockImplementation((keys, callback) => {
@@ -222,21 +241,28 @@ describe('popup integration tests', () => {
         '#status-message .status-message-section',
       );
       expect(sections[0].querySelector('strong')?.textContent).toBe(
-        "Toegepaste schema's:",
+        'Toegepast schema:',
       );
       expect(
         Array.from(
           sections[0].querySelectorAll('li'),
           (item) => item.textContent,
         ),
-      ).toEqual(['Deeltijd']);
+      ).toEqual(['Algemene uren']);
       expect(statusMessage).not.toContain('Mockproject');
       expect(sections).toHaveLength(3);
+      expect(sections[1].querySelectorAll('ul ul')).toHaveLength(0);
+      expect(
+        Array.from(
+          sections[1].querySelectorAll('ul > li'),
+          (item) => item.textContent,
+        ),
+      ).toEqual([formatStatusDate('2026-08-01')]);
       expect(mockChromeTabsUpdate).toHaveBeenCalledTimes(1);
       expect(mockChromeTabsUpdate).toHaveBeenCalledWith(
         99,
         expect.objectContaining({
-          url: expect.stringContaining('/project/ZTEST_42'),
+          url: expect.stringContaining('/project/MISC'),
         }),
       );
       expect(
@@ -289,9 +315,13 @@ describe('popup integration tests', () => {
         '#status-message .status-message-section',
       );
       expect(sections[0].querySelector('strong')?.textContent).toBe(
-        "Toegepaste schema's:",
+        'Toegepast schema:',
       );
       expect(sections[0].querySelector('li')?.textContent).toBe('Kantooruren');
+      expect(sections[1].querySelectorAll('ul ul')).toHaveLength(0);
+      expect(sections[1].querySelector('ul > li')?.textContent).toBe(
+        formatStatusDate('2026-08-03'),
+      );
       expect(document.getElementById('status-message')?.textContent).toContain(
         'Bijgewerkte dagen: 1/',
       );

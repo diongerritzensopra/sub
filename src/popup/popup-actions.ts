@@ -15,7 +15,6 @@ import { expandWeeklyScheduleToMonthEntries } from '../shared/schedule-expansion
 import { deleteSchedule, getSchedules, saveSchedule } from '../shared/storage';
 import { getSAPBusyStateForTab } from '../shared/busy-state';
 import {
-  addDatesForTarget,
   autofillScheduleEntries,
   buildApplyStatusMessage,
   navigateToProject,
@@ -274,26 +273,30 @@ export async function applySchedulesFromSelection(
     return;
   }
 
-  for (const schedule of schedulesToApply) {
-    const targetLabel = getScheduleTargetDisplayName(schedule.target);
-    const scheduleTarget = schedule.target;
-    const isAvailable = ctx.state.currentSnapshot.targets.some(
-      (item) =>
-        item.targetType === scheduleTarget.targetType &&
-        item.targetCode === scheduleTarget.targetCode,
+  const schedule = schedulesToApply[0];
+  if (!schedule) {
+    ctx.setStatus("Geen schema's beschikbaar om toe te passen.", true, 'error');
+    return;
+  }
+
+  const targetLabel = getScheduleTargetDisplayName(schedule.target);
+  const scheduleTarget = schedule.target;
+  const isAvailable = ctx.state.currentSnapshot.targets.some(
+    (item) =>
+      item.targetType === scheduleTarget.targetType &&
+      item.targetCode === scheduleTarget.targetCode,
+  );
+  if (!isAvailable) {
+    const unavailableKindMessage =
+      scheduleTarget.targetType === 'project'
+        ? 'Project'
+        : 'Algemene uren type';
+    ctx.setStatus(
+      `${unavailableKindMessage} "${targetLabel}" is niet beschikbaar in het SAP navigatiemenu.`,
+      true,
+      'error',
     );
-    if (!isAvailable) {
-      const unavailableKindMessage =
-        scheduleTarget.targetType === 'project'
-          ? 'Project'
-          : 'Algemene uren type';
-      ctx.setStatus(
-        `${unavailableKindMessage} "${targetLabel}" is niet beschikbaar in het SAP navigatiemenu.`,
-        true,
-        'error',
-      );
-      return;
-    }
+    return;
   }
 
   try {
@@ -314,122 +317,94 @@ export async function applySchedulesFromSelection(
 
     syncApplySchedulesButtonState(ctx, true);
     clearScheduleApplyStates(ctx.dom);
-    schedulesToApply.forEach((schedule) => {
-      setScheduleApplyState(ctx.dom, schedule.id, 'applying');
-    });
+    setScheduleApplyState(ctx.dom, schedule.id, 'applying');
 
-    const appliedDatesByTarget = new Map<string, Set<string>>();
-    const failedDatesByTarget = new Map<string, Set<string>>();
-    const targetDatesByTarget = new Map<string, Set<string>>();
-    let submissionAttemptedCount = 0;
-    let submissionConfirmedCount = 0;
-    const scheduleErrors: string[] = [];
+    const targetDates = expandWeeklyScheduleToMonthEntries(
+      schedule,
+      month,
+      year,
+    ).map((entry) => entry.date);
+    let appliedDates: string[] = [];
+    let failedDates: string[] = [];
+    let submissionAttempted = false;
+    let submissionConfirmed = false;
+    let scheduleError: string | undefined;
 
-    for (const schedule of schedulesToApply) {
-      const targetCode = schedule.target.targetCode;
-      const targetLabel = getScheduleTargetDisplayName(schedule.target);
-      try {
-        await navigateToProject(activeTab.id, month, year, targetCode);
-        const summary = await autofillScheduleEntries(
-          activeTab.id,
-          schedule,
-          month,
-          year,
-        );
+    try {
+      await navigateToProject(
+        activeTab.id,
+        month,
+        year,
+        schedule.target.targetCode,
+      );
+      const summary = await autofillScheduleEntries(
+        activeTab.id,
+        schedule,
+        month,
+        year,
+      );
 
-        addDatesForTarget(
-          appliedDatesByTarget,
-          targetLabel,
-          summary.appliedDates,
+      appliedDates = summary.appliedDates;
+      failedDates = summary.failedDates;
+      submissionAttempted = summary.submissionAttempted;
+      submissionConfirmed = summary.submissionConfirmed;
+      if (summary.error) {
+        scheduleError = summary.error;
+        setScheduleApplyState(ctx.dom, schedule.id, 'error', summary.error);
+      } else if (summary.failedDates.length > 0) {
+        setScheduleApplyState(
+          ctx.dom,
+          schedule.id,
+          'warning',
+          `${summary.failedDates.length}/${summary.totalDaysCount} dagen mislukt`,
         );
-        addDatesForTarget(
-          targetDatesByTarget,
-          targetLabel,
-          expandWeeklyScheduleToMonthEntries(schedule, month, year).map(
-            (entry) => entry.date,
-          ),
+      } else if (!summary.submissionAttempted) {
+        setScheduleApplyState(
+          ctx.dom,
+          schedule.id,
+          'warning',
+          'Niet ingediend bij SAP',
         );
-        addDatesForTarget(
-          failedDatesByTarget,
-          targetLabel,
-          summary.failedDates,
+      } else if (!summary.submissionConfirmed) {
+        setScheduleApplyState(
+          ctx.dom,
+          schedule.id,
+          'warning',
+          'Geen SAP bevestiging',
         );
-        if (summary.submissionAttempted) {
-          submissionAttemptedCount += 1;
-        }
-        if (summary.submissionConfirmed) {
-          submissionConfirmedCount += 1;
-        }
-        if (summary.error) {
-          scheduleErrors.push(`${targetLabel}: ${summary.error}`);
-          setScheduleApplyState(ctx.dom, schedule.id, 'error', summary.error);
-        } else if (summary.failedDates.length > 0) {
-          setScheduleApplyState(
-            ctx.dom,
-            schedule.id,
-            'warning',
-            `${summary.failedDates.length}/${summary.totalDaysCount} dagen mislukt`,
-          );
-        } else if (!summary.submissionAttempted) {
-          setScheduleApplyState(
-            ctx.dom,
-            schedule.id,
-            'warning',
-            'Niet ingediend bij SAP',
-          );
-        } else if (!summary.submissionConfirmed) {
-          setScheduleApplyState(
-            ctx.dom,
-            schedule.id,
-            'warning',
-            'Geen SAP bevestiging',
-          );
-        } else {
-          setScheduleApplyState(ctx.dom, schedule.id, 'success');
-        }
-      } catch (error) {
-        const scheduleEntries = expandWeeklyScheduleToMonthEntries(
-          schedule,
-          month,
-          year,
-        );
-        addDatesForTarget(
-          targetDatesByTarget,
-          targetLabel,
-          scheduleEntries.map((entry) => entry.date),
-        );
-        addDatesForTarget(
-          failedDatesByTarget,
-          targetLabel,
-          scheduleEntries.map((entry) => entry.date),
-        );
-        const errorMessage = (error as Error).message;
-        scheduleErrors.push(`${targetLabel}: ${errorMessage}`);
-        setScheduleApplyState(ctx.dom, schedule.id, 'error', errorMessage);
+      } else {
+        setScheduleApplyState(ctx.dom, schedule.id, 'success');
       }
+    } catch (error) {
+      failedDates = targetDates;
+      scheduleError = (error as Error).message;
+      setScheduleApplyState(ctx.dom, schedule.id, 'error', scheduleError);
     }
 
     const statusMessage = buildApplyStatusMessage(
-      schedulesToApply,
-      appliedDatesByTarget,
-      failedDatesByTarget,
-      targetDatesByTarget,
-      submissionAttemptedCount,
-      submissionConfirmedCount,
+      schedule,
+      appliedDates,
+      failedDates,
+      targetDates,
+      submissionAttempted,
+      submissionConfirmed,
     );
 
-    if (scheduleErrors.length > 0) {
-      statusMessage.push({ label: 'Fouten:', items: scheduleErrors });
+    if (scheduleError) {
+      statusMessage.push({
+        label: 'Fouten:',
+        items: [`${targetLabel}: ${scheduleError}`],
+      });
     }
 
     ctx.setStatus(
       statusMessage,
       true,
       getApplyStatusLevel(
-        scheduleErrors.length,
-        failedDatesByTarget.size,
-        submissionAttemptedCount,
-        submissionConfirmedCount,
+        scheduleError ? 1 : 0,
+        failedDates.length > 0 ? 1 : 0,
+        Number(submissionAttempted),
+        Number(submissionConfirmed),
       ),
     );
   } catch (error) {

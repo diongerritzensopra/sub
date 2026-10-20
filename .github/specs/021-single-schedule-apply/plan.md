@@ -104,6 +104,8 @@ At all times the popup state contains no more than one selected schedule. Select
 
 ### Milestone 2: Apply and report only the selected schedule
 
+**Progress:** Complete.
+
 - Resolve the selected schedule once at apply time and preserve the existing locked, period, tab, and target validations.
 - Remove iteration across selected schedules and process only that schedule through existing navigation and autofill.
 - Ensure selected-row applying/result state and the popup status summary identify only the submitted schedule; show applied and failed dates without project grouping and use the singular `Toegepast schema:` heading.
