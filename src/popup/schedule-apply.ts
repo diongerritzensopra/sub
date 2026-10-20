@@ -7,11 +7,7 @@
  * - Status message composition for the popup UI
  */
 
-import type {
-  StatusListItem,
-  StatusSection,
-  WeeklySchedule,
-} from '../shared/types';
+import type { StatusSection, WeeklySchedule } from '../shared/types';
 import { getSAPBusyStateForTab } from '../shared/busy-state';
 import { expandWeeklyScheduleToMonthEntries } from '../shared/schedule-expansion';
 import { autofillEntriesViaUi5 } from './ui5-scripting';
@@ -120,75 +116,42 @@ export function formatStatusDate(
   }).format(date);
 }
 
-function sortedDates(dates: Set<string>, locale?: string): string[] {
-  return Array.from(dates)
+function sortedDates(dates: string[], locale?: string): string[] {
+  return [...dates]
     .sort((a, b) => a.localeCompare(b))
     .map((date) => formatStatusDate(date, locale));
 }
 
-export function addDatesForTarget(
-  datesByTarget: Map<string, Set<string>>,
-  targetKey: string,
-  dates: string[],
-): void {
-  if (dates.length === 0) {
-    return;
-  }
-
-  const targetDates = datesByTarget.get(targetKey) ?? new Set<string>();
-  dates.forEach((date) => targetDates.add(date));
-  datesByTarget.set(targetKey, targetDates);
-}
-
-function countDatesByTarget(datesByTarget: Map<string, Set<string>>): number {
-  return Array.from(datesByTarget.values()).reduce(
-    (total, dates) => total + dates.size,
-    0,
-  );
-}
-
-function buildAppliedSchedulesSection(
-  schedules: WeeklySchedule[],
-): StatusSection {
+function buildAppliedScheduleSection(schedule: WeeklySchedule): StatusSection {
   return {
-    label: "Toegepaste schema's:",
-    items: schedules.map((schedule) => schedule.label),
+    label: 'Toegepast schema:',
+    items: [schedule.label],
   };
 }
 
 function buildFailedDatesSection(
-  failedDatesByTarget: Map<string, Set<string>>,
-  targetDatesByTarget: Map<string, Set<string>>,
+  failedDates: string[],
+  targetDates: string[],
 ): StatusSection | undefined {
-  if (failedDatesByTarget.size === 0) {
+  if (failedDates.length === 0) {
     return undefined;
   }
 
-  const items: StatusListItem[] = [];
-  failedDatesByTarget.forEach((failedDates, targetName) => {
-    const targetDates = targetDatesByTarget.get(targetName);
-    if (
-      targetDates &&
-      targetDates.size > 0 &&
-      [...targetDates].every((date) => failedDates.has(date))
-    ) {
-      items.push(`${targetName}: alle dagen mislukt`);
-    } else {
-      items.push({ text: `${targetName}:`, items: sortedDates(failedDates) });
-    }
-  });
+  const allDatesFailed = failedDates.length === targetDates.length;
 
   return {
     label: 'Mislukte dagen:',
-    text: `${countDatesByTarget(failedDatesByTarget)}/${countDatesByTarget(targetDatesByTarget)}`,
-    items,
+    text: `${failedDates.length}/${targetDates.length}`,
+    items: allDatesFailed ? ['Alle dagen mislukt'] : sortedDates(failedDates),
   };
 }
 
 function buildSubmissionSection(
-  submissionAttemptedCount: number,
-  submissionConfirmedCount: number,
+  submissionAttempted: boolean,
+  submissionConfirmed: boolean,
 ): StatusSection {
+  const submissionAttemptedCount = Number(submissionAttempted);
+  const submissionConfirmedCount = Number(submissionConfirmed);
   const counts = `${submissionConfirmedCount}/${submissionAttemptedCount}`;
   let text: string;
   if (submissionAttemptedCount === 0) {
@@ -206,39 +169,32 @@ function buildSubmissionSection(
 }
 
 export function buildApplyStatusMessage(
-  schedules: WeeklySchedule[],
-  appliedDatesByTarget: Map<string, Set<string>>,
-  failedDatesByTarget: Map<string, Set<string>>,
-  targetDatesByTarget: Map<string, Set<string>>,
-  submissionAttemptedCount: number,
-  submissionConfirmedCount: number,
+  schedule: WeeklySchedule,
+  appliedDates: string[],
+  failedDates: string[],
+  targetDates: string[],
+  submissionAttempted: boolean,
+  submissionConfirmed: boolean,
 ): StatusSection[] {
   const sections: StatusSection[] = [
-    buildAppliedSchedulesSection(schedules),
+    buildAppliedScheduleSection(schedule),
     {
       label: 'Bijgewerkte dagen:',
-      text: `${countDatesByTarget(appliedDatesByTarget)}/${countDatesByTarget(targetDatesByTarget)}`,
-      items: Array.from(appliedDatesByTarget).some(
-        ([, dates]) => dates.size > 0,
-      )
-        ? Array.from(appliedDatesByTarget, ([targetName, dates]) => ({
-            text: `${targetName}:`,
-            items: sortedDates(dates),
-          })).filter((target) => target.items.length > 0)
-        : ['Geen dagen bijgewerkt.'],
+      text: `${appliedDates.length}/${targetDates.length}`,
+      items:
+        appliedDates.length > 0
+          ? sortedDates(appliedDates)
+          : ['Geen dagen bijgewerkt.'],
     },
   ];
 
-  const failedDatesSection = buildFailedDatesSection(
-    failedDatesByTarget,
-    targetDatesByTarget,
-  );
+  const failedDatesSection = buildFailedDatesSection(failedDates, targetDates);
   if (failedDatesSection) {
     sections.push(failedDatesSection);
   }
 
   sections.push(
-    buildSubmissionSection(submissionAttemptedCount, submissionConfirmedCount),
+    buildSubmissionSection(submissionAttempted, submissionConfirmed),
   );
   return sections;
 }

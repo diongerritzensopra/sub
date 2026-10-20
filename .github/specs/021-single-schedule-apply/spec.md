@@ -28,6 +28,8 @@ When multiple schedules are selected, users cannot easily tell the order in whic
 - The apply action must be unavailable when no schedule is selected.
 - Applying a schedule must submit only the selected schedule; other saved schedules must not be applied as part of the same action.
 - The popup must show the apply result for the selected schedule only.
+- The applied and failed dates in the apply result must be shown as ungrouped date lists rather than grouped by project.
+- The applied-schedule result heading must use the singular text `Toegepast schema:`.
 - The apply flow must not automatically continue to another schedule or project after processing the selected schedule.
 - The existing target validation, month selection, and locked-timesheet behavior must remain in effect for the selected schedule.
 
@@ -36,7 +38,7 @@ When multiple schedules are selected, users cannot easily tell the order in whic
 1. The popup displays saved project and general-hours schedules.
 2. The user selects one schedule. If another schedule was selected, it becomes unselected.
 3. The user applies the selected schedule.
-4. The extension applies that schedule to its target using the existing flow and displays its result in the popup without aggregating outcomes from other schedules.
+4. The extension applies that schedule to its target using the existing flow and displays its result in the popup without aggregating outcomes from other schedules. The result lists applied and failed dates without project grouping and identifies the applied schedule with the singular heading `Toegepast schema:`.
 
 ## Edge cases
 
@@ -49,6 +51,7 @@ When multiple schedules are selected, users cannot easily tell the order in whic
 - `Given multiple saved schedules, when the user selects a schedule and then selects another, then only the second schedule is selected.`
 - `Given no schedule is selected, when the popup displays its apply controls, then applying is unavailable.`
 - `Given one schedule is selected, when the user applies it, then only that schedule is submitted and the popup shows its result.`
+- `Given a schedule apply result contains applied or failed dates, when the popup displays the result, then dates are listed without project grouping and the applied-schedule heading reads "Toegepast schema:".`
 - `Given project and general-hours schedules are both available, when the user selects one schedule, then no other schedule of either type is selected.`
 - `Given a schedule has been applied, when its apply flow completes, then the extension does not automatically continue to another schedule or project.`
 - `Given the selected schedule's target is unavailable or its timesheet is locked, when the user applies it, then existing validation or lock behavior is preserved and no other schedule is applied.`

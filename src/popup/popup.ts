@@ -23,7 +23,7 @@ import {
 } from './popup-model';
 import {
   analyseActiveTab,
-  applySchedulesFromSelection,
+  applySelectedSchedule,
   handleScheduleFormSubmit,
   type PopupActionsContext,
   reloadSchedulesDisplay,
@@ -36,7 +36,7 @@ import {
   renderStatusMessage,
   showScheduleForm as showScheduleFormCore,
   updateAddScheduleButtonState,
-  updateApplySchedulesButtonState,
+  updateApplyButtonState,
 } from './popup-render';
 
 // Popup state
@@ -68,8 +68,8 @@ dom.addScheduleButton.addEventListener('click', () => {
   openScheduleFormFromLatestSnapshot();
 });
 
-dom.applySchedulesButton.addEventListener('click', () => {
-  void applySchedulesFromSelection(createActionsContext());
+dom.applyScheduleButton.addEventListener('click', () => {
+  void applySelectedSchedule(createActionsContext());
 });
 
 // Form submission
@@ -109,7 +109,9 @@ function openScheduleFormForEdit(schedule: WeeklySchedule): void {
   }
 
   state.scheduleBeingEdited = schedule;
-  state.selectedScheduleIds.delete(schedule.id);
+  if (state.selectedScheduleId === schedule.id) {
+    state.selectedScheduleId = null;
+  }
   renderCurrentSchedulesDisplay(createActionsContext());
   showScheduleFormCore(dom, state.currentSnapshot, schedule);
   setTimesheetApplyAllowedState(state.isTimesheetApplyAllowed);
@@ -117,10 +119,10 @@ function openScheduleFormForEdit(schedule: WeeklySchedule): void {
 
 function setTimesheetApplyAllowedState(editable: boolean): void {
   state.isTimesheetApplyAllowed = editable;
-  updateApplySchedulesButtonState(
+  updateApplyButtonState(
     dom,
     !editable,
-    state.selectedScheduleIds.size > 0,
+    state.selectedScheduleId !== null,
     state.renderedSchedules.length,
     state.currentSnapshot?.month !== null &&
       state.currentSnapshot?.year !== null,
@@ -155,10 +157,10 @@ export function renderSnapshot(
     setTimesheetApplyAllowedState(isSapTimesheetEditable(snapshot.sapStatus));
   }
   updateAddScheduleButtonState(dom, state.currentSnapshot !== null);
-  updateApplySchedulesButtonState(
+  updateApplyButtonState(
     dom,
     !state.isTimesheetApplyAllowed,
-    state.selectedScheduleIds.size > 0,
+    state.selectedScheduleId !== null,
     state.renderedSchedules.length,
     state.currentSnapshot?.month !== null &&
       state.currentSnapshot?.year !== null,

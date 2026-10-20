@@ -364,14 +364,14 @@ h2 {
   font-size: 14px;
 }
 
-#btn-apply-schedules {
+#btn-apply-schedule {
   background: var(--color-brand);
   color: var(--color-on-brand);
   margin-top: 8px;
   width: 100%;
 }
 
-#btn-apply-schedules:hover:not(:disabled) {
+#btn-apply-schedule:hover:not(:disabled) {
   background: var(--color-brand-hover);
 }
 
@@ -390,7 +390,7 @@ h2 {
 }
 
 /* Applying in progress: progress cursor, less faded than normal :disabled */
-#btn-apply-schedules.is-applying {
+#btn-apply-schedule.is-applying {
   cursor: progress;
   opacity: 0.75;
 }

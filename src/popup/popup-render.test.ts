@@ -15,7 +15,7 @@ import {
   setScrapeButtonState,
   showScheduleForm,
   updateAddScheduleButtonState,
-  updateApplySchedulesButtonState,
+  updateApplyButtonState,
 } from './popup-render';
 import {
   createGeneralHoursSchedule,
@@ -155,7 +155,7 @@ describe('renderSchedules', () => {
     style.textContent = popupCss;
     document.head.append(style);
 
-    renderSchedules(dom, [], new Set<string>(), vi.fn(), vi.fn(), vi.fn());
+    renderSchedules(dom, [], null, vi.fn(), vi.fn(), vi.fn());
 
     expect(dom.schedulesEmpty.hidden).toBe(false);
     expect(dom.schedulesList.hidden).toBe(true);
@@ -174,14 +174,7 @@ describe('renderSchedules', () => {
       createSchedule('b', 'UNKNOWN', 'Onbekend project'),
     ];
 
-    renderSchedules(
-      dom,
-      schedules,
-      new Set<string>(['a']),
-      vi.fn(),
-      vi.fn(),
-      vi.fn(),
-    );
+    renderSchedules(dom, schedules, 'a', vi.fn(), vi.fn(), vi.fn());
 
     const items = dom.schedulesList.querySelectorAll('.schedule-item');
     expect(items).toHaveLength(2);
@@ -192,22 +185,22 @@ describe('renderSchedules', () => {
     expect(dom.schedulesList.hidden).toBe(false);
   });
 
-  it('toggles selection via row click and keyboard interactions', () => {
+  it('replaces and clears selection via row click and keyboard interactions', () => {
     const dom = getPopupDomRefs(document);
-    const selected = new Set<string>();
+    let selectedScheduleId: string | null = null;
     const onToggleSelection = vi.fn((scheduleId: string) => {
-      if (selected.has(scheduleId)) {
-        selected.delete(scheduleId);
-      } else {
-        selected.add(scheduleId);
-      }
+      selectedScheduleId =
+        selectedScheduleId === scheduleId ? null : scheduleId;
     });
-    const schedules = [createSchedule('a')];
+    const schedules = [
+      createSchedule('a'),
+      createGeneralHoursSchedule('b', 'MISC', 'Commercial hours'),
+    ];
 
     renderSchedules(
       dom,
       schedules,
-      selected,
+      selectedScheduleId,
       onToggleSelection,
       vi.fn(),
       vi.fn(),
@@ -220,15 +213,36 @@ describe('renderSchedules', () => {
 
     item.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(onToggleSelection).toHaveBeenCalledWith('a');
+    expect(selectedScheduleId).toBe('a');
+    expect(item.classList.contains('schedule-item--selected')).toBe(true);
+    expect(content.getAttribute('aria-checked')).toBe('true');
+
+    const itemB = dom.schedulesList.querySelector(
+      '[data-schedule-id="b"]',
+    ) as HTMLLIElement;
+    const contentB = itemB.querySelector('.schedule-content') as HTMLDivElement;
+    itemB.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(selectedScheduleId).toBe('b');
+    expect(item.classList.contains('schedule-item--selected')).toBe(false);
+    expect(content.getAttribute('aria-checked')).toBe('false');
+    expect(itemB.classList.contains('schedule-item--selected')).toBe(true);
+    expect(contentB.getAttribute('aria-checked')).toBe('true');
+
+    content.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+    );
+    expect(onToggleSelection).toHaveBeenCalledTimes(3);
+    expect(selectedScheduleId).toBe('a');
     expect(item.classList.contains('schedule-item--selected')).toBe(true);
     expect(content.getAttribute('aria-checked')).toBe('true');
 
     content.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
     );
-    expect(onToggleSelection).toHaveBeenCalledTimes(2);
+    expect(onToggleSelection).toHaveBeenCalledTimes(4);
+    expect(selectedScheduleId).toBeNull();
     expect(item.classList.contains('schedule-item--selected')).toBe(false);
-    expect(content.getAttribute('aria-checked')).toBe('false');
+    expect(itemB.classList.contains('schedule-item--selected')).toBe(false);
   });
 
   it('renders general-hours schedules with target type in the accessible label', () => {
@@ -237,14 +251,7 @@ describe('renderSchedules', () => {
       createGeneralHoursSchedule('gh-1', 'MISC', 'Commercial hours'),
     ];
 
-    renderSchedules(
-      dom,
-      schedules,
-      new Set<string>(),
-      vi.fn(),
-      vi.fn(),
-      vi.fn(),
-    );
+    renderSchedules(dom, schedules, null, vi.fn(), vi.fn(), vi.fn());
 
     const item = dom.schedulesList.querySelector(
       '.schedule-item',
@@ -266,7 +273,7 @@ describe('renderSchedules', () => {
     renderSchedules(
       dom,
       [schedule],
-      new Set<string>(),
+      null,
       vi.fn(),
       onEditClick,
       onDeleteConfirm,
@@ -313,14 +320,7 @@ describe('setScheduleApplyState / clearScheduleApplyStates', () => {
   it('shows and hides the applying/success/error indicator on the matching row', () => {
     const dom = getPopupDomRefs(document);
     const schedules = [createSchedule('a'), createSchedule('b')];
-    renderSchedules(
-      dom,
-      schedules,
-      new Set<string>(),
-      vi.fn(),
-      vi.fn(),
-      vi.fn(),
-    );
+    renderSchedules(dom, schedules, null, vi.fn(), vi.fn(), vi.fn());
 
     setScheduleApplyState(dom, 'a', 'applying');
     const rowA = dom.schedulesList.querySelector(
@@ -352,14 +352,7 @@ describe('setScheduleApplyState / clearScheduleApplyStates', () => {
   it('clears every rendered row apply-state indicator', () => {
     const dom = getPopupDomRefs(document);
     const schedules = [createSchedule('a'), createSchedule('b')];
-    renderSchedules(
-      dom,
-      schedules,
-      new Set<string>(),
-      vi.fn(),
-      vi.fn(),
-      vi.fn(),
-    );
+    renderSchedules(dom, schedules, null, vi.fn(), vi.fn(), vi.fn());
 
     setScheduleApplyState(dom, 'a', 'success');
     setScheduleApplyState(dom, 'b', 'error', 'Mislukt');
@@ -456,7 +449,7 @@ describe('schedule form rendering', () => {
     renderSchedules(
       dom,
       [scheduleToEdit],
-      new Set<string>(),
+      null,
       onToggleSelection,
       vi.fn(),
       vi.fn(),
@@ -555,22 +548,22 @@ describe('simple DOM state helpers', () => {
   it('updates apply button state for selection, locking and apply progress', () => {
     const dom = getPopupDomRefs(document);
 
-    updateApplySchedulesButtonState(dom, false, false, 2, true, false);
-    expect(dom.applySchedulesButton.disabled).toBe(true);
-    expect(dom.applySchedulesButton.textContent).toBe('Toepassen');
+    updateApplyButtonState(dom, false, false, 2, true, false);
+    expect(dom.applyScheduleButton.disabled).toBe(true);
+    expect(dom.applyScheduleButton.textContent).toBe('Toepassen');
 
-    updateApplySchedulesButtonState(dom, false, true, 2, true, false);
-    expect(dom.applySchedulesButton.disabled).toBe(false);
-    expect(dom.applySchedulesButton.textContent).toBe('Toepassen');
+    updateApplyButtonState(dom, false, true, 2, true, false);
+    expect(dom.applyScheduleButton.disabled).toBe(false);
+    expect(dom.applyScheduleButton.textContent).toBe('Toepassen');
 
-    updateApplySchedulesButtonState(dom, true, true, 2, true, false);
-    expect(dom.applySchedulesButton.disabled).toBe(true);
-    expect(dom.applySchedulesButton.classList.contains('is-locked')).toBe(true);
+    updateApplyButtonState(dom, true, true, 2, true, false);
+    expect(dom.applyScheduleButton.disabled).toBe(true);
+    expect(dom.applyScheduleButton.classList.contains('is-locked')).toBe(true);
 
-    updateApplySchedulesButtonState(dom, false, true, 2, true, true);
-    expect(dom.applySchedulesButton.disabled).toBe(true);
-    expect(dom.applySchedulesButton.textContent).toBe('Bezig...');
-    expect(dom.applySchedulesButton.classList.contains('is-applying')).toBe(
+    updateApplyButtonState(dom, false, true, 2, true, true);
+    expect(dom.applyScheduleButton.disabled).toBe(true);
+    expect(dom.applyScheduleButton.textContent).toBe('Bezig...');
+    expect(dom.applyScheduleButton.classList.contains('is-applying')).toBe(
       true,
     );
   });

@@ -18,7 +18,7 @@ export type PopupDomRefs = {
   schedulesList: HTMLUListElement;
   schedulesEmpty: HTMLParagraphElement;
   addScheduleButton: HTMLButtonElement;
-  applySchedulesButton: HTMLButtonElement;
+  applyScheduleButton: HTMLButtonElement;
   scheduleFormSection: HTMLElement;
   scheduleForm: HTMLFormElement;
   scheduleFormTitle: HTMLElement;
@@ -91,9 +91,9 @@ export function getPopupDomRefs(document: Document): PopupDomRefs {
       document,
       'btn-add-schedule',
     ),
-    applySchedulesButton: getRequiredElement<HTMLButtonElement>(
+    applyScheduleButton: getRequiredElement<HTMLButtonElement>(
       document,
-      'btn-apply-schedules',
+      'btn-apply-schedule',
     ),
     scheduleFormSection: getRequiredElement<HTMLElement>(
       document,

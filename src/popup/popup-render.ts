@@ -76,7 +76,7 @@ export function renderSnapshot(
  * Render the list of saved schedules.
  * @param dom DOM references
  * @param schedules Schedules to display
- * @param selectedIds Set of selected schedule IDs (for checkbox state)
+ * @param selectedScheduleId Selected schedule ID, if any
  * @param onToggleSelection Callback when user toggles schedule selection
  * @param onEditClick Callback when user clicks edit button
  * @param onDeleteConfirm Callback when user confirms delete
@@ -84,7 +84,7 @@ export function renderSnapshot(
 export function renderSchedules(
   dom: PopupDomRefs,
   schedules: WeeklySchedule[],
-  selectedIds: Set<string>,
+  selectedScheduleId: string | null,
   onToggleSelection: (scheduleId: string) => void,
   onEditClick: (schedule: WeeklySchedule) => void,
   onDeleteConfirm: (scheduleId: string) => void,
@@ -103,13 +103,33 @@ export function renderSchedules(
     return;
   }
 
+  let currentSelectedScheduleId = selectedScheduleId;
+  const updateSelection = (): void => {
+    list
+      .querySelectorAll<HTMLLIElement>('[data-schedule-id]')
+      .forEach((item) => {
+        const isSelected =
+          item.dataset.scheduleId === currentSelectedScheduleId;
+        item.classList.toggle('schedule-item--selected', isSelected);
+        item
+          .querySelector('.schedule-content')
+          ?.setAttribute('aria-checked', String(isSelected));
+      });
+  };
+  const toggleSelection = (scheduleId: string): void => {
+    onToggleSelection(scheduleId);
+    currentSelectedScheduleId =
+      currentSelectedScheduleId === scheduleId ? null : scheduleId;
+    updateSelection();
+  };
+
   const fragment = document.createDocumentFragment();
   schedules.forEach((schedule) => {
     fragment.appendChild(
       renderScheduleListItem(
         schedule,
-        selectedIds,
-        onToggleSelection,
+        currentSelectedScheduleId,
+        toggleSelection,
         onEditClick,
         onDeleteConfirm,
       ),
@@ -126,7 +146,7 @@ export function renderSchedules(
  */
 function renderScheduleListItem(
   schedule: WeeklySchedule,
-  selectedIds: Set<string>,
+  selectedScheduleId: string | null,
   onToggleSelection: (scheduleId: string) => void,
   onEditClick: (schedule: WeeklySchedule) => void,
   onDeleteConfirm: (scheduleId: string) => void,
@@ -134,7 +154,7 @@ function renderScheduleListItem(
   const item = document.createElement('li');
   item.className = 'schedule-item';
   item.dataset.scheduleId = schedule.id;
-  if (selectedIds.has(schedule.id)) {
+  if (selectedScheduleId === schedule.id) {
     item.classList.add('schedule-item--selected');
   }
 
@@ -144,13 +164,6 @@ function renderScheduleListItem(
     }
 
     onToggleSelection(schedule.id);
-    if (selectedIds.has(schedule.id)) {
-      item.classList.add('schedule-item--selected');
-      content.setAttribute('aria-checked', 'true');
-    } else {
-      item.classList.remove('schedule-item--selected');
-      content.setAttribute('aria-checked', 'false');
-    }
   };
 
   item.addEventListener('click', (event) => {
@@ -175,7 +188,7 @@ function renderScheduleListItem(
   content.setAttribute('role', 'checkbox');
   content.setAttribute(
     'aria-checked',
-    selectedIds.has(schedule.id) ? 'true' : 'false',
+    selectedScheduleId === schedule.id ? 'true' : 'false',
   );
   content.setAttribute(
     'aria-label',
@@ -529,9 +542,9 @@ export function updateAddScheduleButtonState(
 }
 
 /**
- * Update the "Apply Schedules" button state (disabled, text, visual flags).
+ * Update the apply button state (disabled, text, visual flags).
  */
-export function updateApplySchedulesButtonState(
+export function updateApplyButtonState(
   dom: PopupDomRefs,
   isLocked: boolean,
   hasSelection: boolean,
@@ -539,7 +552,7 @@ export function updateApplySchedulesButtonState(
   hasPeriod: boolean,
   isApplying: boolean = false,
 ): void {
-  const button = dom.applySchedulesButton;
+  const button = dom.applyScheduleButton;
   button.textContent = isApplying ? 'Bezig...' : 'Toepassen';
   button.classList.remove('is-applying');
 

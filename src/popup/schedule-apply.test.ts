@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WeeklySchedule } from '../shared/types';
 import {
-  addDatesForTarget,
   autofillScheduleEntries,
   buildApplyStatusMessage,
   formatStatusDate,
@@ -155,31 +154,6 @@ describe('buildTimesheetUrlForProject', () => {
   });
 });
 
-describe('addDatesForTarget', () => {
-  it('does nothing when no dates are provided', () => {
-    const datesByTarget = new Map<string, Set<string>>([
-      ['Z1', new Set(['2026-05-01'])],
-    ]);
-    addDatesForTarget(datesByTarget, 'Z1', []);
-
-    expect(datesByTarget.get('Z1')).toEqual(new Set(['2026-05-01']));
-    expect(datesByTarget.size).toBe(1);
-  });
-
-  it('deduplicates dates in each target set', () => {
-    const datesByTarget = new Map<string, Set<string>>([
-      ['Z1', new Set(['2026-05-01'])],
-    ]);
-    addDatesForTarget(datesByTarget, 'Z1', ['2026-05-01', '2026-05-02']);
-    addDatesForTarget(datesByTarget, 'Z2', ['2026-05-03']);
-
-    expect(datesByTarget.get('Z1')).toEqual(
-      new Set(['2026-05-01', '2026-05-02']),
-    );
-    expect(datesByTarget.get('Z2')).toEqual(new Set(['2026-05-03']));
-  });
-});
-
 describe('formatStatusDate', () => {
   it('formats ISO dates with a weekday and without a year in the requested locale', () => {
     expect(formatStatusDate('2026-10-05', 'en-US')).toBe('Mon, Oct 5');
@@ -196,30 +170,20 @@ describe('formatStatusDate', () => {
 describe('buildApplyStatusMessage', () => {
   it('builds status for one schedule without submit attempt', () => {
     const message = buildApplyStatusMessage(
-      [BASE_SCHEDULE],
-      new Map([['Mockproject', new Set(['2026-05-01', '2026-05-02'])]]),
-      new Map(),
-      new Map([
-        ['Mockproject', new Set(['2026-05-01', '2026-05-02', '2026-05-03'])],
-      ]),
-      0,
-      0,
+      BASE_SCHEDULE,
+      ['2026-05-01', '2026-05-02'],
+      [],
+      ['2026-05-01', '2026-05-02', '2026-05-03'],
+      false,
+      false,
     );
 
     expect(message).toEqual([
-      { label: "Toegepaste schema's:", items: ['Kantooruren'] },
+      { label: 'Toegepast schema:', items: ['Kantooruren'] },
       {
         label: 'Bijgewerkte dagen:',
         text: '2/3',
-        items: [
-          {
-            text: 'Mockproject:',
-            items: [
-              formatStatusDate('2026-05-01'),
-              formatStatusDate('2026-05-02'),
-            ],
-          },
-        ],
+        items: [formatStatusDate('2026-05-01'), formatStatusDate('2026-05-02')],
       },
       {
         label: 'Verwerkt door SAP:',
@@ -228,146 +192,89 @@ describe('buildApplyStatusMessage', () => {
     ]);
   });
 
-  it('lists sorted unique failed dates per target and full submit confirmation', () => {
+  it('lists applied and failed dates in sorted order without target grouping', () => {
     const message = buildApplyStatusMessage(
-      [
-        BASE_SCHEDULE,
-        {
-          ...BASE_SCHEDULE,
-          id: 'schedule-2',
-          label: 'Deeltijd',
-          target: {
-            targetType: 'project',
-            targetCode: 'ZTEST_42',
-            targetLabel: 'Testproject 42',
-          },
-        },
-      ],
-      new Map([['Mockproject', new Set(['2026-05-01', '2026-05-03'])]]),
-      new Map([
-        ['Mockproject', new Set(['2026-05-02', '2026-05-04', '2026-05-05'])],
-      ]),
-      new Map([
-        [
-          'Mockproject',
-          new Set([
-            '2026-05-01',
-            '2026-05-02',
-            '2026-05-03',
-            '2026-05-04',
-            '2026-05-05',
-          ]),
-        ],
-      ]),
-      2,
-      2,
+      BASE_SCHEDULE,
+      ['2026-05-03', '2026-05-01'],
+      ['2026-05-05', '2026-05-02', '2026-05-04'],
+      ['2026-05-01', '2026-05-02', '2026-05-03', '2026-05-04', '2026-05-05'],
+      true,
+      true,
     );
 
     expect(message).toEqual([
-      {
-        label: "Toegepaste schema's:",
-        items: ['Kantooruren', 'Deeltijd'],
-      },
+      { label: 'Toegepast schema:', items: ['Kantooruren'] },
       {
         label: 'Bijgewerkte dagen:',
         text: '2/5',
-        items: [
-          {
-            text: 'Mockproject:',
-            items: [
-              formatStatusDate('2026-05-01'),
-              formatStatusDate('2026-05-03'),
-            ],
-          },
-        ],
+        items: [formatStatusDate('2026-05-01'), formatStatusDate('2026-05-03')],
       },
       {
         label: 'Mislukte dagen:',
         text: '3/5',
         items: [
-          {
-            text: 'Mockproject:',
-            items: [
-              formatStatusDate('2026-05-02'),
-              formatStatusDate('2026-05-04'),
-              formatStatusDate('2026-05-05'),
-            ],
-          },
+          formatStatusDate('2026-05-02'),
+          formatStatusDate('2026-05-04'),
+          formatStatusDate('2026-05-05'),
         ],
       },
       {
         label: 'Verwerkt door SAP:',
-        text: '2/2 (alles ingediend)',
+        text: '1/1 (alles ingediend)',
       },
     ]);
   });
 
-  it('states that all days failed instead of listing them for a fully failed target', () => {
+  it('lists failed dates directly when only some dates failed', () => {
     const message = buildApplyStatusMessage(
-      [BASE_SCHEDULE],
-      new Map(),
-      new Map<string, Set<string>>([
-        ['Mockproject', new Set(['2026-05-01', '2026-05-02'])],
-        ['Testproject 42', new Set(['2026-05-04'])],
-      ]),
-      new Map([
-        ['Mockproject', new Set(['2026-05-01', '2026-05-02'])],
-        ['Testproject 42', new Set(['2026-05-04', '2026-05-05'])],
-      ]),
-      1,
-      1,
+      BASE_SCHEDULE,
+      [],
+      ['2026-05-01', '2026-05-02', '2026-05-04'],
+      ['2026-05-01', '2026-05-02', '2026-05-04', '2026-05-05'],
+      false,
+      false,
     );
 
     expect(message[2]).toEqual({
       label: 'Mislukte dagen:',
       text: '3/4',
       items: [
-        'Mockproject: alle dagen mislukt',
-        {
-          text: 'Testproject 42:',
-          items: [formatStatusDate('2026-05-04')],
-        },
+        formatStatusDate('2026-05-01'),
+        formatStatusDate('2026-05-02'),
+        formatStatusDate('2026-05-04'),
       ],
     });
   });
 
-  it('uses distinct target dates when schedules overlap and one fails', () => {
-    const targetDates = new Map<string, Set<string>>();
-    addDatesForTarget(targetDates, 'Mockproject', ['2026-05-01', '2026-05-02']);
-    addDatesForTarget(targetDates, 'Mockproject', ['2026-05-01', '2026-05-02']);
-
+  it('shows a general message when all dates failed', () => {
     const message = buildApplyStatusMessage(
-      [BASE_SCHEDULE, { ...BASE_SCHEDULE, id: 'schedule-2' }],
-      new Map(),
-      new Map([['Mockproject', new Set(['2026-05-01', '2026-05-02'])]]),
-      targetDates,
-      0,
-      0,
+      BASE_SCHEDULE,
+      [],
+      ['2026-05-01', '2026-05-02', '2026-05-04'],
+      ['2026-05-01', '2026-05-02', '2026-05-04'],
+      false,
+      false,
     );
 
-    expect(message[1]).toMatchObject({
-      label: 'Bijgewerkte dagen:',
-      text: '0/2',
-    });
     expect(message[2]).toEqual({
       label: 'Mislukte dagen:',
-      text: '2/2',
-      items: ['Mockproject: alle dagen mislukt'],
+      text: '3/3',
+      items: ['Alle dagen mislukt'],
     });
   });
 
-  it('distinguishes partial confirmation from full confirmation', () => {
+  it('distinguishes attempted but unconfirmed submission', () => {
     const message = buildApplyStatusMessage(
-      [BASE_SCHEDULE],
-      new Map(),
-      new Map(),
-      new Map(),
-      2,
-      1,
+      BASE_SCHEDULE,
+      [],
+      [],
+      [],
+      true,
+      false,
     );
     expect(message.at(-1)).toEqual({
       label: 'Verwerkt door SAP:',
-      text: '1/2 (gedeeltelijk ingediend)',
+      text: '0/1 (gedeeltelijk ingediend)',
     });
   });
 });
