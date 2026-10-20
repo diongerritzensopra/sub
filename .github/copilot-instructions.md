@@ -2,7 +2,7 @@
 
 ## Code Quality
 
-- The repository-level Copilot post-tool hook formats supported files changed through agent file-edit tools. Prefer those tools for file changes; do not run Prettier manually after each edit.
+- Keep changed files formatted according to the repository's Prettier configuration.
 
 ## Project Goal
 
